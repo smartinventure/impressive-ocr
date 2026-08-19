@@ -1,0 +1,7 @@
+{
+  "name": "@impressive-ocr/tsconfig",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "files": ["base.json", "node.json", "vue.json"]
+}

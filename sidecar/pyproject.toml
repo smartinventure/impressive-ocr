@@ -1,0 +1,71 @@
+[project]
+name = "impressive-ocr-sidecar"
+version = "0.1.0"
+description = "PaddleOCR worker process for Impressive OCR"
+license = { text = "AGPL-3.0-or-later" }
+requires-python = ">=3.11,<3.14"
+
+# PaddleOCR and the inference engine (paddlepaddle / paddlepaddle-gpu) are NOT listed here.
+# They are installed at runtime by the backend's bootstrap, which must pick the CPU or GPU
+# wheel index after probing the hardware. Pinning them here would force one flavour on
+# everyone. See apps/server/src/modules/runtime/.
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "pydantic>=2.10",
+    "pymupdf>=1.25",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "httpx>=0.28",
+    "ruff>=0.9",
+    "mypy>=1.14",
+]
+
+[project.scripts]
+impressive-ocr-sidecar = "impressive_ocr_sidecar.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/impressive_ocr_sidecar"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# BLE is deliberate: PaddleOCR and PyMuPDF both raise bare Exception, so every blind
+# except must carry a noqa explaining which library forced it.
+select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "RUF", "ANN", "PTH"]
+ignore = ["ANN401"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["ANN"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+# Without this, mypy builds model constructors from the camelCase aliases and rejects every
+# call made with the snake_case field names that populate_by_name allows.
+plugins = ["pydantic.mypy"]
+# PyMuPDF ships partial annotations: pymupdf.Document.__init__ is untyped, so every
+# pymupdf.open() trips strict mode. Exempt only that package's calls; the rest of our
+# code stays under the full no-untyped-call check.
+untyped_calls_exclude = ["pymupdf"]
+# PaddleOCR ships no type stubs and is imported lazily behind a Protocol.
+[[tool.mypy.overrides]]
+module = ["paddleocr.*", "paddle.*"]
+ignore_missing_imports = true
+
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

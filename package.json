@@ -1,0 +1,36 @@
+{
+  "name": "impressive-ocr",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Folder-watching OCR workstation powered by PaddleOCR",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter @impressive-ocr/server --filter @impressive-ocr/web dev",
+    "dev:server": "pnpm --filter @impressive-ocr/server dev",
+    "dev:web": "pnpm --filter @impressive-ocr/web dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @impressive-ocr/db generate"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.6",
+    "eslint": "^9.18.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-vue": "^9.32.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.20.0",
+    "vue-eslint-parser": "^9.4.3"
+  }
+}

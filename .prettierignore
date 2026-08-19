@@ -1,0 +1,9 @@
+node_modules/
+dist/
+build/
+out/
+coverage/
+.venv/
+sidecar/
+pnpm-lock.yaml
+*.md

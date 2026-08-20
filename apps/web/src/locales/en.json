@@ -1,0 +1,251 @@
+{
+  "app": {
+    "name": "Impressive OCR",
+    "tagline": "Local-first document OCR"
+  },
+  "nav": {
+    "pipelines": "Pipelines",
+    "jobs": "Jobs",
+    "status": "System",
+    "settings": "Settings"
+  },
+  "common": {
+    "select": "Select",
+    "cancel": "Cancel",
+    "create": "Create",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "retry": "Retry",
+    "close": "Close",
+    "loading": "Loading…",
+    "of": "of"
+  },
+  "status": {
+    "queued": "Queued",
+    "running": "Running",
+    "paused": "Paused",
+    "succeeded": "Succeeded",
+    "failed": "Failed",
+    "quarantined": "Quarantined"
+  },
+  "pipelineStatus": {
+    "running": "Running",
+    "idle": "Idle",
+    "paused": "Paused",
+    "blocked": "Blocked",
+    "error": "Error"
+  },
+  "connection": {
+    "connecting": "Connecting…",
+    "open": "Live",
+    "reconnecting": "Reconnecting…"
+  },
+  "pipelines": {
+    "title": "Pipelines",
+    "newPipeline": "New pipeline",
+    "empty": "No pipelines yet",
+    "emptyHint": "A pipeline watches a folder, runs OCR on what lands there, and writes the results somewhere else.",
+    "counters": "{done} of {total} processed · {queued} queued",
+    "pauseAll": "Pause all",
+    "resumeAll": "Resume all",
+    "allPaused": "All pipelines are paused",
+    "input": "Input",
+    "output": "Output"
+  },
+  "device": {
+    "gpu": "GPU",
+    "cpu": "CPU",
+    "auto": "Auto"
+  },
+  "profile": {
+    "accurate": "Accurate",
+    "fast": "Fast"
+  },
+  "folderPicker": {
+    "browse": "Browse"
+  },
+  "folderBrowser": {
+    "title": "Choose a folder",
+    "roots": "This computer",
+    "up": "Up one level",
+    "refresh": "Refresh",
+    "filter": "Filter by name",
+    "newFolder": "New folder",
+    "folderName": "Folder name",
+    "useThisFolder": "Use this folder",
+    "empty": "This folder has no subfolders.",
+    "inaccessible": "Not accessible",
+    "truncated": "Only the first 1,000 folders are shown. Use the filter to narrow the list.",
+    "loadFailed": "Could not read that folder.",
+    "createFailed": "Could not create that folder."
+  },
+  "runtime": {
+    "notInstalled": "The OCR runtime is not installed yet.",
+    "install": "Install the OCR runtime",
+    "installing": "Installing…"
+  },
+  "errors": {
+    "loadFailed": "Could not load data from the service.",
+    "saveFailed": "Could not save. Please check the values and try again."
+  },
+  "editor": {
+    "newTitle": "New pipeline",
+    "editTitle": "Edit pipeline",
+    "name": "Name",
+    "description": "Description",
+    "sectionSource": "Source",
+    "sectionEngine": "Engine",
+    "sectionOutput": "Output",
+    "sectionAfter": "After success",
+    "sectionReliability": "Reliability",
+    "sectionSchedule": "Schedule",
+    "inputFolder": "Input folder",
+    "inputFolderHint": "Files dropped here are picked up automatically.",
+    "outputFolder": "Output folder",
+    "outputFolderHint": "Created on first write if it does not exist yet.",
+    "recursive": "Include subfolders",
+    "mirror": "Mirror the folder structure in the output",
+    "skipDuplicates": "Skip files already processed",
+    "watchMode": "Watch mode",
+    "watchModeHint": "Network shares do not deliver reliable events — use polling for UNC or NFS paths.",
+    "watchEvents": "Filesystem events (local drives)",
+    "watchPolling": "Polling (network shares)",
+    "profile": "Engine profile",
+    "fastHint": "Runs on CPU. Good for everyday documents.",
+    "accurateHint": "Needs a GPU. Best on complex tables and messy scans.",
+    "accurateUnavailable": "The Accurate profile needs a compatible GPU, which this machine does not have. Jobs will run on the CPU using the Fast profile.",
+    "device": "Device",
+    "dpi": "Scan resolution",
+    "dpiHint": "Higher is slower and mostly helps with small print.",
+    "textLayer": "PDFs that already contain text",
+    "textLayerHint": "Reusing an existing text layer is far faster and usually more accurate than re-running OCR.",
+    "textHybrid": "Hybrid — OCR only the pages without text",
+    "textSkip": "Skip PDFs that already have text",
+    "textAlways": "Always run OCR",
+    "modules": "Recognition modules",
+    "formats": "Output formats",
+    "namingTemplate": "File naming",
+    "namingTemplateHint": "Placeholders: {'{name}'}, {'{page}'}, {'{date}'}, {'{hash}'}",
+    "collision": "If a file already exists",
+    "collisionSuffix": "Add a number",
+    "collisionOverwrite": "Overwrite",
+    "collisionSkip": "Skip",
+    "onSuccess": "Do this with the original",
+    "keepSource": "Keep it where it is",
+    "deleteSource": "Delete it",
+    "moveToOutput": "Move it to the output folder",
+    "moveToArchive": "Move it to an archive folder",
+    "archiveFolder": "Archive folder",
+    "maxAttempts": "Retry attempts",
+    "concurrency": "Documents at once",
+    "quarantineFolder": "Quarantine folder",
+    "quarantineHint": "Files that failed for good are moved here so the input folder stays clean.",
+    "priority": "Priority",
+    "activeHours": "Only run during certain hours",
+    "activeFrom": "From",
+    "activeUntil": "Until"
+  },
+  "moduleTone": {
+    "slow": "slower",
+    "recommended": "recommended",
+    "neutral": ""
+  },
+  "module": {
+    "orientation": "Detect page orientation",
+    "unwarping": "Flatten curved pages",
+    "textline": "Detect text line orientation",
+    "table": "Recognise tables",
+    "formula": "Recognise formulas",
+    "chart": "Recognise charts",
+    "seal": "Recognise stamps and seals"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "txt": "Plain text",
+    "docx": "Word",
+    "xlsx": "Excel",
+    "xlsxHint": "tables only",
+    "html": "HTML",
+    "searchablePdf": "Searchable PDF",
+    "comingSoon": "coming soon"
+  },
+  "detail": {
+    "pause": "Pause",
+    "resume": "Resume",
+    "nowProcessing": "Processing now",
+    "idle": "Nothing is being processed right now.",
+    "queue": "Waiting",
+    "queueEmpty": "The queue is empty.",
+    "recent": "Recently finished",
+    "noHistory": "Nothing has finished yet.",
+    "deleteTitle": "Delete this pipeline?",
+    "deleteBody": "\"{name}\" and its job history will be removed. Files already written to the output folder are kept."
+  },
+  "jobs": {
+    "search": "Search by file name",
+    "allStates": "All states",
+    "file": "File",
+    "pipeline": "Pipeline",
+    "size": "Size",
+    "pages": "Pages",
+    "device": "Device",
+    "state": "State",
+    "empty": "No jobs yet.",
+    "outputs": "Output files",
+    "noOutputs": "No files were written.",
+    "timeline": "Timeline"
+  },
+  "system": {
+    "runtime": "OCR runtime",
+    "hardware": "Hardware",
+    "workers": "Worker processes",
+    "noWorkers": "No workers are running.",
+    "worker": "Worker",
+    "state": "State",
+    "restarts": "Restarts",
+    "cpu": "Processor",
+    "cores": "cores",
+    "memory": "Memory",
+    "gpu": "Graphics",
+    "driver": "driver",
+    "noGpu": "No compatible GPU detected",
+    "reprobe": "Check again"
+  },
+  "runtimeState": {
+    "not-installed": "Not installed",
+    "installing": "Installing",
+    "ready": "Ready",
+    "failed": "Failed",
+    "outdated": "Update available"
+  },
+  "runtimeStep": {
+    "probe-hardware": "Checking hardware",
+    "install-python": "Installing Python",
+    "create-venv": "Creating the environment",
+    "install-paddle": "Installing PaddlePaddle",
+    "install-paddleocr": "Installing PaddleOCR",
+    "download-models": "Downloading OCR models",
+    "verify": "Verifying"
+  },
+  "settings": {
+    "allowlist": "Authorised folders",
+    "allowlistHint": "Impressive OCR can only read and write inside these folders. Nothing else on this computer is reachable.",
+    "allowlistEmpty": "No folders are authorised yet. Add at least one before creating a pipeline.",
+    "addFolder": "Add a folder",
+    "server": "Server",
+    "port": "Port",
+    "bindAddress": "Reachable from",
+    "bindLocal": "This computer only",
+    "bindNetwork": "The local network",
+    "auth": "Require sign-in",
+    "authHint": "Required before the app may be reached from the network.",
+    "restartRequired": "Takes effect after a restart.",
+    "appearance": "Appearance and data",
+    "language": "Language",
+    "retention": "Keep job history for (days)",
+    "retentionHint": "0 keeps everything.",
+    "saved": "Saved."
+  }
+}

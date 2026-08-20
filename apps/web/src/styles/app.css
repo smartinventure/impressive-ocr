@@ -1,0 +1,90 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+
+/*
+ * Global styles.
+ *
+ * Everything colour-related resolves through Vuetify theme slots or the `--ocr-*` variables
+ * set in app.vue, so light and dark stay in step without a second set of rules.
+ */
+
+:root {
+  font-family:
+    'IBM Plex Sans',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+}
+
+/*
+ * Material Symbols renders its ligatures from the glyph name, so the text must not be
+ * transformed, hyphenated or ligature-disabled by anything upstream.
+ */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  font-variation-settings:
+    'FILL' 0,
+    'wght' 400,
+    'GRAD' 0,
+    'opsz' 24;
+}
+
+/* Vuetify sizes icons through font-size on the wrapper; inherit it so `size="20"` works. */
+.ocr-icon {
+  font-size: inherit;
+}
+
+h1,
+h2,
+h3 {
+  font-family: 'Space Grotesk', sans-serif;
+  letter-spacing: -0.3px;
+}
+
+/* Paths, byte counts and page numbers are compared character by character. */
+.ocr-mono {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+}
+
+/*
+ * Alert surfaces dim rather than invert in dark mode — the design team's explicit call.
+ * A lightened amber tint on a dark ground glares at night, which matters for an app people
+ * leave open on a second monitor.
+ */
+.ocr-alert-warning {
+  background: var(--ocr-alert-warn-surface);
+  border: 1px solid var(--ocr-alert-warn-border);
+  color: var(--ocr-alert-warn-text);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.ocr-alert-error {
+  background: var(--ocr-alert-error-surface);
+  border: 1px solid var(--ocr-alert-error-border);
+  color: var(--ocr-alert-error-text);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+/* Focus must stay visible on both grounds; the browser default disappears on dark. */
+:focus-visible {
+  outline: 2px solid rgb(var(--v-theme-primary));
+  outline-offset: 2px;
+}

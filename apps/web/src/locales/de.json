@@ -1,0 +1,251 @@
+{
+  "app": {
+    "name": "Impressive OCR",
+    "tagline": "Dokumenten-OCR, lokal auf Ihrem Rechner"
+  },
+  "nav": {
+    "pipelines": "Pipelines",
+    "jobs": "Aufträge",
+    "status": "System",
+    "settings": "Einstellungen"
+  },
+  "common": {
+    "select": "Auswählen",
+    "cancel": "Abbrechen",
+    "create": "Anlegen",
+    "save": "Speichern",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "retry": "Wiederholen",
+    "close": "Schließen",
+    "loading": "Wird geladen…",
+    "of": "von"
+  },
+  "status": {
+    "queued": "In Warteschlange",
+    "running": "Läuft",
+    "paused": "Pausiert",
+    "succeeded": "Erfolgreich",
+    "failed": "Fehlgeschlagen",
+    "quarantined": "Quarantäne"
+  },
+  "pipelineStatus": {
+    "running": "Läuft",
+    "idle": "Bereit",
+    "paused": "Pausiert",
+    "blocked": "Blockiert",
+    "error": "Fehler"
+  },
+  "connection": {
+    "connecting": "Verbindung wird aufgebaut…",
+    "open": "Live",
+    "reconnecting": "Verbindung wird wiederhergestellt…"
+  },
+  "pipelines": {
+    "title": "Pipelines",
+    "newPipeline": "Neue Pipeline",
+    "empty": "Noch keine Pipelines",
+    "emptyHint": "Eine Pipeline überwacht einen Ordner, führt OCR für eingehende Dateien aus und schreibt die Ergebnisse an einen anderen Ort.",
+    "counters": "{done} von {total} verarbeitet · {queued} in Warteschlange",
+    "pauseAll": "Alle pausieren",
+    "resumeAll": "Alle fortsetzen",
+    "allPaused": "Alle Pipelines sind pausiert",
+    "input": "Eingang",
+    "output": "Ausgang"
+  },
+  "device": {
+    "gpu": "GPU",
+    "cpu": "CPU",
+    "auto": "Automatisch"
+  },
+  "profile": {
+    "accurate": "Genau",
+    "fast": "Schnell"
+  },
+  "folderPicker": {
+    "browse": "Durchsuchen"
+  },
+  "folderBrowser": {
+    "title": "Ordner auswählen",
+    "roots": "Dieser Computer",
+    "up": "Eine Ebene höher",
+    "refresh": "Aktualisieren",
+    "filter": "Nach Namen filtern",
+    "newFolder": "Neuer Ordner",
+    "folderName": "Ordnername",
+    "useThisFolder": "Diesen Ordner verwenden",
+    "empty": "Dieser Ordner enthält keine Unterordner.",
+    "inaccessible": "Nicht zugänglich",
+    "truncated": "Es werden nur die ersten 1.000 Ordner angezeigt. Verwenden Sie den Filter, um die Liste einzugrenzen.",
+    "loadFailed": "Der Ordner konnte nicht gelesen werden.",
+    "createFailed": "Der Ordner konnte nicht angelegt werden."
+  },
+  "runtime": {
+    "notInstalled": "Die OCR-Laufzeitumgebung ist noch nicht installiert.",
+    "install": "OCR-Laufzeitumgebung installieren",
+    "installing": "Wird installiert…"
+  },
+  "errors": {
+    "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",
+    "saveFailed": "Speichern nicht möglich. Bitte prüfen Sie die Angaben und versuchen Sie es erneut."
+  },
+  "editor": {
+    "newTitle": "Neue Pipeline",
+    "editTitle": "Pipeline bearbeiten",
+    "name": "Name",
+    "description": "Beschreibung",
+    "sectionSource": "Quelle",
+    "sectionEngine": "Engine",
+    "sectionOutput": "Ausgabe",
+    "sectionAfter": "Nach Erfolg",
+    "sectionReliability": "Zuverlässigkeit",
+    "sectionSchedule": "Zeitplan",
+    "inputFolder": "Eingangsordner",
+    "inputFolderHint": "Hier abgelegte Dateien werden automatisch verarbeitet.",
+    "outputFolder": "Ausgabeordner",
+    "outputFolderHint": "Wird beim ersten Schreibvorgang angelegt, falls noch nicht vorhanden.",
+    "recursive": "Unterordner einbeziehen",
+    "mirror": "Ordnerstruktur in der Ausgabe spiegeln",
+    "skipDuplicates": "Bereits verarbeitete Dateien überspringen",
+    "watchMode": "Überwachungsmodus",
+    "watchModeHint": "Netzlaufwerke liefern keine zuverlässigen Ereignisse — für UNC- oder NFS-Pfade bitte Abfrage verwenden.",
+    "watchEvents": "Dateisystem-Ereignisse (lokale Laufwerke)",
+    "watchPolling": "Regelmäßige Abfrage (Netzlaufwerke)",
+    "profile": "Engine-Profil",
+    "fastHint": "Läuft auf der CPU. Gut für alltägliche Dokumente.",
+    "accurateHint": "Benötigt eine GPU. Am besten bei komplexen Tabellen und schwierigen Scans.",
+    "accurateUnavailable": "Das Profil „Genau“ benötigt eine kompatible GPU, die auf diesem Rechner nicht vorhanden ist. Aufträge laufen mit dem Profil „Schnell“ auf der CPU.",
+    "device": "Gerät",
+    "dpi": "Scan-Auflösung",
+    "dpiHint": "Höhere Werte sind langsamer und helfen vor allem bei kleiner Schrift.",
+    "textLayer": "PDFs, die bereits Text enthalten",
+    "textLayerHint": "Vorhandenen Text zu übernehmen ist deutlich schneller und meist genauer als erneute OCR.",
+    "textHybrid": "Hybrid — nur Seiten ohne Text per OCR",
+    "textSkip": "PDFs mit vorhandenem Text überspringen",
+    "textAlways": "Immer OCR ausführen",
+    "modules": "Erkennungsmodule",
+    "formats": "Ausgabeformate",
+    "namingTemplate": "Dateibenennung",
+    "namingTemplateHint": "Platzhalter: {'{name}'}, {'{page}'}, {'{date}'}, {'{hash}'}",
+    "collision": "Wenn die Datei bereits existiert",
+    "collisionSuffix": "Nummer anhängen",
+    "collisionOverwrite": "Überschreiben",
+    "collisionSkip": "Überspringen",
+    "onSuccess": "Mit dem Original verfahren",
+    "keepSource": "An Ort und Stelle belassen",
+    "deleteSource": "Löschen",
+    "moveToOutput": "In den Ausgabeordner verschieben",
+    "moveToArchive": "In einen Archivordner verschieben",
+    "archiveFolder": "Archivordner",
+    "maxAttempts": "Wiederholungsversuche",
+    "concurrency": "Gleichzeitige Dokumente",
+    "quarantineFolder": "Quarantäneordner",
+    "quarantineHint": "Endgültig fehlgeschlagene Dateien landen hier, damit der Eingangsordner sauber bleibt.",
+    "priority": "Priorität",
+    "activeHours": "Nur zu bestimmten Zeiten ausführen",
+    "activeFrom": "Von",
+    "activeUntil": "Bis"
+  },
+  "moduleTone": {
+    "slow": "langsamer",
+    "recommended": "empfohlen",
+    "neutral": ""
+  },
+  "module": {
+    "orientation": "Seitenausrichtung erkennen",
+    "unwarping": "Gewölbte Seiten begradigen",
+    "textline": "Ausrichtung der Textzeilen erkennen",
+    "table": "Tabellen erkennen",
+    "formula": "Formeln erkennen",
+    "chart": "Diagramme erkennen",
+    "seal": "Stempel und Siegel erkennen"
+  },
+  "format": {
+    "markdown": "Markdown",
+    "json": "JSON",
+    "txt": "Reiner Text",
+    "docx": "Word",
+    "xlsx": "Excel",
+    "xlsxHint": "nur Tabellen",
+    "html": "HTML",
+    "searchablePdf": "Durchsuchbares PDF",
+    "comingSoon": "in Kürze"
+  },
+  "detail": {
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "nowProcessing": "Wird gerade verarbeitet",
+    "idle": "Derzeit wird nichts verarbeitet.",
+    "queue": "Wartend",
+    "queueEmpty": "Die Warteschlange ist leer.",
+    "recent": "Zuletzt abgeschlossen",
+    "noHistory": "Noch nichts abgeschlossen.",
+    "deleteTitle": "Diese Pipeline löschen?",
+    "deleteBody": "„{name}“ und der zugehörige Auftragsverlauf werden entfernt. Bereits geschriebene Ausgabedateien bleiben erhalten."
+  },
+  "jobs": {
+    "search": "Nach Dateinamen suchen",
+    "allStates": "Alle Zustände",
+    "file": "Datei",
+    "pipeline": "Pipeline",
+    "size": "Größe",
+    "pages": "Seiten",
+    "device": "Gerät",
+    "state": "Zustand",
+    "empty": "Noch keine Aufträge.",
+    "outputs": "Ausgabedateien",
+    "noOutputs": "Es wurden keine Dateien geschrieben.",
+    "timeline": "Verlauf"
+  },
+  "system": {
+    "runtime": "OCR-Laufzeitumgebung",
+    "hardware": "Hardware",
+    "workers": "Arbeitsprozesse",
+    "noWorkers": "Es laufen keine Arbeitsprozesse.",
+    "worker": "Prozess",
+    "state": "Zustand",
+    "restarts": "Neustarts",
+    "cpu": "Prozessor",
+    "cores": "Kerne",
+    "memory": "Arbeitsspeicher",
+    "gpu": "Grafik",
+    "driver": "Treiber",
+    "noGpu": "Keine kompatible GPU erkannt",
+    "reprobe": "Erneut prüfen"
+  },
+  "runtimeState": {
+    "not-installed": "Nicht installiert",
+    "installing": "Wird installiert",
+    "ready": "Bereit",
+    "failed": "Fehlgeschlagen",
+    "outdated": "Aktualisierung verfügbar"
+  },
+  "runtimeStep": {
+    "probe-hardware": "Hardware wird geprüft",
+    "install-python": "Python wird installiert",
+    "create-venv": "Umgebung wird erstellt",
+    "install-paddle": "PaddlePaddle wird installiert",
+    "install-paddleocr": "PaddleOCR wird installiert",
+    "download-models": "OCR-Modelle werden geladen",
+    "verify": "Wird überprüft"
+  },
+  "settings": {
+    "allowlist": "Freigegebene Ordner",
+    "allowlistHint": "Impressive OCR kann ausschließlich innerhalb dieser Ordner lesen und schreiben. Nichts anderes auf diesem Computer ist erreichbar.",
+    "allowlistEmpty": "Es sind noch keine Ordner freigegeben. Bitte legen Sie mindestens einen fest, bevor Sie eine Pipeline anlegen.",
+    "addFolder": "Ordner hinzufügen",
+    "server": "Server",
+    "port": "Port",
+    "bindAddress": "Erreichbar von",
+    "bindLocal": "Nur von diesem Computer",
+    "bindNetwork": "Vom lokalen Netzwerk",
+    "auth": "Anmeldung erforderlich",
+    "authHint": "Erforderlich, bevor die Anwendung aus dem Netzwerk erreichbar sein darf.",
+    "restartRequired": "Wird nach einem Neustart wirksam.",
+    "appearance": "Darstellung und Daten",
+    "language": "Sprache",
+    "retention": "Auftragsverlauf aufbewahren (Tage)",
+    "retentionHint": "0 bewahrt alles auf.",
+    "saved": "Gespeichert."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "extends": "@impressive-ocr/tsconfig/vue.json",
+  "compilerOptions": {
+    "types": ["vite/client"],
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+}

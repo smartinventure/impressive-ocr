@@ -3,9 +3,11 @@ import type { AppFastify } from '../fastify-types';
 import { z } from 'zod';
 import {
   APP_VERSION,
+  folderRoleSchema,
   updateSettingsRequestSchema,
   type SystemStatus,
 } from '@impressive-ocr/shared';
+import { probeFolder } from '../../modules/filesystem/folder-probe';
 import { describeGpuReason } from '../../modules/runtime/gpu-probe';
 import type { AppServices } from '../../app-services';
 
@@ -80,18 +82,41 @@ export function registerSystemRoutes(app: AppFastify, services: AppServices): vo
    */
   app.post('/api/settings/validate-folder', async (request) => {
     const body = z
-      .object({ path: z.string().min(1), mustExist: z.boolean().default(true) })
+      .object({
+        path: z.string().min(1),
+        mustExist: z.boolean().default(true),
+        /**
+         * What the folder is for. Omitted means "just check it is allowed", which is what the
+         * allowlist editor itself wants — it has no read or write role to test.
+         */
+        role: folderRoleSchema.optional(),
+      })
       .parse(request.body);
 
+    let resolved: string;
     try {
-      const resolved = await services.resolveFolder(body.path, body.mustExist);
-      return { valid: true, resolvedPath: resolved, message: null };
+      resolved = await services.resolveFolder(body.path, body.mustExist);
     } catch (error) {
       return {
         valid: false,
         resolvedPath: null,
-        message: error instanceof Error ? error.message : 'That folder is not authorised.',
+        message: error instanceof Error ? error.message : 'That folder is not authorized.',
+        warnings: [],
       };
     }
+
+    // Only probe a folder that exists. Output folders are legitimately created on first
+    // write, and there is nothing to read or write in a path that is not there yet.
+    if (body.role === undefined || !body.mustExist) {
+      return { valid: true, resolvedPath: resolved, message: null, warnings: [] };
+    }
+
+    const probe = await probeFolder(resolved, body.role);
+    return {
+      valid: probe.error === null,
+      resolvedPath: probe.error === null ? resolved : null,
+      message: probe.error,
+      warnings: probe.warnings,
+    };
   });
 }

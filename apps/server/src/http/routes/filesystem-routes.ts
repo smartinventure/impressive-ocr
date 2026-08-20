@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { AppFastify } from '../fastify-types';
 import type { AppServices } from '../../app-services';
 import { HttpError } from '../errors';
+import { realpath } from 'node:fs/promises';
+import { isAbsolute, resolve } from 'node:path';
 import {
   browseFolders,
   createFolder,
@@ -54,7 +56,29 @@ export function registerFilesystemRoutes(app: AppFastify, services: AppServices)
         scope: body.scope,
         allowlist: services.settings.allowlist(),
       });
+      // Creating a folder from the browser is as explicit a choice as picking one, and a
+      // folder the user just made that they are then not allowed to use would be absurd.
+      services.settings.authorizeFolder(path);
       return reply.status(201).send({ path });
+    } catch (error) {
+      throw toHttpError(error);
+    }
+  });
+
+  /**
+   * Authorize a folder the user has chosen.
+   *
+   * Deliberately a separate call from browsing: listing a folder is not consent, confirming
+   * one is. The client sends this when the user commits to a selection.
+   */
+  app.post('/api/filesystem/authorize-folder', async (request) => {
+    const body = z.object({ path: z.string().min(1).max(4096) }).parse(request.body);
+
+    try {
+      // realpath through the browser's own rules first, so a symlink cannot authorize its
+      // target by proxy and the stored entry is the canonical path.
+      const resolved = await canonicalizeForAuthorization(body.path);
+      return { folderAllowlist: services.settings.authorizeFolder(resolved) };
     } catch (error) {
       throw toHttpError(error);
     }
@@ -81,6 +105,26 @@ function assertScopeAllowed(scope: 'allowlist' | 'system', services: AppServices
     'browse-scope-forbidden',
     'Browsing the whole filesystem is only available locally, or with authentication enabled.',
   );
+}
+
+/**
+ * Resolve a path to the canonical folder that will be stored on the allowlist.
+ *
+ * `realpath` matters here: authorizing a symlink would otherwise put the link on the list
+ * while every later check resolves to the target, so the entry would grant access to a path
+ * nobody agreed to — and stop granting it the moment the link moved.
+ */
+async function canonicalizeForAuthorization(path: string): Promise<string> {
+  const absolute = resolve(path);
+  if (!isAbsolute(absolute)) {
+    throw new FolderBrowseError('not-allowed', 'Choose a full folder path.');
+  }
+
+  try {
+    return await realpath(absolute);
+  } catch {
+    throw new FolderBrowseError('not-found', 'That folder does not exist.');
+  }
 }
 
 function toHttpError(error: unknown): unknown {

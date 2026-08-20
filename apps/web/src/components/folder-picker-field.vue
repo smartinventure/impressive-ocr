@@ -2,7 +2,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { settingsApi } from '../api/endpoints';
+import type { FolderRole } from '@impressive-ocr/shared';
+import { filesystemApi, settingsApi } from '../api/endpoints';
 import { useDesktopBridge } from '../composables/use-desktop-bridge';
 import FolderBrowserDialog from './folder-browser-dialog.vue';
 
@@ -31,6 +32,11 @@ const props = withDefaults(
     mustExist?: boolean;
     /** Server-side field error, e.g. from a rejected pipeline save. */
     externalError?: string | null;
+    /**
+     * What the folder is for, so the server can prove it is readable or writable rather than
+     * merely present. Omitted means "only check it is allowed".
+     */
+    role?: FolderRole;
     disabled?: boolean;
   }>(),
   {
@@ -38,6 +44,7 @@ const props = withDefaults(
     hint: undefined,
     scope: 'allowlist',
     mustExist: true,
+    role: undefined,
     externalError: null,
     disabled: false,
   },
@@ -53,6 +60,7 @@ const currentPath = computed(() => props.modelValue ?? '');
 
 const browsing = ref(false);
 const validationMessage = ref<string | null>(null);
+const validationWarnings = ref<string[]>([]);
 const validating = ref(false);
 const isValid = ref<boolean | null>(null);
 
@@ -71,23 +79,26 @@ async function validate(path: string): Promise<void> {
 
   if (trimmed.length === 0) {
     validationMessage.value = null;
+    validationWarnings.value = [];
     isValid.value = null;
     return;
   }
 
   validating.value = true;
   try {
-    const result = await settingsApi.validateFolder(trimmed, props.mustExist);
+    const result = await settingsApi.validateFolder(trimmed, props.mustExist, props.role);
     // A slower earlier request must not overwrite a newer answer.
     if (token !== validationToken) {
       return;
     }
     isValid.value = result.valid;
     validationMessage.value = result.valid ? null : result.message;
+    validationWarnings.value = result.warnings;
   } catch {
     if (token === validationToken) {
       isValid.value = null;
       validationMessage.value = null;
+      validationWarnings.value = [];
     }
   } finally {
     if (token === validationToken) {
@@ -107,8 +118,22 @@ watch(
   { immediate: true },
 );
 
-function onSelect(path: string): void {
+/**
+ * Take a folder the user has just chosen.
+ *
+ * Choosing it is the act of authorizing it: the server adds it to the allowlist here rather
+ * than making the user go to Settings and type the same path a second time. Only an explicit
+ * pick does this -- browsing past a folder never authorizes it.
+ */
+async function onSelect(path: string): Promise<void> {
   emit('update:modelValue', path);
+  try {
+    await filesystemApi.authorizeFolder(path);
+  } catch {
+    // Not fatal: the path is in the field either way, and validation will say plainly if it
+    // is not usable. Failing the selection outright would be worse than a clear error.
+  }
+  void validate(path);
 }
 
 /**
@@ -133,7 +158,7 @@ async function browse(): Promise<void> {
   });
 
   if (picked !== null) {
-    onSelect(picked);
+    await onSelect(picked);
   }
 }
 </script>
@@ -179,6 +204,19 @@ async function browse(): Promise<void> {
       </template>
     </v-text-field>
 
+    <!-- Warnings, not errors: the folder is usable, but something about it is worth knowing
+         before committing to it — chiefly that it already holds files the watcher will queue. -->
+    <v-alert
+      v-for="warning in validationWarnings"
+      :key="warning"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="folder-picker__warning"
+    >
+      {{ warning }}
+    </v-alert>
+
     <FolderBrowserDialog
       v-model="browsing"
       :scope="scope"
@@ -189,6 +227,11 @@ async function browse(): Promise<void> {
 </template>
 
 <style scoped>
+.folder-picker__warning {
+  /* Sits under the field's own hint line rather than crowding it. */
+  margin-top: 8px;
+}
+
 .folder-picker__input :deep(input) {
   /* Paths are read character by character when something is wrong; a proportional font
      makes a doubled separator or a stray space genuinely hard to spot. */

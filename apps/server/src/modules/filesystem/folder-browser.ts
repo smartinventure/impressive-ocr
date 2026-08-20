@@ -73,7 +73,7 @@ export async function browseFolders(options: BrowseOptions): Promise<BrowseResul
 
   const target = resolve(options.path);
   if (options.scope === 'allowlist' && !isWithinAllowlist(target, options.allowlist)) {
-    throw new FolderBrowseError('not-allowed', 'That folder is outside the authorised folders.');
+    throw new FolderBrowseError('not-allowed', 'That folder is outside the authorized folders.');
   }
 
   const entries = await listDirectory(target, options);
@@ -191,7 +191,7 @@ export async function createFolder(
   const target = resolve(path);
 
   if (options.scope === 'allowlist' && !isWithinAllowlist(target, options.allowlist)) {
-    throw new FolderBrowseError('not-allowed', 'That folder is outside the authorised folders.');
+    throw new FolderBrowseError('not-allowed', 'That folder is outside the authorized folders.');
   }
   // Refuse to create a drive root or `/` — always a typo, and mkdir would fail confusingly.
   if (parse(target).root === target) {

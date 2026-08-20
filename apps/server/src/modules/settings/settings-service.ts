@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { resolve } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
 import {
@@ -6,6 +7,7 @@ import {
   type AppSettings,
   type UpdateSettingsRequest,
 } from '@impressive-ocr/shared';
+import { isInside } from '../../infra/fs/safe-path';
 
 /**
  * Reads and writes application settings.
@@ -74,10 +76,49 @@ export class SettingsService {
     return merged;
   }
 
-  /** Folders the user has authorised. Everything filesystem-related checks against this. */
+  /** Folders the user has authorized. Everything filesystem-related checks against this. */
   allowlist(): readonly string[] {
     return this.get().folderAllowlist;
   }
+
+  /**
+   * Authorize a folder the user has just chosen.
+   *
+   * Picking a folder in the browser *is* the act of authorizing it — making people then go to
+   * Settings and add the same path again taught them nothing and blocked the first run behind
+   * a screen explaining they were not allowed to do anything yet.
+   *
+   * The boundary itself is unchanged: only an explicit choice authorizes, everything still
+   * resolves through `resolveSafePath`, and the list stays revocable.
+   *
+   * Returns the full list so the caller can reflect it without a second read.
+   */
+  authorizeFolder(absolutePath: string): readonly string[] {
+    const current = this.get().folderAllowlist;
+    if (current.some((entry) => isSamePath(entry, absolutePath) || isInside(entry, absolutePath))) {
+      // Already covered, by itself or by a parent. Adding it again would only grow the list.
+      return current;
+    }
+
+    // Drop entries this one now contains, so authorizing D:\ after D:\scans leaves one entry
+    // rather than two overlapping ones that both have to be reasoned about later.
+    const withoutRedundant = current.filter((entry) => !isInside(absolutePath, entry));
+
+    return this.update({ folderAllowlist: [...withoutRedundant, absolutePath] }).folderAllowlist;
+  }
+
+  /** Remove a folder. Anything under it stops resolving immediately. */
+  revokeFolder(absolutePath: string): readonly string[] {
+    const remaining = this.get().folderAllowlist.filter(
+      (entry) => !isSamePath(entry, absolutePath),
+    );
+    return this.update({ folderAllowlist: remaining }).folderAllowlist;
+  }
+}
+
+/** Path equality that tolerates case and separator differences on Windows. */
+function isSamePath(left: string, right: string): boolean {
+  return resolve(left).toLowerCase() === resolve(right).toLowerCase();
 }
 
 /** What the rest of the app knows that these rules depend on. */

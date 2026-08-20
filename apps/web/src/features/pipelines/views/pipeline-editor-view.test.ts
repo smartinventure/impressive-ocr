@@ -98,20 +98,3 @@ describe('PipelineEditorView', () => {
     expect(() => wrapper.unmount()).not.toThrow();
   });
 });
-
-describe('without an authorized folder', () => {
-  it('refuses to show the form, because the server would reject it anyway', async () => {
-    const wrapper = mountEditor([]);
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.findComponent({ name: 'VForm' }).exists()).toBe(false);
-    expect(wrapper.text()).toContain('Authorize a folder');
-  });
-
-  it('shows the form once a folder is authorized', async () => {
-    const wrapper = mountEditor(['C:/scans']);
-    await wrapper.vm.$nextTick();
-
-    expect(wrapper.findComponent({ name: 'VForm' }).exists()).toBe(true);
-  });
-});

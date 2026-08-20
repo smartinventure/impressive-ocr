@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type {
   AppSettings,
+  FolderRole,
+  FolderValidation,
   AuthStatus,
   SetPasswordRequest,
   CreatePipelineRequest,
@@ -52,12 +54,6 @@ export interface BrowseResult {
   entries: FolderEntry[];
 }
 
-export interface FolderValidation {
-  valid: boolean;
-  resolvedPath: string | null;
-  message: string | null;
-}
-
 export const pipelinesApi = {
   list: () => api.get<PipelineWithStatus[]>('/pipelines'),
   get: (id: string) => api.get<PipelineWithStatus>(`/pipelines/${id}`),
@@ -103,8 +99,8 @@ export const systemApi = {
 export const settingsApi = {
   get: () => api.get<AppSettings>('/settings'),
   update: (body: UpdateSettingsRequest) => api.patch<AppSettings>('/settings', body),
-  validateFolder: (path: string, mustExist = true) =>
-    api.post<FolderValidation>('/settings/validate-folder', { path, mustExist }),
+  validateFolder: (path: string, mustExist = true, role?: FolderRole) =>
+    api.post<FolderValidation>('/settings/validate-folder', { path, mustExist, role }),
 };
 
 export const filesystemApi = {
@@ -122,6 +118,10 @@ export const filesystemApi = {
   },
   createFolder: (path: string, scope: 'allowlist' | 'system' = 'allowlist') =>
     api.post<{ path: string }>('/filesystem/create-folder', { path, scope }),
+
+  /** Add a folder the user has explicitly chosen to the allowlist. */
+  authorizeFolder: (path: string) =>
+    api.post<{ folderAllowlist: string[] }>('/filesystem/authorize-folder', { path }),
 };
 
 /** Sign-in, sign-out and password management. */

@@ -39,6 +39,30 @@ export interface Page<TItem> {
   offset: number;
 }
 
+/**
+ * What a folder is being chosen for, which decides how it gets tested.
+ *
+ * An input folder must be readable; an output folder must be writable. Neither is answerable
+ * from `stat` alone — on Windows the permission lives in an ACL — so the server proves it by
+ * trying, and needs to know which one to try.
+ */
+export const folderRoleSchema = z.enum(['input', 'output']);
+export type FolderRole = z.infer<typeof folderRoleSchema>;
+
+export const folderValidationSchema = z.object({
+  valid: z.boolean(),
+  resolvedPath: z.string().nullable(),
+  /** Why it was rejected. Null when valid. */
+  message: z.string().nullable(),
+  /**
+   * Things worth saying that do not block saving — chiefly that an input folder already holds
+   * files, all of which get queued the moment the pipeline starts.
+   */
+  warnings: z.array(z.string()).default([]),
+});
+
+export type FolderValidation = z.infer<typeof folderValidationSchema>;
+
 /** Shape of every error response body. Detail stays server-side; the client gets a code. */
 export const apiErrorSchema = z.object({
   code: z.string(),

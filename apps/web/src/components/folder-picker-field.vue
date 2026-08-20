@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { ref, watch } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { settingsApi } from '../api/endpoints';
 import { useDesktopBridge } from '../composables/use-desktop-bridge';
@@ -17,7 +17,13 @@ import FolderBrowserDialog from './folder-browser-dialog.vue';
 
 const props = withDefaults(
   defineProps<{
-    modelValue: string;
+    /**
+     * Optional on purpose: several paths in the pipeline schema are
+     * `absolutePathSchema.optional()`, so they arrive as `undefined` until the user fills
+     * them in. Typing this `string` did not stop that -- it only stopped the compiler
+     * warning about it, and the component then threw while rendering.
+     */
+    modelValue?: string | null | undefined;
     label: string;
     hint?: string;
     scope?: 'allowlist' | 'system';
@@ -28,6 +34,7 @@ const props = withDefaults(
     disabled?: boolean;
   }>(),
   {
+    modelValue: '',
     hint: undefined,
     scope: 'allowlist',
     mustExist: true,
@@ -40,6 +47,9 @@ const emit = defineEmits<{ 'update:modelValue': [value: string] }>();
 
 const { t } = useI18n();
 const desktop = useDesktopBridge();
+
+/** The prop as a string, whatever arrived. Every read below goes through this. */
+const currentPath = computed(() => props.modelValue ?? '');
 
 const browsing = ref(false);
 const validationMessage = ref<string | null>(null);
@@ -89,7 +99,7 @@ async function validate(path: string): Promise<void> {
 let debounce: ReturnType<typeof setTimeout> | undefined;
 
 watch(
-  () => props.modelValue,
+  currentPath,
   (value) => {
     clearTimeout(debounce);
     debounce = setTimeout(() => void validate(value), 400);
@@ -114,7 +124,7 @@ async function browse(): Promise<void> {
     return;
   }
 
-  const current = props.modelValue.trim();
+  const current = currentPath.value.trim();
   const picked = await desktop.selectFolder({
     title: props.label,
     defaultPath: current.length > 0 ? current : undefined,
@@ -131,7 +141,7 @@ async function browse(): Promise<void> {
 <template>
   <div class="folder-picker">
     <v-text-field
-      :model-value="modelValue"
+      :model-value="currentPath"
       :label="label"
       :hint="hint"
       :disabled="disabled"
@@ -172,7 +182,7 @@ async function browse(): Promise<void> {
     <FolderBrowserDialog
       v-model="browsing"
       :scope="scope"
-      :start-path="modelValue.trim().length > 0 ? modelValue : null"
+      :start-path="currentPath.trim().length > 0 ? currentPath : null"
       @select="onSelect"
     />
   </div>

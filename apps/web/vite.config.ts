@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vite';
+// vitest/config, not vite: it is the one that types the `test` block below.
+import { defineConfig } from 'vitest/config';
 import vue from '@vitejs/plugin-vue';
 import vuetify from 'vite-plugin-vuetify';
 
@@ -9,6 +10,17 @@ const DEV_PORT = 5273;
 const BACKEND_PORT = 8084;
 
 export default defineConfig({
+  // Component tests run in jsdom. They exist because two bugs shipped that only showed up as
+  // a blank or broken page in a browser -- exactly what mounting the component catches and
+  // what schema-level tests cannot.
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    // Vuetify ships untranspiled ESM that Vitest must not externalise.
+    server: { deps: { inline: ['vuetify'] } },
+    setupFiles: ['./src/test/setup.ts'],
+    include: ['src/**/*.test.ts'],
+  },
   plugins: [
     vue(),
     // Tree-shakes Vuetify to the components actually used; the full library is ~1 MB of CSS.

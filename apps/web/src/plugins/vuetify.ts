@@ -43,6 +43,11 @@ export const vuetify = createVuetify({
     aliases: {
       // Vuetify's internal components ask for these by alias, so they must be mapped or
       // checkboxes and selects render empty boxes.
+      //
+      // Every alias Vuetify defines has to appear here. An unmapped one silently falls back
+      // to its MDI default -- a string like `mdi-chevron-up` -- which this icon set then
+      // renders as that literal text. `collapse` was missing, so every *open* expansion
+      // panel showed the words "mdi-chevron-up" where its chevron belonged.
       complete: 'check',
       cancel: 'cancel',
       close: 'close',
@@ -61,6 +66,7 @@ export const vuetify = createVuetify({
       sortAsc: 'arrow_upward',
       sortDesc: 'arrow_downward',
       expand: 'expand_more',
+      collapse: 'expand_less',
       menu: 'menu',
       subgroup: 'arrow_drop_down',
       dropdown: 'arrow_drop_down',
@@ -74,6 +80,17 @@ export const vuetify = createVuetify({
       first: 'first_page',
       last: 'last_page',
       unfold: 'unfold_more',
+      search: 'search',
+      play: 'play_arrow',
+      pause: 'pause',
+      fullscreen: 'fullscreen',
+      fullscreenExit: 'fullscreen_exit',
+      volumeHigh: 'volume_up',
+      volumeMedium: 'volume_down',
+      volumeLow: 'volume_mute',
+      volumeOff: 'volume_off',
+      tableGroupExpand: 'expand_more',
+      tableGroupCollapse: 'expand_less',
       file: 'draft',
       plus: 'add',
       minus: 'remove',

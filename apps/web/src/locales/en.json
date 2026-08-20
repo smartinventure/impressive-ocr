@@ -246,6 +246,36 @@
     "language": "Language",
     "retention": "Keep job history for (days)",
     "retentionHint": "0 keeps everything.",
-    "saved": "Saved."
+    "saved": "Saved.",
+    "scheme": "Protocol",
+    "schemeHttp": "http (this machine only)",
+    "schemeHttps": "https (self-signed certificate)",
+    "schemeHint": "https is required to reach this instance over the network. A self-signed certificate is generated on first use; your browser will warn once.",
+    "networkRequirements": "Reaching this instance over the network requires authentication, a password, and https."
+  },
+  "auth": {
+    "signInTitle": "Sign in",
+    "signInHint": "This instance is password protected.",
+    "signIn": "Sign in",
+    "password": "Password",
+    "incorrect": "Incorrect password.",
+    "unreachable": "Cannot reach the Impressive OCR service.",
+    "passwordTitle": "Web UI password",
+    "passwordHint": "Protects this interface when it is reachable from the network. Not needed if you only ever open it on this machine.",
+    "passwordSetChip": "Password set",
+    "noPasswordChip": "No password",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "repeatPassword": "Repeat new password",
+    "minLength": "At least {count} characters.",
+    "mismatch": "The passwords do not match.",
+    "setPassword": "Set password",
+    "changePassword": "Change password",
+    "removePassword": "Remove password",
+    "passwordSaved": "Password saved. Everyone signed in elsewhere has been signed out.",
+    "passwordRemoved": "Password removed and authentication switched off.",
+    "currentIncorrect": "The current password is incorrect.",
+    "currentRequired": "Enter your current password to change it.",
+    "removeWarning": "Changing or removing the password signs out every browser, including this one."
   }
 }

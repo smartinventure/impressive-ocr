@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type {
   AppSettings,
+  AuthStatus,
+  SetPasswordRequest,
   CreatePipelineRequest,
   HardwareCapabilities,
   Job,
@@ -120,4 +122,19 @@ export const filesystemApi = {
   },
   createFolder: (path: string, scope: 'allowlist' | 'system' = 'allowlist') =>
     api.post<{ path: string }>('/filesystem/create-folder', { path, scope }),
+};
+
+/** Sign-in, sign-out and password management. */
+export const authApi = {
+  status: (signal?: AbortSignal): Promise<AuthStatus> => api.get('/auth/status', signal),
+
+  login: (password: string): Promise<{ csrfToken: string }> =>
+    api.post('/auth/login', { password }),
+
+  logout: (): Promise<{ ok: boolean }> => api.post('/auth/logout'),
+
+  setPassword: (body: SetPasswordRequest): Promise<{ ok: boolean }> =>
+    api.put('/auth/password', body),
+
+  clearPassword: (): Promise<void> => api.delete('/auth/password'),
 };

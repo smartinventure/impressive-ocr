@@ -6,6 +6,7 @@ import type { AppSettings } from '@impressive-ocr/shared';
 import { ApiRequestError } from '../../../api/client';
 import { settingsApi } from '../../../api/endpoints';
 import FolderBrowserDialog from '../../../components/folder-browser-dialog.vue';
+import PasswordCard from '../components/password-card.vue';
 import { setLocale, type AppLocale } from '../../../plugins/i18n';
 
 /**
@@ -141,6 +142,19 @@ onMounted(load);
         @update:model-value="save({ bindAddress: $event })"
       />
 
+      <v-select
+        :model-value="settings.scheme"
+        :items="[
+          { value: 'http', title: t('settings.schemeHttp') },
+          { value: 'https', title: t('settings.schemeHttps') },
+        ]"
+        :label="t('settings.scheme')"
+        :hint="t('settings.schemeHint')"
+        persistent-hint
+        class="mb-4"
+        @update:model-value="save({ scheme: $event })"
+      />
+
       <v-switch
         :model-value="settings.authEnabled"
         :label="t('settings.auth')"
@@ -150,7 +164,19 @@ onMounted(load);
         persistent-hint
         @update:model-value="save({ authEnabled: Boolean($event) })"
       />
+
+      <v-alert
+        v-if="settings.bindAddress !== '127.0.0.1'"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mt-4"
+      >
+        {{ t('settings.networkRequirements') }}
+      </v-alert>
     </v-card>
+
+    <PasswordCard @changed="load" />
 
     <!-- Appearance & data -->
     <v-card v-if="settings" class="pa-5">

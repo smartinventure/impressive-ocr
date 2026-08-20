@@ -246,6 +246,36 @@
     "language": "Sprache",
     "retention": "Auftragsverlauf aufbewahren (Tage)",
     "retentionHint": "0 bewahrt alles auf.",
-    "saved": "Gespeichert."
+    "saved": "Gespeichert.",
+    "scheme": "Protokoll",
+    "schemeHttp": "http (nur dieser Rechner)",
+    "schemeHttps": "https (selbstsigniertes Zertifikat)",
+    "schemeHint": "https ist erforderlich, um diese Instanz über das Netzwerk zu erreichen. Beim ersten Start wird ein selbstsigniertes Zertifikat erzeugt; Ihr Browser warnt einmalig.",
+    "networkRequirements": "Für den Zugriff über das Netzwerk sind Authentifizierung, ein Passwort und https erforderlich."
+  },
+  "auth": {
+    "signInTitle": "Anmelden",
+    "signInHint": "Diese Instanz ist passwortgeschützt.",
+    "signIn": "Anmelden",
+    "password": "Passwort",
+    "incorrect": "Falsches Passwort.",
+    "unreachable": "Der Impressive-OCR-Dienst ist nicht erreichbar.",
+    "passwordTitle": "Passwort für die Weboberfläche",
+    "passwordHint": "Schützt diese Oberfläche, wenn sie über das Netzwerk erreichbar ist. Nicht erforderlich, wenn Sie sie nur auf diesem Rechner öffnen.",
+    "passwordSetChip": "Passwort gesetzt",
+    "noPasswordChip": "Kein Passwort",
+    "currentPassword": "Aktuelles Passwort",
+    "newPassword": "Neues Passwort",
+    "repeatPassword": "Neues Passwort wiederholen",
+    "minLength": "Mindestens {count} Zeichen.",
+    "mismatch": "Die Passwörter stimmen nicht überein.",
+    "setPassword": "Passwort setzen",
+    "changePassword": "Passwort ändern",
+    "removePassword": "Passwort entfernen",
+    "passwordSaved": "Passwort gespeichert. Alle anderen Sitzungen wurden abgemeldet.",
+    "passwordRemoved": "Passwort entfernt und Authentifizierung deaktiviert.",
+    "currentIncorrect": "Das aktuelle Passwort ist falsch.",
+    "currentRequired": "Geben Sie Ihr aktuelles Passwort ein, um es zu ändern.",
+    "removeWarning": "Das Ändern oder Entfernen des Passworts meldet alle Browser ab, auch diesen."
   }
 }

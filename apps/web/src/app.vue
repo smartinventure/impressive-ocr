@@ -2,7 +2,9 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { useTheme } from 'vuetify';
+import { APP_VERSION } from '@impressive-ocr/shared';
 import { useLiveStore } from './stores/live-store';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
 import { setLocale, type AppLocale } from './plugins/i18n';
@@ -11,8 +13,21 @@ import { setLocale, type AppLocale } from './plugins/i18n';
  * The application shell: navigation rail, top bar, and the single event-stream subscription.
  */
 
+/**
+ * Fixed, not `new Date().getFullYear()`.
+ *
+ * A copyright year should state when the work was published, and deriving it from the clock
+ * silently rewrites that claim on every machine the app runs on -- including backwards, if a
+ * user's system date is wrong.
+ */
+const COPYRIGHT_YEAR = 2026;
+
 const store = useLiveStore();
+const route = useRoute();
 const theme = useTheme();
+
+/** The login screen stands alone: no navigation to offer someone who cannot use it yet. */
+const showChrome = computed(() => route.name !== 'login');
 const { t, locale } = useI18n();
 
 const nav = computed(() => [
@@ -59,7 +74,14 @@ function switchLocale(): void {
 
 onMounted(() => {
   applyExtras();
-  store.start();
+  if (showChrome.value) store.start();
+});
+
+// Starting the stream while signed out would just produce 401s; start it once the user is
+// past the login screen, and stop it if they return there.
+watch(showChrome, (visible) => {
+  if (visible) store.start();
+  else store.stop();
 });
 
 onBeforeUnmount(() => store.stop());
@@ -67,7 +89,7 @@ onBeforeUnmount(() => store.stop());
 
 <template>
   <v-app>
-    <v-navigation-drawer permanent width="232" color="surface" border="0">
+    <v-navigation-drawer v-if="showChrome" permanent width="232" color="surface" border="0">
       <div class="shell__brand">
         <div class="shell__mark" aria-hidden="true">
           <span></span><span></span><span class="shell__mark-short"></span
@@ -96,11 +118,23 @@ onBeforeUnmount(() => store.stop());
           <v-chip size="small" variant="tonal" :color="connectionColour" label>
             {{ t(`connection.${store.connection}`) }}
           </v-chip>
+
+          <div class="shell__colophon">
+            <span>&copy; Smart In Venture {{ COPYRIGHT_YEAR }}</span>
+            <a
+              class="shell__link"
+              href="https://www.speedbits.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              >www.speedbits.io</a
+            >
+            <span class="shell__version">v{{ APP_VERSION }}</span>
+          </div>
         </div>
       </template>
     </v-navigation-drawer>
 
-    <v-app-bar flat height="60" color="surface" border="b">
+    <v-app-bar v-if="showChrome" flat height="60" color="surface" border="b">
       <v-spacer />
       <v-btn
         :icon="theme.current.value.dark ? 'light_mode' : 'dark_mode'"
@@ -114,7 +148,7 @@ onBeforeUnmount(() => store.stop());
     </v-app-bar>
 
     <v-main>
-      <div class="shell__content">
+      <div :class="showChrome ? 'shell__content' : ''">
         <router-view />
       </div>
     </v-main>
@@ -181,6 +215,32 @@ onBeforeUnmount(() => store.stop());
 
 .shell__footer {
   padding: 14px 18px;
+}
+
+.shell__colophon {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 12px;
+  /* Deliberately quiet: this is provenance, not navigation. */
+  font-size: 0.6875rem;
+  line-height: 1.45;
+  color: rgb(var(--v-theme-on-surface));
+  opacity: 0.55;
+}
+
+.shell__link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.shell__link:hover {
+  text-decoration: underline;
+}
+
+.shell__version {
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
 }
 
 .shell__content {

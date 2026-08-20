@@ -16,6 +16,21 @@ Device = Literal["gpu", "cpu"]
 
 _ENV_PREFIX = "IMPRESSIVE_OCR_"
 
+#: Font shipped alongside the sidecar, used by PaddleX when it renders result overlays.
+#:
+#: Left to itself PaddleX downloads PingFang-SC-Regular.ttf and simfang.ttf from a Baidu CDN
+#: on first use. Both are proprietary — Apple and Beijing Founder respectively — so they can
+#: neither be redistributed with an AGPL product nor fetched at all on an offline install.
+#: DejaVu Sans is 757 KB under the permissive Bitstream Vera licence and covers the Latin
+#: scripts this product targets. CJK documents still OCR correctly; only the optional
+#: visualization overlay would lack those glyphs.
+_BUNDLED_FONT = "DejaVuSans.ttf"
+
+
+def bundled_font_path() -> Path:
+    """Absolute path to the font shipped in ``assets/fonts``."""
+    return Path(__file__).resolve().parent.parent / "assets" / "fonts" / _BUNDLED_FONT
+
 
 class ConfigError(RuntimeError):
     """Raised when the parent process started the sidecar without required settings."""
@@ -104,6 +119,7 @@ def apply_paddle_environment(config: SidecarConfig) -> None:
     os.environ.setdefault("HF_HUB_CACHE", str(cache / "huggingface" / "hub"))
     os.environ.setdefault("MODELSCOPE_CACHE", str(cache / "modelscope"))
     os.environ.setdefault("XDG_CACHE_HOME", str(cache / "xdg"))
+    os.environ.setdefault("PADDLE_PDX_LOCAL_FONT_FILE_PATH", str(bundled_font_path()))
 
     if not config.is_gpu:
         # Belt and braces: keep Paddle off the GPU even if a CUDA build is installed.

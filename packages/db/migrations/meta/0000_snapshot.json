@@ -70,17 +70,12 @@
       "indexes": {
         "pipelines_enabled_priority_idx": {
           "name": "pipelines_enabled_priority_idx",
-          "columns": [
-            "enabled",
-            "priority"
-          ],
+          "columns": ["enabled", "priority"],
           "isUnique": false
         },
         "pipelines_name_idx": {
           "name": "pipelines_name_idx",
-          "columns": [
-            "name"
-          ],
+          "columns": ["name"],
           "isUnique": false
         }
       },
@@ -138,10 +133,7 @@
       "indexes": {
         "job_events_job_idx": {
           "name": "job_events_job_idx",
-          "columns": [
-            "job_id",
-            "created_at"
-          ],
+          "columns": ["job_id", "created_at"],
           "isUnique": false
         }
       },
@@ -150,12 +142,8 @@
           "name": "job_events_job_id_jobs_id_fk",
           "tableFrom": "job_events",
           "tableTo": "jobs",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["job_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -214,9 +202,7 @@
       "indexes": {
         "job_outputs_job_idx": {
           "name": "job_outputs_job_idx",
-          "columns": [
-            "job_id"
-          ],
+          "columns": ["job_id"],
           "isUnique": false
         }
       },
@@ -225,12 +211,8 @@
           "name": "job_outputs_job_id_jobs_id_fk",
           "tableFrom": "job_outputs",
           "tableTo": "jobs",
-          "columnsFrom": [
-            "job_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["job_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -390,34 +372,22 @@
       "indexes": {
         "jobs_state_priority_idx": {
           "name": "jobs_state_priority_idx",
-          "columns": [
-            "state",
-            "priority",
-            "discovered_at"
-          ],
+          "columns": ["state", "priority", "discovered_at"],
           "isUnique": false
         },
         "jobs_pipeline_state_idx": {
           "name": "jobs_pipeline_state_idx",
-          "columns": [
-            "pipeline_id",
-            "state"
-          ],
+          "columns": ["pipeline_id", "state"],
           "isUnique": false
         },
         "jobs_finished_idx": {
           "name": "jobs_finished_idx",
-          "columns": [
-            "finished_at"
-          ],
+          "columns": ["finished_at"],
           "isUnique": false
         },
         "jobs_pipeline_source_idx": {
           "name": "jobs_pipeline_source_idx",
-          "columns": [
-            "pipeline_id",
-            "source_path"
-          ],
+          "columns": ["pipeline_id", "source_path"],
           "isUnique": true
         }
       },
@@ -426,12 +396,8 @@
           "name": "jobs_pipeline_id_pipelines_id_fk",
           "tableFrom": "jobs",
           "tableTo": "pipelines",
-          "columnsFrom": [
-            "pipeline_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pipeline_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -468,10 +434,7 @@
       "indexes": {
         "processed_hashes_idx": {
           "name": "processed_hashes_idx",
-          "columns": [
-            "pipeline_id",
-            "content_hash"
-          ],
+          "columns": ["pipeline_id", "content_hash"],
           "isUnique": true
         }
       },
@@ -480,12 +443,8 @@
           "name": "processed_hashes_pipeline_id_pipelines_id_fk",
           "tableFrom": "processed_hashes",
           "tableTo": "pipelines",
-          "columnsFrom": [
-            "pipeline_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["pipeline_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

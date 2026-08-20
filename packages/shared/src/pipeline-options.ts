@@ -18,7 +18,9 @@ export const sourceOptionsSchema = z.object({
   recursive: z.boolean().default(true),
   /** Recreate the input folder tree under the output folder instead of flattening it. */
   mirrorFolderStructure: z.boolean().default(true),
-  includeGlobs: z.array(z.string().min(1)).default(['**/*.pdf', '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.tif', '**/*.tiff']),
+  includeGlobs: z
+    .array(z.string().min(1))
+    .default(['**/*.pdf', '**/*.png', '**/*.jpg', '**/*.jpeg', '**/*.tif', '**/*.tiff']),
   excludeGlobs: z.array(z.string().min(1)).default(['**/~$*', '**/.*']),
   maxFileSizeBytes: byteSizeSchema.default(536_870_912), // 512 MiB
   watchMode: watchModeSchema.default('events'),
@@ -130,10 +132,10 @@ export const postProcessingOptionsSchema = z
     onSuccess: postActionSchema.default('keep'),
     archivePath: absolutePathSchema.optional(),
   })
-  .refine(
-    (value) => value.onSuccess !== 'move-to-archive' || value.archivePath !== undefined,
-    { message: 'archivePath is required when onSuccess is "move-to-archive"', path: ['archivePath'] },
-  );
+  .refine((value) => value.onSuccess !== 'move-to-archive' || value.archivePath !== undefined, {
+    message: 'archivePath is required when onSuccess is "move-to-archive"',
+    path: ['archivePath'],
+  });
 
 export type PostProcessingOptions = z.infer<typeof postProcessingOptionsSchema>;
 

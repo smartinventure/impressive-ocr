@@ -18,6 +18,10 @@ export default tseslint.config(
       '**/coverage/**',
       '**/.venv/**',
       'sidecar/**',
+      // Reference material and design output, not our source: third-party React/Tailwind
+      // snippets and a generated design canvas. Linting them would report hundreds of
+      // violations of rules they were never written against.
+      '_resources/**',
     ],
   },
 
@@ -48,6 +52,11 @@ export default tseslint.config(
       eqeqeq: ['error', 'always'],
       'no-console': ['error', { allow: ['warn', 'error'] }],
       'prefer-const': 'error',
+      // TypeScript already reports undefined identifiers, and it understands ambient globals
+      // (`process`, `NodeJS`, `Electron`) that this rule does not — it only produced false
+      // positives here. typescript-eslint recommends disabling it on TS files for exactly
+      // this reason.
+      'no-undef': 'off',
     },
   },
 
@@ -70,6 +79,26 @@ export default tseslint.config(
   {
     files: ['**/*.config.{js,ts}', '**/vite.config.ts', '**/vitest.config.ts'],
     rules: { 'no-restricted-syntax': 'off' },
+  },
+
+  {
+    // Build and release scripts: plain Node ESM, run directly by `node` and by CI. They are
+    // not part of a TypeScript project, so the Node globals have to be declared here.
+    files: ['deploy/**/*.mjs', 'apps/*/build.mjs', '**/*.config.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+      },
+    },
+    rules: {
+      // Console output is the entire user interface of a release script.
+      'no-console': 'off',
+      'no-restricted-syntax': 'off',
+    },
   },
 
   prettier,

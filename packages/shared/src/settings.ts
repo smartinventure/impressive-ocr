@@ -2,7 +2,11 @@
 import { z } from 'zod';
 import { absolutePathSchema } from './common';
 
-export const DEFAULT_PORT = 8081;
+/**
+ * 8084 rather than the more obvious 8080/8081: those are crowded on a developer machine —
+ * 8081 is taken by WSL's relay on Windows, and 8080 by almost every other local server.
+ */
+export const DEFAULT_PORT = 8084;
 
 /**
  * Binding beyond loopback exposes every watched folder's contents to the network, so it is

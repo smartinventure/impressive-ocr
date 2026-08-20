@@ -1,11 +1,6 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
-import type {
-  JobEventLevel,
-  JobState,
-  OutputFormat,
-  ResolvedDevice,
-} from '@impressive-ocr/shared';
+import type { JobEventLevel, JobState, OutputFormat, ResolvedDevice } from '@impressive-ocr/shared';
 import { pipelines } from './pipelines';
 
 export const jobs = sqliteTable(

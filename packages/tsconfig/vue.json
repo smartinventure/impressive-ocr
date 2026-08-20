@@ -6,6 +6,15 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "jsx": "preserve",
     "types": ["vite/client"],
-    "noEmit": true
+    "noEmit": true,
+
+    // Deliberately relaxed for the view layer only; the backend and shared packages keep it on.
+    //
+    // Neither Vue's `withDefaults` nor Vuetify's prop types are written for this flag: an
+    // optional prop declared `title?: string` cannot then be given a `undefined` default, and
+    // every Vuetify prop would need `?? null` at the call site. The result is a permanent tax
+    // of noise on every component for no real safety — the props we actually own are already
+    // typed, and the contracts that matter are validated by zod at the API boundary.
+    "exactOptionalPropertyTypes": false
   }
 }

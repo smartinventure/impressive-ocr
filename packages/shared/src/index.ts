@@ -7,6 +7,7 @@
  * This package must not import from `apps/`.
  */
 
+export * from './version';
 export * from './common';
 export * from './pipeline-options';
 export * from './pipeline';

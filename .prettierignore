@@ -7,3 +7,6 @@ coverage/
 sidecar/
 pnpm-lock.yaml
 *.md
+
+# Reference material and design output — kept verbatim so it can be diffed against upstream.
+_resources/

@@ -21,6 +21,7 @@ function pipeline(overrides: Partial<Pipeline> = {}): Pipeline {
     name: 'Invoices',
     description: '',
     enabled: true,
+    kind: 'watched',
     options: pipelineOptionsSchema.parse({
       source: { inputPath: 'D:\\in' },
       output: { outputPath: 'D:\\out' },

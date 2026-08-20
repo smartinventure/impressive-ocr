@@ -23,6 +23,8 @@ export interface AppPaths {
   logsDir: string;
   /** Holds the self-signed certificate used when the UI is served over https. */
   tlsDir: string;
+  /** Staging for Quick Mode uploads and their results, swept on a retention window. */
+  quickDir: string;
   /**
    * Scratch space for in-flight jobs. Outputs are written here and moved into the user's
    * output folder only on success, so a crash never leaves a half-written file where
@@ -42,6 +44,7 @@ export function resolveAppPaths(overrideDataDir?: string): AppPaths {
     databaseFile: join(dataDir, 'impressive-ocr.db'),
     logsDir: join(dataDir, 'logs'),
     tlsDir: join(dataDir, 'tls'),
+    quickDir: join(dataDir, 'quick'),
     workDir: join(tmpdir(), 'impressive-ocr-work'),
   };
 }

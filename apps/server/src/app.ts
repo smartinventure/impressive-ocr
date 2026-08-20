@@ -25,6 +25,8 @@ import { RuntimeInstaller } from './modules/runtime/runtime-installer';
 import { RuntimeService } from './modules/runtime/runtime-service';
 import { AuthService } from './modules/auth/auth-service';
 import { createSessionStore } from './modules/auth/session-store';
+import { QuickRunService } from './modules/quick/quick-run-service';
+import { QuickRunStore } from './modules/quick/quick-run-store';
 import { SettingsService } from './modules/settings/settings-service';
 import { WatcherManager } from './modules/watcher/watcher-manager';
 import { createHttpServer } from './http/server';
@@ -179,11 +181,27 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     }),
   });
 
+  const quickStore = new QuickRunStore({ root: paths.quickDir, logger });
+  const quick = new QuickRunService({
+    pipelines: pipelineRepository,
+    jobs,
+    settings: settingsService,
+    store: quickStore,
+    events,
+    logger,
+    resolveFolder: (path, mustExist) =>
+      resolveSafePath(path, { allowlist: settingsService.allowlist(), mustExist }),
+  });
+
+  let housekeeping: NodeJS.Timeout | undefined;
+
   const services: AppServices = {
     pipelines,
     jobs,
     settings: settingsService,
     auth: authService,
+    quick,
+    quickStore,
     runtime,
     scheduler,
     watchers,
@@ -237,6 +255,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
       await watchers.sync();
       scheduler.start();
 
+      // Housekeeping, on one timer rather than one per concern. Runs immediately so a server
+      // that is restarted often still clears expired Quick Mode results and old history,
+      // then hourly. `unref` so it never holds the process open on shutdown.
+      const sweep = (): void => {
+        void quickStore.sweep();
+        const retentionDays = settingsService.get().historyRetentionDays;
+        if (retentionDays > 0) {
+          const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+          const pruned = jobs.pruneOlderThan(cutoff);
+          if (pruned > 0) logger.info({ pruned }, 'Pruned job history');
+        }
+      };
+      sweep();
+      housekeeping = setInterval(sweep, HOUSEKEEPING_INTERVAL_MS);
+      housekeeping.unref();
+
       const url = `${settings.scheme}://${
         settings.bindAddress === '0.0.0.0' ? 'localhost' : settings.bindAddress
       }:${settings.port}`;
@@ -248,6 +282,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
       logger.info('Shutting down');
       // Order matters: stop discovering work, stop scheduling it, then tear down the
       // workers that might still be mid-document.
+      if (housekeeping !== undefined) clearInterval(housekeeping);
       await watchers.stopAll();
       await scheduler.stop();
       await pool.stopAll();
@@ -256,6 +291,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     },
   };
 }
+
+/** How often expired Quick Mode runs and old job history are cleared. */
+const HOUSEKEEPING_INTERVAL_MS = 60 * 60 * 1000;
 
 /** Startup failed because the configured port is taken. Carries the port so the UI can offer another. */
 export class PortInUseError extends Error {

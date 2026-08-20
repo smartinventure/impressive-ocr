@@ -118,6 +118,75 @@ function buildHeaders(method: string, hasBody: boolean): Record<string, string> 
   return headers;
 }
 
+/**
+ * Upload files with progress.
+ *
+ * `XMLHttpRequest` rather than `fetch`, which still has no upload-progress event in any
+ * shipping browser. A user sending 200 MB of scans over a LAN needs to see it moving, and a
+ * spinner that sits there for two minutes is indistinguishable from a hang.
+ */
+export function uploadFiles<TResult>(
+  url: string,
+  files: readonly File[],
+  onProgress?: (fraction: number) => void,
+): Promise<TResult> {
+  return new Promise((resolve, reject) => {
+    const form = new FormData();
+    for (const file of files) {
+      form.append('files', file, file.name);
+    }
+
+    const request = new XMLHttpRequest();
+    request.open('POST', url);
+    request.withCredentials = true;
+    if (csrfToken !== null) {
+      request.setRequestHeader(CSRF_HEADER, csrfToken);
+    }
+
+    request.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress !== undefined) {
+        onProgress(event.loaded / event.total);
+      }
+    });
+
+    request.addEventListener('load', () => {
+      const payload: unknown = parseJson(request.responseText);
+      if (request.status >= 200 && request.status < 300) {
+        resolve(payload as TResult);
+        return;
+      }
+      if (request.status === 401) {
+        onUnauthorized?.();
+      }
+      const error = (payload ?? {}) as Partial<ApiError>;
+      reject(
+        new ApiRequestError(
+          request.status,
+          error.code ?? 'upload-failed',
+          error.message ?? `Upload failed with status ${request.status}`,
+        ),
+      );
+    });
+
+    request.addEventListener('error', () => {
+      reject(new ApiRequestError(0, 'network-error', 'Cannot reach the Impressive OCR service.'));
+    });
+    request.addEventListener('abort', () => {
+      reject(new ApiRequestError(0, 'aborted', 'The upload was cancelled.'));
+    });
+
+    request.send(form);
+  });
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+}
+
 export const api = {
   get: <TResult>(path: string, signal?: AbortSignal): Promise<TResult> =>
     request<TResult>(path, { signal }),

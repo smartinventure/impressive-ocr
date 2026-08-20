@@ -32,6 +32,7 @@ const { t, locale } = useI18n();
 
 const nav = computed(() => [
   { to: { name: 'pipelines' }, icon: 'account_tree', label: t('nav.pipelines') },
+  { to: { name: 'quick' }, icon: 'bolt', label: t('nav.quick') },
   { to: { name: 'jobs' }, icon: 'history', label: t('nav.jobs') },
   { to: { name: 'system' }, icon: 'monitor_heart', label: t('nav.status') },
   { to: { name: 'settings' }, icon: 'settings', label: t('nav.settings') },

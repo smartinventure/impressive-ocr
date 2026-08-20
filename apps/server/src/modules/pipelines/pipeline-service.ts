@@ -53,8 +53,9 @@ export interface PipelineServiceOptions {
 export class PipelineService {
   constructor(private readonly options: PipelineServiceOptions) {}
 
+  /** What the Pipelines screen shows: configured pipelines, not Quick Mode's hidden ones. */
   list(): PipelineWithStatus[] {
-    return this.options.repository.list().map((pipeline) => this.decorate(pipeline));
+    return this.options.repository.listVisible().map((pipeline) => this.decorate(pipeline));
   }
 
   get(id: string): PipelineWithStatus | null {
@@ -74,6 +75,8 @@ export class PipelineService {
       name: request.name,
       description: request.description ?? '',
       enabled: request.enabled,
+      // The editor only ever makes watched pipelines; Quick Mode inserts its own directly.
+      kind: 'watched',
       options,
       priority: options.schedule.priority,
       createdAt: now,

@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { idSchema, isoTimestampSchema } from './common';
 import { pipelineOptionsSchema } from './pipeline-options';
+import { pipelineKindSchema } from './quick-run';
 
 /**
  * `paused` is a user decision; `blocked` is the system's — no runtime installed, input folder
@@ -15,6 +16,11 @@ export const pipelineSchema = z.object({
   name: z.string().min(1).max(120),
   description: z.string().max(1000).default(''),
   enabled: z.boolean(),
+  /**
+   * Defaults to `watched` so every pipeline written before Quick Mode existed still parses.
+   * See `pipelineKindSchema` for what a hidden one is for.
+   */
+  kind: pipelineKindSchema.default('watched'),
   options: pipelineOptionsSchema,
   createdAt: isoTimestampSchema,
   updatedAt: isoTimestampSchema,

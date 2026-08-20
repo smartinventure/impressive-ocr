@@ -44,6 +44,11 @@ export class WatcherManager {
     const wanted = new Set<string>();
 
     for (const pipeline of pipelines) {
+      // Quick Mode runs are backed by a hidden pipeline whose "input folder" is really its
+      // output folder — watching it would re-queue every result the run just produced.
+      if (pipeline.kind === 'quick') {
+        continue;
+      }
       wanted.add(pipeline.id);
       const fingerprint = fingerprintOf(pipeline);
       const existing = this.watchers.get(pipeline.id);

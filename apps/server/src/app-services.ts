@@ -3,6 +3,8 @@ import type { AuthService } from './modules/auth/auth-service';
 import type { EventBus } from './modules/events/event-bus';
 import type { SidecarPool } from './modules/ocr/sidecar-pool';
 import type { PipelineService } from './modules/pipelines/pipeline-service';
+import type { QuickRunService } from './modules/quick/quick-run-service';
+import type { QuickRunStore } from './modules/quick/quick-run-store';
 import type { JobRepository } from './modules/queue/job-repository';
 import type { Scheduler } from './modules/queue/scheduler';
 import type { RuntimeService } from './modules/runtime/runtime-service';
@@ -21,6 +23,8 @@ export interface AppServices {
   jobs: JobRepository;
   settings: SettingsService;
   auth: AuthService;
+  quick: QuickRunService;
+  quickStore: QuickRunStore;
   runtime: RuntimeService;
   scheduler: Scheduler;
   watchers: WatcherManager;

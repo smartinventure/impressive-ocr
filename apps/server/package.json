@@ -18,6 +18,7 @@
   "dependencies": {
     "@fastify/cookie": "^11.1.2",
     "@fastify/helmet": "^13.0.1",
+    "@fastify/multipart": "^10.1.1",
     "@fastify/static": "^8.0.4",
     "@impressive-ocr/db": "workspace:*",
     "@impressive-ocr/shared": "workspace:*",
@@ -26,13 +27,17 @@
     "fastify": "^5.2.1",
     "pino": "^9.6.0",
     "selfsigned": "^2.4.1",
+    "yazl": "^3.3.1",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@impressive-ocr/tsconfig": "workspace:*",
     "@types/node": "^22.10.6",
+    "@types/yauzl": "^3.4.0",
+    "@types/yazl": "^3.3.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^3.2.7"
+    "vitest": "^3.2.7",
+    "yauzl": "^3.4.0"
   }
 }

@@ -10,12 +10,34 @@ import { pipelineOptionsSchema, type Pipeline, type PipelineOptions } from '@imp
 export class PipelineRepository {
   constructor(private readonly db: Database_) {}
 
+  /**
+   * Every pipeline, hidden ones included.
+   *
+   * The scheduler and the watcher use this: a Quick run's jobs must still be picked up, so
+   * filtering here would stop them ever executing.
+   */
   listRows(): PipelineRow[] {
     return this.db.select().from(pipelines).orderBy(asc(pipelines.name)).all();
   }
 
   list(): Pipeline[] {
     return this.listRows().map(toPipeline);
+  }
+
+  /**
+   * Pipelines the user configured, for the Pipelines screen.
+   *
+   * Quick runs are backed by a throwaway pipeline each; showing them would turn the list into
+   * a log of every ad-hoc run.
+   */
+  listVisible(): Pipeline[] {
+    return this.db
+      .select()
+      .from(pipelines)
+      .where(eq(pipelines.kind, 'watched'))
+      .orderBy(asc(pipelines.name))
+      .all()
+      .map(toPipeline);
   }
 
   find(id: string): Pipeline | null {
@@ -59,6 +81,9 @@ export function toPipeline(row: PipelineRow): Pipeline {
     name: row.name,
     description: row.description,
     enabled: row.enabled,
+    // Rows written before Quick Mode have no value here; the column default covers new
+    // inserts, this covers a database that predates the migration having ever run.
+    kind: row.kind ?? 'watched',
     options: parseOptions(row.options),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

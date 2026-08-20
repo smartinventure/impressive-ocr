@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type {
   AppSettings,
+  QuickOptions,
+  QuickRun,
   FolderRole,
   FolderValidation,
   AuthStatus,
@@ -16,7 +18,7 @@ import type {
   UpdatePipelineRequest,
   UpdateSettingsRequest,
 } from '@impressive-ocr/shared';
-import { api } from './client';
+import { api, uploadFiles } from './client';
 
 /**
  * Every backend endpoint, typed from the shared contracts.
@@ -43,6 +45,9 @@ export interface FolderEntry {
   isAccessible: boolean;
   modifiedAt: string | null;
   selectable: boolean;
+  /** Files appear only when `includeFiles` was requested; folders always do. */
+  isDirectory: boolean;
+  sizeBytes: number | null;
 }
 
 export interface BrowseResult {
@@ -109,10 +114,17 @@ export const filesystemApi = {
    * only permitted locally. Settings uses `system` to choose what to authorise in the first
    * place — the allowlist cannot bootstrap itself.
    */
-  browse: (path: string | null, scope: 'allowlist' | 'system' = 'allowlist') => {
+  browse: (
+    path: string | null,
+    scope: 'allowlist' | 'system' = 'allowlist',
+    includeFiles = false,
+  ) => {
     const params = new URLSearchParams({ scope });
     if (path !== null && path.length > 0) {
       params.set('path', path);
+    }
+    if (includeFiles) {
+      params.set('includeFiles', 'true');
     }
     return api.get<BrowseResult>(`/filesystem/browse?${params.toString()}`);
   },
@@ -138,3 +150,36 @@ export const authApi = {
 
   clearPassword: (): Promise<void> => api.delete('/auth/password'),
 };
+
+/** Quick Mode: OCR a handful of files once, without a watched folder. */
+export const quickApi = {
+  /** Stage uploads first, so progress is visible and a failed upload never creates a run. */
+  upload: (files: File[], onProgress?: (fraction: number) => void): Promise<{ uploadId: string }> =>
+    uploadFiles('/api/quick/uploads', files, onProgress),
+
+  start: (body: {
+    source: 'server' | 'upload';
+    files?: string[];
+    uploadId?: string;
+    outputPath?: string;
+    options: QuickOptions;
+  }): Promise<QuickRun> => api.post('/quick/runs', body),
+
+  progress: (pipelineId: string, signal?: AbortSignal): Promise<QuickRunProgress> =>
+    api.get(`/quick/runs/${pipelineId}`, signal),
+
+  cancel: (pipelineId: string): Promise<{ cancelled: number }> =>
+    api.post(`/quick/runs/${pipelineId}/cancel`),
+
+  /** Absolute URL, because this is handed to the browser to download rather than fetched. */
+  downloadUrl: (pipelineId: string): string => `/api/quick/runs/${pipelineId}/download`,
+
+  discard: (pipelineId: string, runId: string): Promise<void> =>
+    api.delete(`/quick/runs/${pipelineId}?runId=${encodeURIComponent(runId)}`),
+};
+
+export interface QuickRunProgress {
+  pipelineId: string;
+  stats: { queued: number; running: number; succeeded: number; failed: number };
+  jobs: Job[];
+}

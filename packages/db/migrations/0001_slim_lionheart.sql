@@ -1,0 +1,1 @@
+ALTER TABLE `pipelines` ADD `kind` text DEFAULT 'watched' NOT NULL;

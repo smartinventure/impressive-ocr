@@ -7,7 +7,8 @@
     "pipelines": "Pipelines",
     "jobs": "Jobs",
     "status": "System",
-    "settings": "Settings"
+    "settings": "Settings",
+    "quick": "Quick Mode"
   },
   "common": {
     "select": "Select",
@@ -284,5 +285,35 @@
     "currentIncorrect": "The current password is incorrect.",
     "currentRequired": "Enter your current password to change it.",
     "removeWarning": "Changing or removing the password signs out every browser, including this one."
+  },
+  "quick": {
+    "subtitle": "OCR a few files once, without setting up a watched folder.",
+    "filesTitle": "Files",
+    "outputTitle": "Output",
+    "sourceServer": "On this server",
+    "sourceUpload": "From this computer",
+    "chooseFiles": "Choose files",
+    "thisComputer": "This computer",
+    "up": "Up one level",
+    "done": "Done",
+    "selectedCount": "{count} selected",
+    "uploadLabel": "Files to upload",
+    "uploadHint": "Uploaded files are deleted as soon as their job finishes.",
+    "outputFolder": "Output folder",
+    "outputFolderHint": "Results are written here.",
+    "downloadNotice": "Results will be available as a ZIP download when the run finishes.",
+    "formulaHint": "Considerably slower.",
+    "start": "Start",
+    "cancel": "Cancel",
+    "running": "Running",
+    "finished": "Finished",
+    "progressCount": "{done} of {total}",
+    "succeeded": "{count} succeeded",
+    "failed": "{count} failed",
+    "writtenTo": "Results written to {path}",
+    "download": "Download results",
+    "newRun": "Start another",
+    "runtimeNeeded": "The OCR runtime is not installed yet, so nothing can run.",
+    "browseFailed": "That folder could not be opened."
   }
 }

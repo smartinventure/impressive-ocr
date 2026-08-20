@@ -214,6 +214,48 @@ export class JobRepository {
       .run();
   }
 
+  /**
+   * Drop every job for a pipeline that has not started yet.
+   *
+   * A job already running is deliberately left alone: the executor owns it and stops it
+   * through its `AbortSignal`, which is what guarantees no half-written output escapes the
+   * work directory. Marking it here would only desynchronise the two.
+   */
+  cancelPendingFor(pipelineId: string): number {
+    const result = this.db
+      .update(jobs)
+      .set({
+        state: 'cancelled',
+        finishedAt: new Date().toISOString(),
+      })
+      .where(and(eq(jobs.pipelineId, pipelineId), eq(jobs.state, 'pending')))
+      .run();
+
+    return result.changes;
+  }
+
+  /**
+   * Every output a pipeline's jobs produced, with the document each came from.
+   *
+   * Used to build the Quick Mode download; the document name groups a run's files so four
+   * formats across three documents do not arrive as twelve interleaved entries.
+   */
+  outputsForPipeline(pipelineId: string): { path: string; documentName: string }[] {
+    return this.db
+      .select({ path: jobOutputs.path, documentName: jobs.fileName })
+      .from(jobOutputs)
+      .innerJoin(jobs, eq(jobOutputs.jobId, jobs.id))
+      .where(eq(jobs.pipelineId, pipelineId))
+      .orderBy(jobs.discoveredAt, jobOutputs.createdAt)
+      .all()
+      .map((row) => ({
+        path: row.path,
+        // Group by the source document without its extension: `invoice.pdf` produces
+        // `invoice/invoice.md`, not `invoice.pdf/invoice.md`.
+        documentName: row.documentName.replace(/\.[^.]+$/, ''),
+      }));
+  }
+
   rememberHash(pipelineId: string, contentHash: string): void {
     this.db
       .insert(processedHashes)

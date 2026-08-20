@@ -30,6 +30,8 @@ Server (Node)
 Fastify, @fastify/helmet,
   @fastify/static, @fastify/cookie  MIT ............ The Fastify Team
 selfsigned ........................ MIT ............ José F. Romaniello
+@fastify/multipart ................ MIT ............ The Fastify Team
+yazl .............................. MIT ............ Josh Wolfe
 node-forge ........................ BSD-3-Clause ... Digital Bazaar, Inc.
                                     (dual licensed BSD-3-Clause OR GPL-2.0;
                                     used here under BSD-3-Clause)

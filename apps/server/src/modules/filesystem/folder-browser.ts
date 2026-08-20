@@ -38,6 +38,10 @@ export interface FolderEntry {
   modifiedAt: string | null;
   /** Whether this folder may be chosen, given the scope. */
   selectable: boolean;
+  /** Files are listed only when the caller asks for them; folders are always listed. */
+  isDirectory: boolean;
+  /** Bytes, for files. Null for folders, which are not sized here. */
+  sizeBytes: number | null;
 }
 
 export interface BrowseResult {
@@ -54,6 +58,14 @@ export interface BrowseOptions {
   path: string | null;
   scope: BrowseScope;
   allowlist: readonly string[];
+  /**
+   * Whether to list files alongside folders.
+   *
+   * Off by default: this browser mostly exists to choose a *folder*, and listing thousands of
+   * scanned PDFs would bury the thing the user is looking for. Quick Mode turns it on,
+   * because there the files are the point.
+   */
+  includeFiles?: boolean;
 }
 
 export class FolderBrowseError extends Error {
@@ -140,9 +152,12 @@ async function listDirectory(target: string, options: BrowseOptions): Promise<Fo
   try {
     const dirents = await readdir(target, { withFileTypes: true });
     names = dirents
-      // Only directories: this browser exists to choose a folder, and listing thousands of
-      // scanned PDFs alongside them would bury the thing the user is looking for.
-      .filter((entry) => entry.isDirectory() || entry.isSymbolicLink())
+      .filter(
+        (entry) =>
+          entry.isDirectory() ||
+          entry.isSymbolicLink() ||
+          (options.includeFiles === true && entry.isFile()),
+      )
       .map((entry) => entry.name)
       .sort((a, b) => a.localeCompare(b))
       .slice(0, MAX_ENTRIES);
@@ -166,15 +181,28 @@ async function describeEntry(path: string, options: BrowseOptions): Promise<Fold
   try {
     // `lstat`, not `stat`: `stat` follows the link and would stall on a dead target.
     const stats = await withTimeout(lstat(path), ENTRY_STAT_TIMEOUT_MS);
+    const isDirectory = stats.isDirectory() || stats.isSymbolicLink();
     return {
       name,
       path,
       isAccessible: true,
       modifiedAt: stats.mtime.toISOString(),
       selectable,
+      isDirectory,
+      sizeBytes: isDirectory ? null : stats.size,
     };
   } catch {
-    return { name, path, isAccessible: false, modifiedAt: null, selectable };
+    // Unprobeable: assume a folder, which is the safer guess — a file that turns out not to
+    // exist fails clearly at read time, whereas hiding a real folder strands the user.
+    return {
+      name,
+      path,
+      isAccessible: false,
+      modifiedAt: null,
+      selectable,
+      isDirectory: true,
+      sizeBytes: null,
+    };
   }
 }
 

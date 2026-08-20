@@ -3,9 +3,15 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import fastifyCookie from '@fastify/cookie';
 import fastifyHelmet from '@fastify/helmet';
+import fastifyMultipart from '@fastify/multipart';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
-import type { ApiError, AppSettings } from '@impressive-ocr/shared';
+import {
+  QUICK_UPLOAD_MAX_FILES,
+  QUICK_UPLOAD_MAX_FILE_BYTES,
+  type ApiError,
+  type AppSettings,
+} from '@impressive-ocr/shared';
 import type { Logger } from '../infra/logger';
 import type { AppServices } from '../app-services';
 import { HttpError, registerErrorHandler } from './errors';
@@ -16,6 +22,7 @@ import { registerEventRoutes } from './routes/events-routes';
 import { registerFilesystemRoutes } from './routes/filesystem-routes';
 import { registerJobRoutes } from './routes/jobs-routes';
 import { registerPipelineRoutes } from './routes/pipelines-routes';
+import { registerQuickRoutes } from './routes/quick-routes';
 import { registerSystemRoutes } from './routes/system-routes';
 
 export interface HttpServerOptions {
@@ -44,6 +51,12 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
 
   // Registered before helmet and the routes so `request.cookies` exists in the auth hook.
   await app.register(fastifyCookie);
+
+  // Quick Mode uploads. The ceiling is per file and enforced by the plugin, so an oversized
+  // upload is cut off as it streams rather than after it has filled the disk.
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: QUICK_UPLOAD_MAX_FILE_BYTES, files: QUICK_UPLOAD_MAX_FILES },
+  });
 
   await app.register(fastifyHelmet, {
     contentSecurityPolicy: {
@@ -113,6 +126,7 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
   registerAuthRoutes(app, options.services);
 
   registerPipelineRoutes(app, options.services);
+  registerQuickRoutes(app, options.services);
   registerJobRoutes(app, options.services);
   registerSystemRoutes(app, options.services);
   registerFilesystemRoutes(app, options.services);

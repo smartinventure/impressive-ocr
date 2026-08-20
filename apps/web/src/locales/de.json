@@ -7,7 +7,8 @@
     "pipelines": "Pipelines",
     "jobs": "Aufträge",
     "status": "System",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "quick": "Schnellmodus"
   },
   "common": {
     "select": "Auswählen",
@@ -284,5 +285,35 @@
     "currentIncorrect": "Das aktuelle Passwort ist falsch.",
     "currentRequired": "Geben Sie Ihr aktuelles Passwort ein, um es zu ändern.",
     "removeWarning": "Das Ändern oder Entfernen des Passworts meldet alle Browser ab, auch diesen."
+  },
+  "quick": {
+    "subtitle": "Einige Dateien einmalig per OCR verarbeiten, ohne einen überwachten Ordner einzurichten.",
+    "filesTitle": "Dateien",
+    "outputTitle": "Ausgabe",
+    "sourceServer": "Auf diesem Server",
+    "sourceUpload": "Von diesem Computer",
+    "chooseFiles": "Dateien auswählen",
+    "thisComputer": "Dieser Computer",
+    "up": "Eine Ebene höher",
+    "done": "Fertig",
+    "selectedCount": "{count} ausgewählt",
+    "uploadLabel": "Hochzuladende Dateien",
+    "uploadHint": "Hochgeladene Dateien werden gelöscht, sobald ihr Auftrag abgeschlossen ist.",
+    "outputFolder": "Ausgabeordner",
+    "outputFolderHint": "Hier werden die Ergebnisse gespeichert.",
+    "downloadNotice": "Die Ergebnisse stehen nach dem Lauf als ZIP-Download bereit.",
+    "formulaHint": "Deutlich langsamer.",
+    "start": "Starten",
+    "cancel": "Abbrechen",
+    "running": "Läuft",
+    "finished": "Abgeschlossen",
+    "progressCount": "{done} von {total}",
+    "succeeded": "{count} erfolgreich",
+    "failed": "{count} fehlgeschlagen",
+    "writtenTo": "Ergebnisse gespeichert unter {path}",
+    "download": "Ergebnisse herunterladen",
+    "newRun": "Weiteren Lauf starten",
+    "runtimeNeeded": "Die OCR-Laufzeitumgebung ist noch nicht installiert, es kann nichts ausgeführt werden.",
+    "browseFailed": "Dieser Ordner konnte nicht geöffnet werden."
   }
 }

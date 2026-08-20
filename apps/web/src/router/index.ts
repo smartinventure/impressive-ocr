@@ -33,6 +33,11 @@ const routes: RouteRecordRaw[] = [
     props: true,
   },
   {
+    path: '/quick',
+    name: 'quick',
+    component: () => import('../features/quick/views/quick-mode-view.vue'),
+  },
+  {
     path: '/jobs',
     name: 'jobs',
     component: () => import('../features/jobs/views/jobs-view.vue'),

@@ -24,6 +24,8 @@ import {
 const browseQuerySchema = z.object({
   path: z.string().max(4096).optional(),
   scope: z.enum(['allowlist', 'system']).default('allowlist'),
+  /** Quick Mode needs the files; the folder pickers do not. */
+  includeFiles: z.coerce.boolean().default(false),
 });
 
 const createFolderSchema = z.object({
@@ -41,6 +43,7 @@ export function registerFilesystemRoutes(app: AppFastify, services: AppServices)
         path: query.path ?? null,
         scope: query.scope,
         allowlist: services.settings.allowlist(),
+        includeFiles: query.includeFiles,
       });
     } catch (error) {
       throw toHttpError(error);

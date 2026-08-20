@@ -97,7 +97,9 @@ async function main() {
   const actual = createHash('sha256').update(readFileSync(archivePath)).digest('hex');
   if (expected !== null && expected !== actual) {
     rmSync(archivePath, { force: true });
-    process.stderr.write(`Checksum mismatch for ${asset}\n  expected ${expected}\n  got      ${actual}\n`);
+    process.stderr.write(
+      `Checksum mismatch for ${asset}\n  expected ${expected}\n  got      ${actual}\n`,
+    );
     process.exit(1);
   }
 
@@ -108,10 +110,7 @@ async function main() {
     chmodSync(binaryPath, 0o755);
   }
 
-  writeFileSync(
-    join(vendorDir, 'VERSION'),
-    `${UV_VERSION}\n${key}\nsha256:${actual}\n`,
-  );
+  writeFileSync(join(vendorDir, 'VERSION'), `${UV_VERSION}\n${key}\nsha256:${actual}\n`);
   process.stdout.write(`uv ${UV_VERSION} ready at ${binaryPath}\n`);
 }
 

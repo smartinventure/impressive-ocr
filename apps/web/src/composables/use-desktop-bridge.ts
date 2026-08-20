@@ -43,9 +43,7 @@ declare global {
 }
 
 const bridge = ref<DesktopBridge | null>(
-  typeof window !== 'undefined' && window.impressiveOcr !== undefined
-    ? window.impressiveOcr
-    : null,
+  typeof window !== 'undefined' && window.impressiveOcr !== undefined ? window.impressiveOcr : null,
 );
 
 export function useDesktopBridge() {

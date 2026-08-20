@@ -44,13 +44,7 @@ export interface ServerInfo {
 }
 
 export type UpdateState =
-  | 'idle'
-  | 'checking'
-  | 'available'
-  | 'downloading'
-  | 'ready'
-  | 'up-to-date'
-  | 'error';
+  'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'up-to-date' | 'error';
 
 export interface UpdateStatus {
   state: UpdateState;

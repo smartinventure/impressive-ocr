@@ -275,5 +275,3 @@ function writeGloballyPaused(db: ReturnType<typeof createDatabase>['db'], paused
     .onConflictDoUpdate({ target: appState.key, set: { value: paused, updatedAt } })
     .run();
 }
-
-

@@ -33,8 +33,7 @@ const bridge: DesktopBridge = {
 
   getVersion: () => ipcRenderer.invoke(IPC_CHANNELS.getVersion) as Promise<string>,
 
-  checkForUpdate: () =>
-    ipcRenderer.invoke(IPC_CHANNELS.checkForUpdate) as Promise<UpdateStatus>,
+  checkForUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.checkForUpdate) as Promise<UpdateStatus>,
 
   downloadUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.downloadUpdate) as Promise<void>,
 

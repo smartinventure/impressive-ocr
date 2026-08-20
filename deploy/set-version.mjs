@@ -53,7 +53,10 @@ function latestTag() {
       cwd: repoRoot,
       encoding: 'utf8',
     });
-    const first = output.split('\n').map((line) => line.trim()).filter(Boolean)[0];
+    const first = output
+      .split('\n')
+      .map((line) => line.trim())
+      .filter(Boolean)[0];
     return first === undefined ? null : first.replace(/^v/, '');
   } catch {
     return null;

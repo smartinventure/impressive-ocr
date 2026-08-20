@@ -85,8 +85,10 @@ function renderMark({ size, mark, ground, bars, knockOutBars = false }) {
         const bx = bar.x * scale;
         const by = bar.y * scale;
         return (
-          x + 0.5 >= bx && x + 0.5 < bx + bar.w * scale &&
-          y + 0.5 >= by && y + 0.5 < by + bar.h * scale
+          x + 0.5 >= bx &&
+          x + 0.5 < bx + bar.w * scale &&
+          y + 0.5 >= by &&
+          y + 0.5 < by + bar.h * scale
         );
       });
 
@@ -134,7 +136,11 @@ function downsample(source, sourceSize, targetSize) {
 
   for (let y = 0; y < targetSize; y += 1) {
     for (let x = 0; x < targetSize; x += 1) {
-      let r = 0, g = 0, b = 0, a = 0, count = 0;
+      let r = 0,
+        g = 0,
+        b = 0,
+        a = 0,
+        count = 0;
 
       for (let sy = y * factor; sy < (y + 1) * factor; sy += 1) {
         for (let sx = x * factor; sx < (x + 1) * factor; sx += 1) {

@@ -1,0 +1,12 @@
+{
+  "extends": "@impressive-ocr/tsconfig/node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rootDir": "src",
+    "types": ["node"],
+    // The main process is bundled to CommonJS by esbuild, which needs `__dirname`.
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
+  },
+  "include": ["src/**/*.ts", "build.mjs"]
+}

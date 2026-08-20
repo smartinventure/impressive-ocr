@@ -1,0 +1,36 @@
+{
+  "name": "@impressive-ocr/desktop",
+  "//productName": "Electron derives the app name — and therefore the userData directory — from this. Without it the scoped package name becomes AppData/Roaming/@impressive-ocr/desktop.",
+  "productName": "Impressive OCR",
+  "version": "1.0.0",
+  "private": true,
+  "license": "AGPL-3.0-or-later",
+  "description": "Impressive OCR desktop application",
+  "author": "Impressive OCR",
+  "main": "dist/main.cjs",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "start": "node build.mjs && electron .",
+    "package": "node build.mjs && electron-builder --publish never",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "electron-updater": "^6.8.9"
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.1",
+    "@impressive-ocr/server": "workspace:*",
+    "@impressive-ocr/shared": "workspace:*",
+    "@impressive-ocr/tsconfig": "workspace:*",
+    "@types/node": "^22.10.6",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}

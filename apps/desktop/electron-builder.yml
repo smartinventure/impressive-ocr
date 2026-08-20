@@ -1,0 +1,127 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+appId: com.smartinventure.impressive-ocr
+productName: Impressive OCR
+copyright: Copyright © 2026 Impressive OCR contributors. AGPL-3.0-or-later.
+
+directories:
+  output: ../../dist/release
+  buildResources: build
+
+files:
+  - dist/**/*
+  - package.json
+  # Everything else is bundled into dist/main.cjs by esbuild, so the workspace source tree
+  # does not need to ship.
+  - '!src/**'
+  - '!build.mjs'
+
+extraResources:
+  # The built SPA, served by the in-process backend over HTTP — the same page the headless
+  # server serves, so there is only ever one frontend to test.
+  - from: ../web/dist
+    to: web
+  # `uv` installs Python and PaddleOCR on first run. Outside the asar because an executable
+  # inside an asar archive cannot be spawned.
+  - from: ../../vendor/uv
+    to: uv
+  - from: build/icons
+    to: icons
+  # Drizzle migrations are read from disk at startup, so they cannot be bundled into main.cjs.
+  - from: ../../packages/db/migrations
+    to: migrations
+  # Installed into the user's venv at setup time, so the Python source has to be present.
+  - from: ../../sidecar
+    to: sidecar
+    filter:
+      - '**/*'
+      - '!.venv/**'
+      - '!**/__pycache__/**'
+      - '!**/*.pyc'
+      - '!.pytest_cache/**'
+      - '!.ruff_cache/**'
+      - '!.mypy_cache/**'
+
+# better-sqlite3 is a native addon and must be rebuilt against Electron's ABI, not Node's.
+npmRebuild: true
+asar: true
+asarUnpack:
+  - '**/*.node'
+
+# Versioned names, which is what electron-updater writes into latest.yml. The stable aliases
+# the website links to are added afterwards by deploy/make-stable-aliases.mjs.
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+
+publish:
+  provider: github
+  owner: smartinventure
+  repo: impressive-ocr
+  releaseType: release
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icons/icon.png
+  # ARM64 is deliberately absent: PaddlePaddle publishes no win-arm64 wheels, so a native
+  # build would install and then fail at the runtime bootstrap. Windows on ARM runs the x64
+  # build under Prism emulation instead. See docs/releasing.md.
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Impressive OCR
+  installerIcon: build/icons/icon.png
+  uninstallerIcon: build/icons/icon.png
+  license: ../../LICENSE
+  # Leaves the user's pipelines, database and downloaded models in place on uninstall unless
+  # they ask otherwise — silently deleting gigabytes of models and a job history would be a
+  # nasty surprise on a routine reinstall.
+  deleteAppDataOnUninstall: false
+  include: build/installer.nsh
+
+mac:
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  icon: build/icons/icon.png
+  category: public.app-category.productivity
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    # No camera, microphone or contacts access is ever requested; the app only reads the
+    # folders the user has authorised.
+    NSDocumentsFolderUsageDescription: Impressive OCR reads documents from the folders you authorise.
+    NSDownloadsFolderUsageDescription: Impressive OCR reads documents from the folders you authorise.
+
+dmg:
+  title: ${productName} ${version}
+
+linux:
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]
+  icon: build/icons
+  category: Office
+  synopsis: Local-first OCR workstation
+  description: >-
+    Watches folders, runs OCR on documents that land there with PaddleOCR, and writes the
+    results as Markdown, JSON, TXT, DOCX, XLSX or a searchable PDF. Runs entirely on your own
+    machine.
+
+deb:
+  depends:
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libsecret-1-0

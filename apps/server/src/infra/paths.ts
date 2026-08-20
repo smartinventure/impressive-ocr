@@ -51,10 +51,7 @@ function defaultDataDir(): string {
     case 'darwin':
       return join(home, 'Library', 'Application Support', APP_FOLDER);
     default:
-      return join(
-        process.env.XDG_DATA_HOME ?? join(home, '.local', 'share'),
-        'impressive-ocr',
-      );
+      return join(process.env.XDG_DATA_HOME ?? join(home, '.local', 'share'), 'impressive-ocr');
   }
 }
 

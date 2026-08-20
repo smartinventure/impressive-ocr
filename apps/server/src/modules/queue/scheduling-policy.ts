@@ -1,0 +1,169 @@
+// SPDX-License-Identifier: AGPL-3.0-or-later
+import type {
+  EngineProfile,
+  HardwareCapabilities,
+  Pipeline,
+  ResolvedDevice,
+} from '@impressive-ocr/shared';
+
+/**
+ * The decisions the scheduler makes, as pure functions.
+ *
+ * Kept free of the database, the clock and the sidecar pool so every rule here can be tested
+ * directly. These are exactly the rules that are painful to debug once they are entangled
+ * with IO: why a pipeline will not start, why a job went to the CPU, when a retry is due.
+ */
+
+export interface DeviceResolution {
+  device: ResolvedDevice;
+  profile: EngineProfile;
+  /** Set when the user's preference could not be honoured. Surfaced on the job. */
+  fallbackReason: string | null;
+}
+
+/**
+ * Decide which device and engine profile a job actually runs on.
+ *
+ * `auto` is not "prefer GPU": the Accurate profile is a 0.9B vision-language model that is
+ * unusably slow on a CPU, so falling back has to change the *profile* too, not just the
+ * device. Silently running Accurate on a CPU would look like a hang.
+ */
+export function resolveDevice(
+  pipeline: Pipeline,
+  hardware: HardwareCapabilities,
+): DeviceResolution {
+  const { profile, device } = pipeline.options.engine;
+
+  if (device === 'gpu' && hardware.canUseGpu) {
+    return { device: 'gpu', profile, fallbackReason: null };
+  }
+  if (device === 'auto' && hardware.canUseGpu) {
+    return { device: 'gpu', profile, fallbackReason: null };
+  }
+
+  // Everything below lands on the CPU. Explain it only where the outcome differs from what
+  // the user asked for — a "fallback" note on every job of a CPU-only machine that asked
+  // for Fast on CPU would be pure noise, and noise is how real warnings get ignored.
+  const parts: string[] = [];
+
+  if (device === 'gpu') {
+    parts.push(`${describeUnavailableGpu(hardware)} Falling back to the CPU.`);
+  }
+  if (profile === 'accurate') {
+    if (parts.length === 0 && device === 'auto') {
+      parts.push(describeUnavailableGpu(hardware));
+    }
+    parts.push('The Accurate profile needs a GPU, so the Fast profile was used instead.');
+  }
+
+  return {
+    device: 'cpu',
+    // The Accurate profile is a vision-language model; on a CPU it is not slow but
+    // effectively stalled, so CPU always means the Fast profile.
+    profile: 'fast',
+    fallbackReason: parts.length > 0 ? parts.join(' ') : null,
+  };
+}
+
+function describeUnavailableGpu(hardware: HardwareCapabilities): string {
+  return hardware.gpuUnavailableReason === null
+    ? 'No GPU is available.'
+    : `GPU unavailable (${hardware.gpuUnavailableReason}).`;
+}
+
+/**
+ * Whether a pipeline may start work right now.
+ *
+ * Split from `resolveDevice` because the reasons are user-facing: the overview screen shows
+ * "blocked" with this exact explanation, and "nothing is happening and I do not know why" is
+ * the worst possible state for a background processor.
+ */
+export interface EligibilityResult {
+  eligible: boolean;
+  reason: string | null;
+}
+
+export function isPipelineEligible(
+  pipeline: Pipeline,
+  options: { globallyPaused: boolean; now: Date; runtimeReady: boolean },
+): EligibilityResult {
+  if (options.globallyPaused) {
+    return { eligible: false, reason: 'All pipelines are paused.' };
+  }
+  if (!pipeline.enabled) {
+    return { eligible: false, reason: 'This pipeline is paused.' };
+  }
+  if (!options.runtimeReady) {
+    return { eligible: false, reason: 'The OCR runtime is not installed yet.' };
+  }
+
+  const schedule = pipeline.options.schedule;
+  if (schedule.activeHoursEnabled && !isWithinActiveHours(schedule, options.now)) {
+    return {
+      eligible: false,
+      reason: `Outside the active hours (${schedule.activeFrom}–${schedule.activeUntil}).`,
+    };
+  }
+  return { eligible: true, reason: null };
+}
+
+/**
+ * Is `now` inside the configured window?
+ *
+ * The window routinely wraps past midnight — "run overnight, 18:00 to 07:00" is the whole
+ * point of the feature — so a naive `from <= now && now <= until` comparison would be wrong
+ * for the common case.
+ */
+export function isWithinActiveHours(
+  schedule: { activeFrom: string; activeUntil: string },
+  now: Date,
+): boolean {
+  const current = now.getHours() * 60 + now.getMinutes();
+  const from = parseMinutes(schedule.activeFrom);
+  const until = parseMinutes(schedule.activeUntil);
+
+  if (from === until) {
+    return true; // A zero-length window is treated as "always", not "never".
+  }
+  return from < until ? current >= from && current < until : current >= from || current < until;
+}
+
+function parseMinutes(value: string): number {
+  const [hours, minutes] = value.split(':');
+  return Number.parseInt(hours ?? '0', 10) * 60 + Number.parseInt(minutes ?? '0', 10);
+}
+
+/**
+ * When a failed job may be tried again.
+ *
+ * Exponential with a cap: a locked file usually frees within seconds, but a full disk or a
+ * dead network share will not, and hammering it every 30 seconds fills the log without
+ * helping anyone.
+ */
+export const MAX_RETRY_DELAY_MS = 30 * 60 * 1000;
+
+export function nextAttemptAt(attempt: number, baseDelayMs: number, now: Date): Date {
+  const exponent = Math.max(0, attempt - 1);
+  const delay = Math.min(baseDelayMs * 2 ** exponent, MAX_RETRY_DELAY_MS);
+  return new Date(now.getTime() + delay);
+}
+
+/** Whether the job has attempts left, given the pipeline's limit. */
+export function canRetry(attempts: number, maxAttempts: number, retryable: boolean): boolean {
+  return retryable && attempts < maxAttempts;
+}
+
+/**
+ * How many jobs may run at once on each device.
+ *
+ * The GPU lane is fixed at one while a vision-language model holds several gigabytes of
+ * VRAM — a second concurrent job would not go faster, it would go out of memory.
+ */
+export function deviceCapacity(hardware: HardwareCapabilities): Record<ResolvedDevice, number> {
+  return {
+    gpu: hardware.canUseGpu ? 1 : 0,
+    // Leave headroom: OCR is CPU-bound and starving the UI thread makes the app feel broken
+    // exactly while it is working hardest.
+    cpu: Math.max(1, Math.floor(hardware.cpuCores / 2)),
+  };
+}

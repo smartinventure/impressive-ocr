@@ -8,9 +8,7 @@ describe('expandTemplate', () => {
   });
 
   it('zero-pads the page number so per-page outputs sort correctly', () => {
-    expect(expandTemplate('{name}_p{page}', { sourceStem: 'scan', page: 7 })).toBe(
-      'scan_p0007',
-    );
+    expect(expandTemplate('{name}_p{page}', { sourceStem: 'scan', page: 7 })).toBe('scan_p0007');
   });
 
   it('drops the page placeholder for whole-document formats', () => {

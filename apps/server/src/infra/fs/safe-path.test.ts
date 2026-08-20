@@ -56,9 +56,9 @@ describe('resolveSafePath', () => {
 
   it('rejects everything when the allowlist is empty', async () => {
     // Fail-closed: a fresh install has authorised nothing, so nothing may be read.
-    await expect(
-      resolveSafePath(join(allowed, 'doc.pdf'), { allowlist: [] }),
-    ).rejects.toThrow(PathNotAllowedError);
+    await expect(resolveSafePath(join(allowed, 'doc.pdf'), { allowlist: [] })).rejects.toThrow(
+      PathNotAllowedError,
+    );
   });
 
   it('rejects a path outside the allowlist', async () => {

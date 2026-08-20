@@ -89,30 +89,50 @@ interface Collected {
 }
 
 /**
- * Buffer a stream while emitting complete lines.
+ * How much of a child's output to keep.
  *
- * Chunk boundaries fall mid-line, so a naive per-chunk callback would split messages —
- * which for the sidecar's NDJSON handshake would mean unparseable JSON.
+ * Only the tail is ever used — for the message on a non-zero exit. Retaining everything
+ * crashed the server during the PaddleOCR model download: pip and the model fetcher both
+ * draw progress bars, emitting tens of thousands of carriage-return-separated updates, and
+ * the accumulated string exhausted the heap.
+ */
+const MAX_RETAINED_OUTPUT_BYTES = 64 * 1024;
+
+/**
+ * Split a stream into complete lines, keeping only a bounded tail.
+ *
+ * Chunk boundaries fall mid-line, so a naive per-chunk callback would split messages — which
+ * for the sidecar's NDJSON handshake would mean unparseable JSON.
+ *
+ * Carriage returns are treated as line breaks as well as newlines, so a progress bar that
+ * redraws with `\r` reports its latest state instead of arriving as one enormous line at the
+ * end.
  */
 function collect(
   child: ChildProcessWithoutNullStreams,
   stream: 'stdout' | 'stderr',
   onLine: RunCommandOptions['onLine'],
 ): Collected {
-  const chunks: string[] = [];
+  let retained = '';
   let pending = '';
 
   child[stream].setEncoding('utf8');
   child[stream].on('data', (chunk: string) => {
-    chunks.push(chunk);
+    retained += chunk;
+    if (retained.length > MAX_RETAINED_OUTPUT_BYTES) {
+      retained = retained.slice(-MAX_RETAINED_OUTPUT_BYTES);
+    }
+
     if (onLine === undefined) {
       return;
     }
     pending += chunk;
-    const lines = pending.split(/\r?\n/);
+    const lines = pending.split(/\r\n|\r|\n/);
     pending = lines.pop() ?? '';
     for (const line of lines) {
-      onLine(line, stream);
+      if (line.length > 0) {
+        onLine(line, stream);
+      }
     }
   });
   child[stream].on('end', () => {
@@ -122,7 +142,7 @@ function collect(
     }
   });
 
-  return { text: () => chunks.join('') };
+  return { text: () => retained };
 }
 
 function tail(value: string, limit: number): string {

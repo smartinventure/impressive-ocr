@@ -54,9 +54,7 @@ export async function moveFile(source: string, destination: string): Promise<voi
 }
 
 function isCrossDevice(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null && 'code' in error && error.code === 'EXDEV'
-  );
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EXDEV';
 }
 
 /**

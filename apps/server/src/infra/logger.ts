@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { pino, type Logger } from 'pino';
+import { destination, pino, type Logger } from 'pino';
 
 export type { Logger };
 
@@ -22,23 +22,33 @@ const REDACTED_PATHS = [
 
 export interface LoggerOptions {
   level: string;
-  /** Pretty single-line output for `pnpm dev`; JSON in production. */
+  /** Kept for call-site clarity; both modes emit JSON — pipe through `pino-pretty` in dev. */
   pretty: boolean;
 }
 
 export function createLogger(options: LoggerOptions): Logger {
-  return pino({
-    level: options.level,
-    redact: { paths: REDACTED_PATHS, censor: '[redacted]' },
-    ...(options.pretty
-      ? {
-          transport: {
-            target: 'pino/file',
-            options: { destination: 2 },
-          },
-        }
-      : {}),
-  });
+  return pino(
+    {
+      level: options.level,
+      redact: { paths: REDACTED_PATHS, censor: '[redacted]' },
+    },
+    /**
+     * A direct destination, deliberately **not** a pino `transport`.
+     *
+     * Transports run in a worker thread that loads `pino/lib/worker.js` from disk by path.
+     * Inside the bundled Electron main process that file does not exist, so the worker dies
+     * on startup and every subsequent `logger.info` throws "the worker has exited" — which
+     * took down logging *and* the calls around it.
+     *
+     * fd 2 rather than 1: stdout is reserved for the headless mode's own handshake output.
+     *
+     * `sync: true` deliberately. An async destination buffers, and on a hard crash those
+     * buffered lines are lost along with Node's own fatal-error report — which is the one
+     * moment the log actually matters. This app writes a handful of lines per document, so
+     * the throughput an async destination buys is worth nothing against that.
+     */
+    destination({ dest: 2, sync: true }),
+  );
 }
 
 /**

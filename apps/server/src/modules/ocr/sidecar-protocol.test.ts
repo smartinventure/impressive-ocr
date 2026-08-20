@@ -5,9 +5,10 @@ import { parseMessage } from './sidecar-client';
 
 describe('parseHandshake', () => {
   it('reads the port and protocol version', () => {
-    expect(parseHandshake('{"event": "listening", "port": 60305, "protocolVersion": 1}')).toEqual(
-      { port: 60305, protocolVersion: 1 },
-    );
+    expect(parseHandshake('{"event": "listening", "port": 60305, "protocolVersion": 1}')).toEqual({
+      port: 60305,
+      protocolVersion: 1,
+    });
   });
 
   it('ignores unrelated stdout', () => {

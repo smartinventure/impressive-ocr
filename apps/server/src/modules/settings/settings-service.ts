@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { eq } from 'drizzle-orm';
-import {
-  APP_STATE_KEYS,
-  appState,
-  type Database_,
-} from '@impressive-ocr/db';
+import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
 import {
   appSettingsSchema,
   type AppSettings,

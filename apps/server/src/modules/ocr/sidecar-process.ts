@@ -202,8 +202,7 @@ export function parseHandshake(line: string): SidecarHandshake | null {
     }
     return {
       port: record.port,
-      protocolVersion:
-        typeof record.protocolVersion === 'number' ? record.protocolVersion : 0,
+      protocolVersion: typeof record.protocolVersion === 'number' ? record.protocolVersion : 0,
     };
   } catch {
     return null;

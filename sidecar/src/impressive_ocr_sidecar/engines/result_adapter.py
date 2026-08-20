@@ -26,6 +26,8 @@ _MARKDOWN_KEYS = ("markdown_texts", "markdown", "md_text")
 _TEXT_KEYS = ("rec_texts", "texts", "text")
 _BOX_KEYS = ("rec_polys", "dt_polys", "boxes", "rec_boxes")
 _SCORE_KEYS = ("rec_scores", "scores")
+#: Where PP-StructureV3 hides the page-wide OCR result. See :func:`_ocr_payload`.
+_NESTED_OCR_KEY = "overall_ocr_res"
 
 
 def _as_mapping(result: Any) -> dict[str, Any]:
@@ -45,6 +47,23 @@ def _first_present(source: dict[str, Any], keys: tuple[str, ...]) -> Any:
         if key in source and source[key] is not None:
             return source[key]
     return None
+
+
+def _ocr_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Return the mapping that actually carries the recognition arrays.
+
+    ``PaddleOCR.predict`` puts ``rec_texts``/``rec_polys`` at the top level, but
+    ``PPStructureV3.predict`` reserves the top level for layout blocks and nests the
+    page-wide OCR result under ``overall_ocr_res``. Descending to whichever level holds the
+    text keeps one extraction path for both engines instead of forking on pipeline type.
+
+    Without this the structure engine silently produced **zero** text boxes: the pipeline
+    ran to completion, so nothing failed loudly — the page just came back empty.
+    """
+    if _first_present(payload, _TEXT_KEYS) is not None:
+        return payload
+    nested = payload.get(_NESTED_OCR_KEY)
+    return nested if isinstance(nested, dict) else payload
 
 
 def extract_markdown(result: Any) -> str:
@@ -97,7 +116,7 @@ def extract_text_boxes(result: Any) -> list[TextBox]:
     Returns an empty list when the shape is unrecognised; the searchable-PDF writer then
     reports that it cannot produce a text layer rather than emitting an empty one.
     """
-    payload = _as_mapping(result)
+    payload = _ocr_payload(_as_mapping(result))
     texts = _first_present(payload, _TEXT_KEYS)
     polygons = _first_present(payload, _BOX_KEYS)
 

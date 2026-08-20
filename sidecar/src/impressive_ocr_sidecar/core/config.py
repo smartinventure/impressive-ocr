@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Literal
 
 PROTOCOL_VERSION = 1
@@ -84,14 +85,26 @@ def load_config() -> SidecarConfig:
 
 
 def apply_paddle_environment(config: SidecarConfig) -> None:
-    """Point PaddleOCR at our own model cache before it is first imported.
+    """Point every model cache at the app's own directory, before anything is imported.
 
-    PaddleOCR reads these at import time and defaults to ``~/.paddlex``. We keep weights
-    inside the app's data directory so an uninstall removes them and an offline install can
-    ship them pre-populated.
+    PaddleOCR does not download models itself; it delegates to ``huggingface_hub`` and
+    ModelScope, and *those* cache under ``~/.cache`` on the system drive no matter where the
+    user put their data. Leaving them there means the app silently consumes gigabytes of C:,
+    and on a full system drive every download truncates — surfacing as PaddleOCR's
+    "No valid PaddlePaddle model found", which mentions neither downloads nor disk space.
+
+    ``setdefault`` throughout: the parent process may already have set these deliberately,
+    and an operator's explicit choice must win.
     """
-    os.environ.setdefault("PADDLE_PDX_CACHE_HOME", config.model_cache_dir)
+    cache = Path(config.model_cache_dir)
+
+    os.environ.setdefault("PADDLE_PDX_CACHE_HOME", str(cache))
     os.environ.setdefault("PADDLE_PDX_MODEL_SOURCE", "huggingface")
+    os.environ.setdefault("HF_HOME", str(cache / "huggingface"))
+    os.environ.setdefault("HF_HUB_CACHE", str(cache / "huggingface" / "hub"))
+    os.environ.setdefault("MODELSCOPE_CACHE", str(cache / "modelscope"))
+    os.environ.setdefault("XDG_CACHE_HOME", str(cache / "xdg"))
+
     if not config.is_gpu:
         # Belt and braces: keep Paddle off the GPU even if a CUDA build is installed.
         os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")

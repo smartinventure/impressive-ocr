@@ -8,13 +8,15 @@ present.
 
 from __future__ import annotations
 
+import platform
+import sysconfig
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
 from ..core.errors import CorruptDocumentError, EngineLoadError
 from ..core.logging import get_logger
-from ..core.protocol import EngineOptions
+from ..core.protocol import EngineModules, EngineOptions
 from .base import PageResult
 from .result_adapter import to_page_result
 
@@ -26,8 +28,11 @@ class StructureEngine:
 
     name = "pp-structure-v3"
 
-    def __init__(self, device: str) -> None:
+    def __init__(self, device: str, modules: EngineModules | None = None) -> None:
         self._device = device
+        # The toggles must be known before load(): PP-StructureV3 downloads and instantiates
+        # its sub-models in the constructor, so passing them only to predict() is too late.
+        self._modules = modules if modules is not None else EngineModules()
         self._pipeline: Any = None
         self._version = "unknown"
 
@@ -45,7 +50,15 @@ class StructureEngine:
             from paddleocr import PPStructureV3
 
             self._version = getattr(paddleocr, "__version__", "unknown")
-            self._pipeline = PPStructureV3(device=self._device)
+            # Constructor, not predict(): PP-StructureV3 resolves, downloads and builds every
+            # enabled sub-model here. Left at the defaults it pulls formula, chart, seal and
+            # table-cell models — hundreds of megabytes, and minutes of load time, for
+            # features most pipelines have switched off.
+            self._pipeline = PPStructureV3(
+                device=self._device,
+                enable_mkldnn=_mkldnn_enabled(),
+                **build_module_kwargs(self._modules),
+            )
         except ImportError as error:
             raise EngineLoadError(f"PaddleOCR is not installed: {error}") from error
         except Exception as error:
@@ -86,14 +99,43 @@ class StructureEngine:
             yield to_page_result(result, page_number=index, width=width, height=height)
 
 
-def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
-    """Map our option names onto PaddleOCR's ``use_*`` keyword arguments.
+def use_mkldnn(machine: str, binary_platform: str) -> bool:
+    """Whether oneDNN (MKL-DNN) acceleration is safe on this machine.
 
-    Kept as a free function so it can be unit-tested without PaddleOCR installed — the
-    mapping is where a typo would silently disable table recognition for everyone.
+    PaddleX turns it on by default for CPU inference, and on real x86 hardware it is a large
+    win. Under **x64 emulation on an ARM64 host** — a Snapdragon X Windows laptop running the
+    x86-64 build — it is not merely slow: inference dies inside
+    ``onednn_instruction.cc`` with
+
+        NotImplementedError: (Unimplemented) ConvertPirAttribute2RuntimeAttribute
+        not support [pir::ArrayAttribute<pir::DoubleAttribute>]
+
+    and in the full document pipeline it takes the process down with no traceback at all.
+
+    Detection compares the *host* architecture against the architecture the interpreter was
+    built for. `platform.machine()` reports the host (ARM64 even under emulation), while
+    `sysconfig.get_platform()` reports the binary (win-amd64) — a mismatch means emulation.
     """
-    modules = options.modules
-    kwargs: dict[str, Any] = {
+    host_is_arm = "arm" in machine.lower() or "aarch64" in machine.lower()
+    binary_is_x86 = "amd64" in binary_platform.lower() or "x86_64" in binary_platform.lower()
+    return not (host_is_arm and binary_is_x86)
+
+
+def _mkldnn_enabled() -> bool:
+    return use_mkldnn(platform.machine(), sysconfig.get_platform())
+
+
+def build_module_kwargs(modules: EngineModules) -> dict[str, Any]:
+    """Map our module toggles onto PaddleOCR's ``use_*`` keyword arguments.
+
+    Used for **both** the constructor and ``predict()``. The constructor decides which
+    sub-models get downloaded and loaded; ``predict()`` decides which run. They have to agree,
+    or a pipeline either loads models it never uses or asks for one it never loaded.
+
+    A free function so it can be unit-tested without PaddleOCR installed — this mapping is
+    where a typo would silently disable table recognition for everyone.
+    """
+    return {
         "use_doc_orientation_classify": modules.doc_orientation_classify,
         "use_doc_unwarping": modules.doc_unwarping,
         "use_textline_orientation": modules.textline_orientation,
@@ -102,6 +144,11 @@ def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
         "use_chart_recognition": modules.chart_recognition,
         "use_seal_recognition": modules.seal_recognition,
     }
+
+
+def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
+    """Keyword arguments for one ``predict()`` call."""
+    kwargs = build_module_kwargs(options.modules)
     if options.max_pages_per_document > 0:
         kwargs["page_num"] = options.max_pages_per_document
     return kwargs

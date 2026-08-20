@@ -21,6 +21,8 @@ export interface AppPaths {
   venvDir: string;
   databaseFile: string;
   logsDir: string;
+  /** Holds the self-signed certificate used when the UI is served over https. */
+  tlsDir: string;
   /**
    * Scratch space for in-flight jobs. Outputs are written here and moved into the user's
    * output folder only on success, so a crash never leaves a half-written file where
@@ -39,6 +41,7 @@ export function resolveAppPaths(overrideDataDir?: string): AppPaths {
     venvDir: join(runtimeDir, 'venv'),
     databaseFile: join(dataDir, 'impressive-ocr.db'),
     logsDir: join(dataDir, 'logs'),
+    tlsDir: join(dataDir, 'tls'),
     workDir: join(tmpdir(), 'impressive-ocr-work'),
   };
 }

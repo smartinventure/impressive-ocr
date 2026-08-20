@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, createDatabase } from '@impressive-ocr/db';
-import type { AppSettings } from '@impressive-ocr/shared';
+import { SESSION_IDLE_TIMEOUT_MINUTES, type AppSettings } from '@impressive-ocr/shared';
 import { ensureDirectory } from './infra/fs/file-ops';
 import {
   defaultMigrationsDir,
@@ -13,6 +13,7 @@ import { resolveSafePath } from './infra/fs/safe-path';
 import { createAuthToken } from './infra/ids';
 import { createLogger, type Logger } from './infra/logger';
 import { resolveAppPaths, type AppPaths } from './infra/paths';
+import { ensureCertificate } from './infra/tls/self-signed';
 import { EventBus } from './modules/events/event-bus';
 import { SidecarPool } from './modules/ocr/sidecar-pool';
 import { PipelineRepository } from './modules/pipelines/pipeline-repository';
@@ -22,6 +23,8 @@ import { JobRepository } from './modules/queue/job-repository';
 import { Scheduler } from './modules/queue/scheduler';
 import { RuntimeInstaller } from './modules/runtime/runtime-installer';
 import { RuntimeService } from './modules/runtime/runtime-service';
+import { AuthService } from './modules/auth/auth-service';
+import { createSessionStore } from './modules/auth/session-store';
 import { SettingsService } from './modules/settings/settings-service';
 import { WatcherManager } from './modules/watcher/watcher-manager';
 import { createHttpServer } from './http/server';
@@ -91,7 +94,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     migrationsFolder: options.migrationsDir ?? defaultMigrationsDir(),
   });
 
-  const settingsService = new SettingsService(db);
+  // Built before the settings service, which asks it whether a password exists before
+  // permitting a network binding. The store is in-memory, so a restart signs everyone out.
+  const sessions = createSessionStore({ idleTimeoutMinutes: SESSION_IDLE_TIMEOUT_MINUTES });
+  const authService = new AuthService(db, sessions);
+  const settingsService = new SettingsService(db, () => authService.hasPassword());
   const stored = settingsService.get();
   const settings: AppSettings =
     options.port === undefined ? stored : { ...stored, port: options.port };
@@ -176,6 +183,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     pipelines,
     jobs,
     settings: settingsService,
+    auth: authService,
     runtime,
     scheduler,
     watchers,
@@ -191,11 +199,20 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
       resolveSafePath(path, { allowlist: settingsService.allowlist(), mustExist }),
   };
 
+  // Resolved before the server is constructed: Fastify picks http or https at construction,
+  // not at listen(). A self-signed pair is generated on first use and then reused, so the
+  // browser warning is a one-off rather than a fresh one on every restart.
+  const tls =
+    settings.scheme === 'https'
+      ? await ensureCertificate({ directory: paths.tlsDir, logger })
+      : undefined;
+
   const http = await createHttpServer({
     services,
     settings,
     logger,
     webRoot: options.webRoot ?? defaultWebRoot(),
+    ...(tls === undefined ? {} : { tls: { certificate: tls.certificate, key: tls.key } }),
   });
 
   return {

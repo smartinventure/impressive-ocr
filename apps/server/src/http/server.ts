@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
+import fastifyCookie from '@fastify/cookie';
 import fastifyHelmet from '@fastify/helmet';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
@@ -9,6 +10,8 @@ import type { Logger } from '../infra/logger';
 import type { AppServices } from '../app-services';
 import { HttpError, registerErrorHandler } from './errors';
 import type { AppFastify } from './fastify-types';
+import { registerAuthHook } from './auth-hook';
+import { registerAuthRoutes } from './routes/auth-routes';
 import { registerEventRoutes } from './routes/events-routes';
 import { registerFilesystemRoutes } from './routes/filesystem-routes';
 import { registerJobRoutes } from './routes/jobs-routes';
@@ -21,16 +24,26 @@ export interface HttpServerOptions {
   logger: Logger;
   /** Directory holding the built Vue SPA. Omitted in dev, where Vite serves it. */
   webRoot?: string | undefined;
+  /** Certificate and key, when the UI is served over https. */
+  tls?: { certificate: string; key: string } | undefined;
 }
 
 export async function createHttpServer(options: HttpServerOptions): Promise<AppFastify> {
   const app = Fastify({
     loggerInstance: options.logger,
+    // Fastify decides http vs https at construction from the presence of `https`, so the
+    // material has to be resolved before this point rather than at listen() time.
+    ...(options.tls === undefined
+      ? {}
+      : { https: { cert: options.tls.certificate, key: options.tls.key } }),
     // The app is reached by its own users on their own machine; there is no reverse proxy
     // whose forwarded headers we should believe.
     trustProxy: false,
     bodyLimit: 2 * 1024 * 1024,
   });
+
+  // Registered before helmet and the routes so `request.cookies` exists in the auth hook.
+  await app.register(fastifyCookie);
 
   await app.register(fastifyHelmet, {
     contentSecurityPolicy: {
@@ -49,9 +62,10 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
         baseUri: ["'self'"],
       },
     },
-    // The app is served over plain HTTP on loopback by default; HSTS would poison the
-    // browser's cache for localhost across every other local development server.
-    hsts: false,
+    // Off for http on loopback, where it would poison the browser's cache for localhost
+    // across every other local development server. On once we genuinely serve https, where
+    // it is what stops a downgrade back to cleartext.
+    hsts: options.tls !== undefined,
     crossOriginEmbedderPolicy: false,
   });
 
@@ -92,6 +106,11 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
   });
 
   registerErrorHandler(app);
+
+  // Before the routes: the hook has to see every API request, including ones added later.
+  registerAuthHook(app, { auth: options.services.auth, settings: options.services.settings });
+
+  registerAuthRoutes(app, options.services);
 
   registerPipelineRoutes(app, options.services);
   registerJobRoutes(app, options.services);

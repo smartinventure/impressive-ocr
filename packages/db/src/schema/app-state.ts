@@ -20,6 +20,8 @@ export const APP_STATE_KEYS = {
   hardware: 'hardware',
   runtime: 'runtime',
   globallyPaused: 'globally-paused',
+  /** The web UI password hash. Separate from `settings` so it is never sent to a client. */
+  auth: 'auth',
 } as const;
 
 export type AppStateKey = (typeof APP_STATE_KEYS)[keyof typeof APP_STATE_KEYS];

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import type { AuthService } from './modules/auth/auth-service';
 import type { EventBus } from './modules/events/event-bus';
 import type { SidecarPool } from './modules/ocr/sidecar-pool';
 import type { PipelineService } from './modules/pipelines/pipeline-service';
@@ -19,6 +20,7 @@ export interface AppServices {
   pipelines: PipelineService;
   jobs: JobRepository;
   settings: SettingsService;
+  auth: AuthService;
   runtime: RuntimeService;
   scheduler: Scheduler;
   watchers: WatcherManager;

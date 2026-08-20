@@ -64,6 +64,14 @@ async function patch(
   return { status: response.statusCode, body: response.json() };
 }
 
+async function put(
+  url: string,
+  payload: Record<string, unknown>,
+): Promise<{ status: number; body: unknown }> {
+  const response = await app.http.inject({ method: 'PUT', url, payload });
+  return { status: response.statusCode, body: response.json() };
+}
+
 function pipelineBody(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     name: 'Invoices',
@@ -171,10 +179,44 @@ describe('settings', () => {
     expect(body).toMatchObject({ code: 'settings-invalid' });
   });
 
-  it('allows binding to the network once authentication is on', async () => {
+  it('still refuses when authentication is on but no password exists', async () => {
+    // This combination used to be accepted, and it was the whole hole: `authEnabled` was
+    // permission to bind to the network rather than a credential protecting it.
+    const { status, body } = await patch('/api/settings', {
+      bindAddress: '0.0.0.0',
+      authEnabled: true,
+    });
+
+    expect(status).toBe(400);
+    expect(body).toMatchObject({ code: 'settings-invalid' });
+  });
+
+  it('still refuses over plain http once a password exists', async () => {
+    await put('/api/auth/password', {
+      password: 'a-sufficiently-long-password',
+      confirmPassword: 'a-sufficiently-long-password',
+    });
+
+    const { status, body } = await patch('/api/settings', {
+      bindAddress: '0.0.0.0',
+      authEnabled: true,
+      scheme: 'http',
+    });
+
+    expect(status).toBe(400);
+    expect(body).toMatchObject({ code: 'settings-invalid' });
+  });
+
+  it('allows binding to the network with authentication, a password and https', async () => {
+    await put('/api/auth/password', {
+      password: 'a-sufficiently-long-password',
+      confirmPassword: 'a-sufficiently-long-password',
+    });
+
     const { status } = await patch('/api/settings', {
       bindAddress: '0.0.0.0',
       authEnabled: true,
+      scheme: 'https',
     });
 
     expect(status).toBe(200);

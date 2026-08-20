@@ -14,5 +14,6 @@ export * from './pipeline';
 export * from './job';
 export * from './system';
 export * from './settings';
+export * from './auth';
 export * from './events';
 export * from './sidecar';

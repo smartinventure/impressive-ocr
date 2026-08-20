@@ -1,5 +1,5 @@
 Impressive OCR
-Copyright (C) 2026 Smart In Media AG
+Copyright (C) 2026 Smart In Venture
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU Affero General Public License as published by the Free
@@ -28,7 +28,11 @@ Pydantic .......................... MIT ............ Pydantic Services Inc.
 Server (Node)
 -------------
 Fastify, @fastify/helmet,
-  @fastify/static ................. MIT ............ The Fastify Team
+  @fastify/static, @fastify/cookie  MIT ............ The Fastify Team
+selfsigned ........................ MIT ............ José F. Romaniello
+node-forge ........................ BSD-3-Clause ... Digital Bazaar, Inc.
+                                    (dual licensed BSD-3-Clause OR GPL-2.0;
+                                    used here under BSD-3-Clause)
 chokidar .......................... MIT ............ Paul Miller
 drizzle-orm ....................... Apache-2.0 ..... Drizzle Team
 pino .............................. MIT ............ Matteo Collina and others

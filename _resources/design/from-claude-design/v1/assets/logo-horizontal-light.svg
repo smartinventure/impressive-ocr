@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 470 120" width="470" height="120">
+  <g transform="translate(6.8,9)">
+    <rect width="100" height="100" rx="22" fill="#14532D"></rect>
+  <g fill="#ffffff">
+    <rect x="22" y="28" width="56" height="9"></rect>
+    <rect x="22" y="45" width="56" height="9"></rect>
+    <rect x="22" y="62" width="34" height="9"></rect>
+  </g>
+  <rect x="64" y="62" width="14" height="9" fill="#ffffff"></rect>
+  </g>
+  <text x="113.9" y="76.4" font-family="'Space Grotesk','Helvetica Neue',Helvetica,Arial,sans-serif" font-size="52px" letter-spacing="-1.6" fill="#111111"><tspan font-weight="400">Impressive</tspan><tspan font-weight="700">OCR</tspan></text>
+</svg>

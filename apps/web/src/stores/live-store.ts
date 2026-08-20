@@ -1,8 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { defineStore } from 'pinia';
 import { computed, ref, shallowRef } from 'vue';
-import type { Job, PipelineWithStatus, RuntimeStatus, SystemStatus } from '@impressive-ocr/shared';
-import { jobsApi, pipelinesApi, systemApi } from '../api/endpoints';
+import type {
+  AppSettings,
+  Job,
+  PipelineWithStatus,
+  RuntimeStatus,
+  SystemStatus,
+} from '@impressive-ocr/shared';
+import { jobsApi, pipelinesApi, settingsApi, systemApi } from '../api/endpoints';
 import {
   connectEventStream,
   type ConnectionState,
@@ -24,6 +30,7 @@ export const useLiveStore = defineStore('live', () => {
   const jobs = ref<Job[]>([]);
   const system = ref<SystemStatus | null>(null);
   const runtime = ref<RuntimeStatus | null>(null);
+  const settings = ref<AppSettings | null>(null);
   const connection = ref<ConnectionState>('connecting');
   const loading = ref(true);
   const loadError = ref<string | null>(null);
@@ -47,15 +54,17 @@ export const useLiveStore = defineStore('live', () => {
 
   async function refresh(): Promise<void> {
     try {
-      const [pipelineList, jobPage, status] = await Promise.all([
+      const [pipelineList, jobPage, status, appSettings] = await Promise.all([
         pipelinesApi.list(),
         jobsApi.list({ limit: 100 }),
         systemApi.status(),
+        settingsApi.get(),
       ]);
       pipelines.value = pipelineList;
       jobs.value = jobPage.items;
       system.value = status;
       runtime.value = status.runtime;
+      settings.value = appSettings;
       loadError.value = null;
     } catch (error) {
       loadError.value = error instanceof Error ? error.message : 'Could not load state';
@@ -158,11 +167,23 @@ export const useLiveStore = defineStore('live', () => {
     }
   }
 
+  /**
+   * Whether any folder has been authorized.
+   *
+   * The allowlist is the app's security boundary and starts empty, so until the user adds a
+   * folder there is nowhere a pipeline could legally read from or write to. The server
+   * already refuses to create one; this lets the UI say so before the user fills in a long
+   * form and loses it to a validation error.
+   */
+  const hasAuthorizedFolder = computed(() => (settings.value?.folderAllowlist.length ?? 0) > 0);
+
   return {
     pipelines,
     jobs,
     system,
     runtime,
+    settings,
+    hasAuthorizedFolder,
     connection,
     loading,
     loadError,

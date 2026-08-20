@@ -30,6 +30,18 @@ const store = useLiveStore();
 const { t } = useI18n();
 
 const isEdit = computed(() => props.id !== undefined);
+
+/**
+ * A new pipeline needs somewhere it is allowed to read and write.
+ *
+ * The allowlist is the security boundary and starts empty, so the server would reject this
+ * form however it is filled in. Blocking here covers the deep link too -- the buttons on the
+ * pipelines page are already disabled, but a bookmarked /pipelines/new would otherwise walk
+ * the user through thirty fields before failing on save.
+ *
+ * Editing stays allowed: an existing pipeline's folders were authorized when it was created.
+ */
+const blocked = computed(() => !isEdit.value && !store.loading && !store.hasAuthorizedFolder);
 const name = ref('');
 const description = ref('');
 const options = ref<PipelineOptions>(blankOptions());
@@ -141,11 +153,20 @@ onMounted(async () => {
       </h1>
     </header>
 
-    <v-alert v-if="formError" type="error" density="compact" class="mb-4">
+    <v-card v-if="blocked" class="pa-6 text-center">
+      <v-icon icon="folder_off" size="48" class="mb-3 text-medium-emphasis" />
+      <h2 class="text-h6 mb-2">{{ t('pipelines.needsFolderTitle') }}</h2>
+      <p class="text-body-2 text-medium-emphasis mb-4">{{ t('pipelines.needsFolder') }}</p>
+      <v-btn color="primary" prepend-icon="folder_open" :to="{ name: 'settings' }">
+        {{ t('pipelines.authorizeFolder') }}
+      </v-btn>
+    </v-card>
+
+    <v-alert v-if="!blocked && formError" type="error" density="compact" class="mb-4">
       {{ formError }}
     </v-alert>
 
-    <v-form @submit.prevent="save">
+    <v-form v-if="!blocked" @submit.prevent="save">
       <v-card class="pa-5 mb-4">
         <v-text-field
           v-model="name"

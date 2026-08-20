@@ -72,11 +72,41 @@ async function toggleAll(): Promise<void> {
         >
           {{ store.globallyPaused ? t('pipelines.resumeAll') : t('pipelines.pauseAll') }}
         </v-btn>
-        <v-btn color="primary" prepend-icon="add" :to="{ name: 'pipeline-new' }">
+        <v-tooltip
+          v-if="!store.hasAuthorizedFolder"
+          :text="t('pipelines.needsFolderTooltip')"
+          location="bottom"
+        >
+          <template #activator="{ props: tooltip }">
+            <!-- A span, because a disabled button emits no pointer events of its own and the
+                 tooltip would never appear. -->
+            <span v-bind="tooltip">
+              <v-btn color="primary" prepend-icon="add" disabled>
+                {{ t('pipelines.newPipeline') }}
+              </v-btn>
+            </span>
+          </template>
+        </v-tooltip>
+        <v-btn v-else color="primary" prepend-icon="add" :to="{ name: 'pipeline-new' }">
           {{ t('pipelines.newPipeline') }}
         </v-btn>
       </div>
     </header>
+
+    <v-alert
+      v-if="!store.loading && !store.hasAuthorizedFolder"
+      type="info"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+    >
+      {{ t('pipelines.needsFolder') }}
+      <template #append>
+        <v-btn size="small" variant="text" :to="{ name: 'settings' }">
+          {{ t('pipelines.goToSettings') }}
+        </v-btn>
+      </template>
+    </v-alert>
 
     <v-alert v-if="store.globallyPaused" type="warning" density="compact" class="mb-4">
       {{ t('pipelines.allPaused') }}
@@ -89,9 +119,19 @@ async function toggleAll(): Promise<void> {
     <v-card v-if="!store.loading && pipelines.length === 0" class="pipelines__empty">
       <v-icon icon="account_tree" size="48" class="mb-3 text-medium-emphasis" />
       <h2 class="text-h6 mb-2">{{ t('pipelines.empty') }}</h2>
-      <p class="text-body-2 text-medium-emphasis mb-4">{{ t('pipelines.emptyHint') }}</p>
-      <v-btn color="primary" prepend-icon="add" :to="{ name: 'pipeline-new' }">
+      <p class="text-body-2 text-medium-emphasis mb-4">
+        {{ store.hasAuthorizedFolder ? t('pipelines.emptyHint') : t('pipelines.needsFolder') }}
+      </p>
+      <v-btn
+        v-if="store.hasAuthorizedFolder"
+        color="primary"
+        prepend-icon="add"
+        :to="{ name: 'pipeline-new' }"
+      >
         {{ t('pipelines.newPipeline') }}
+      </v-btn>
+      <v-btn v-else color="primary" prepend-icon="folder_open" :to="{ name: 'settings' }">
+        {{ t('pipelines.authorizeFolder') }}
       </v-btn>
     </v-card>
 

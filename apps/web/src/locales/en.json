@@ -51,7 +51,12 @@
     "resumeAll": "Resume all",
     "allPaused": "All pipelines are paused",
     "input": "Input",
-    "output": "Output"
+    "output": "Output",
+    "needsFolderTitle": "Authorize a folder first",
+    "needsFolder": "Impressive OCR can only read and write inside authorized folders, and none are set yet. Add one before creating a pipeline.",
+    "needsFolderTooltip": "Authorize a folder in Settings before creating a pipeline.",
+    "goToSettings": "Open Settings",
+    "authorizeFolder": "Authorize a folder"
   },
   "device": {
     "gpu": "GPU",
@@ -157,10 +162,10 @@
     "orientation": "Detect page orientation",
     "unwarping": "Flatten curved pages",
     "textline": "Detect text line orientation",
-    "table": "Recognise tables",
-    "formula": "Recognise formulas",
-    "chart": "Recognise charts",
-    "seal": "Recognise stamps and seals"
+    "table": "Recognize tables",
+    "formula": "Recognize formulas",
+    "chart": "Recognize charts",
+    "seal": "Recognize stamps and seals"
   },
   "format": {
     "markdown": "Markdown",
@@ -232,9 +237,9 @@
     "verify": "Verifying"
   },
   "settings": {
-    "allowlist": "Authorised folders",
+    "allowlist": "Authorized folders",
     "allowlistHint": "Impressive OCR can only read and write inside these folders. Nothing else on this computer is reachable.",
-    "allowlistEmpty": "No folders are authorised yet. Add at least one before creating a pipeline.",
+    "allowlistEmpty": "No folders are authorized yet. Add at least one before creating a pipeline.",
     "addFolder": "Add a folder",
     "server": "Server",
     "port": "Port",

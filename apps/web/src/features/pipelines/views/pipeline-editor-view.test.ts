@@ -8,6 +8,7 @@ import * as directives from 'vuetify/directives';
 import { createI18n } from 'vue-i18n';
 import { createRouter, createWebHistory } from 'vue-router';
 import PipelineEditorView from './pipeline-editor-view.vue';
+import { useLiveStore } from '../../../stores/live-store';
 import en from '../../../locales/en.json';
 
 /**
@@ -27,14 +28,30 @@ vi.mock('../../../api/endpoints', () => ({
 const vuetify = createVuetify({ components, directives });
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en } });
 
-function mountEditor() {
+/**
+ * @param authorizedFolders Folders on the allowlist. Empty means the editor should refuse to
+ *   render a form the server could only reject.
+ */
+function mountEditor(authorizedFolders: string[] = ['C:/scans']) {
   const router = createRouter({
     history: createWebHistory(),
-    routes: [{ path: '/', name: 'pipelines', component: { template: '<div />' } }],
+    routes: [
+      { path: '/', name: 'pipelines', component: { template: '<div />' } },
+      { path: '/settings', name: 'settings', component: { template: '<div />' } },
+    ],
   });
-  return mount(PipelineEditorView, {
-    global: { plugins: [vuetify, i18n, createPinia(), router] },
+  const pinia = createPinia();
+  const wrapper = mount(PipelineEditorView, {
+    global: { plugins: [vuetify, i18n, pinia, router] },
   });
+
+  // Seed the store as a finished load would; `loading` starts true, which would otherwise
+  // mask the gate and let these tests pass for the wrong reason.
+  const store = useLiveStore(pinia);
+  store.loading = false;
+  store.settings = { folderAllowlist: authorizedFolders } as never;
+
+  return wrapper;
 }
 
 /** Panel bodies are lazy; Vuetify only renders one once its panel opens. */
@@ -79,5 +96,22 @@ describe('PipelineEditorView', () => {
     await openPanel(wrapper, 0);
 
     expect(() => wrapper.unmount()).not.toThrow();
+  });
+});
+
+describe('without an authorized folder', () => {
+  it('refuses to show the form, because the server would reject it anyway', async () => {
+    const wrapper = mountEditor([]);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: 'VForm' }).exists()).toBe(false);
+    expect(wrapper.text()).toContain('Authorize a folder');
+  });
+
+  it('shows the form once a folder is authorized', async () => {
+    const wrapper = mountEditor(['C:/scans']);
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.findComponent({ name: 'VForm' }).exists()).toBe(true);
   });
 });

@@ -51,7 +51,12 @@
     "resumeAll": "Alle fortsetzen",
     "allPaused": "Alle Pipelines sind pausiert",
     "input": "Eingang",
-    "output": "Ausgang"
+    "output": "Ausgang",
+    "needsFolderTitle": "Zuerst einen Ordner freigeben",
+    "needsFolder": "Impressive OCR kann nur in freigegebenen Ordnern lesen und schreiben; bisher ist keiner festgelegt. Bitte zuerst einen hinzufügen.",
+    "needsFolderTooltip": "Geben Sie in den Einstellungen einen Ordner frei, bevor Sie eine Pipeline anlegen.",
+    "goToSettings": "Einstellungen öffnen",
+    "authorizeFolder": "Ordner freigeben"
   },
   "device": {
     "gpu": "GPU",

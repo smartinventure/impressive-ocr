@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
+  draftPipelineOptions,
   pipelineOptionsSchema,
   type OutputFormat,
   type PipelineOptions,
@@ -38,12 +39,10 @@ const fieldErrors = ref<Record<string, string>>({});
 const openPanels = ref<string[]>(['source', 'engine', 'output']);
 
 function blankOptions(): PipelineOptions {
-  // Parsing an almost-empty object yields the full default set, so the form and the server
-  // start from exactly the same values — no second copy of the defaults to drift.
-  return pipelineOptionsSchema.parse({
-    source: { inputPath: '' },
-    output: { outputPath: '' },
-  });
+  // Shared, so the form and the server start from exactly the same ~30 defaults with no
+  // second copy to drift. It must not be `pipelineOptionsSchema.parse` with empty paths:
+  // those are `.min(1)`, so that throws here in setup and renders a blank page.
+  return draftPipelineOptions();
 }
 
 const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
@@ -112,10 +111,24 @@ onMounted(async () => {
   if (props.id === undefined) {
     return;
   }
-  const existing = store.pipelineById(props.id) ?? (await pipelinesApi.get(props.id));
-  name.value = existing.name;
-  description.value = existing.description;
-  options.value = pipelineOptionsSchema.parse(existing.options);
+  try {
+    const existing = store.pipelineById(props.id) ?? (await pipelinesApi.get(props.id));
+    name.value = existing.name;
+    description.value = existing.description;
+
+    // safeParse, not parse: a pipeline stored by an older release can be missing a field
+    // added since. Throwing here would leave the form silently empty with no explanation,
+    // so fall back to the defaults and say so instead.
+    const parsed = pipelineOptionsSchema.safeParse(existing.options);
+    if (parsed.success) {
+      options.value = parsed.data;
+    } else {
+      options.value = { ...draftPipelineOptions(), ...(existing.options as PipelineOptions) };
+      formError.value = t('editor.optionsRecovered');
+    }
+  } catch (caught) {
+    formError.value = caught instanceof ApiRequestError ? caught.message : t('editor.loadFailed');
+  }
 });
 </script>
 

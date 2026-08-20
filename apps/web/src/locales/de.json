@@ -144,7 +144,9 @@
     "priority": "Priorität",
     "activeHours": "Nur zu bestimmten Zeiten ausführen",
     "activeFrom": "Von",
-    "activeUntil": "Bis"
+    "activeUntil": "Bis",
+    "optionsRecovered": "Einige Einstellungen konnten nicht gelesen werden und wurden auf die Standardwerte zurückgesetzt. Bitte vor dem Speichern prüfen.",
+    "loadFailed": "Diese Pipeline konnte nicht geladen werden."
   },
   "moduleTone": {
     "slow": "langsamer",

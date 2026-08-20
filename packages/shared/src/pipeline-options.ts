@@ -191,3 +191,30 @@ export const pipelineOptionsSchema = z.object({
 });
 
 export type PipelineOptions = z.infer<typeof pipelineOptionsSchema>;
+
+/**
+ * A blank set of options for the pipeline editor: every default, with both paths empty.
+ *
+ * The obvious way to write this — `pipelineOptionsSchema.parse({ source: { inputPath: '' }, … })`
+ * — **throws**, because both paths are `absolutePathSchema`, which is `.min(1)`. Called from a
+ * component's setup, that throw aborts rendering and leaves a blank page rather than an empty
+ * form. That was exactly the "New pipeline" bug.
+ *
+ * Parsing with a placeholder and then blanking the two fields keeps a single source of truth
+ * for the ~30 defaults while producing the one state the schema deliberately refuses to
+ * describe: a form the user has not filled in yet.
+ */
+export function draftPipelineOptions(): PipelineOptions {
+  // Any non-empty string satisfies the path schema; it never leaves this function.
+  const placeholder = '/';
+  const defaults = pipelineOptionsSchema.parse({
+    source: { inputPath: placeholder },
+    output: { outputPath: placeholder },
+  });
+
+  return {
+    ...defaults,
+    source: { ...defaults.source, inputPath: '' },
+    output: { ...defaults.output, outputPath: '' },
+  };
+}

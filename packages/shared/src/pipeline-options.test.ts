@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { pipelineOptionsSchema } from './pipeline-options';
+import { draftPipelineOptions, pipelineOptionsSchema } from './pipeline-options';
 import { appSettingsSchema, DEFAULT_PORT } from './settings';
 
 /**
@@ -110,5 +110,44 @@ describe('application setting defaults', () => {
 
   it('rejects a privileged port', () => {
     expect(appSettingsSchema.safeParse({ port: 80 }).success).toBe(false);
+  });
+});
+
+describe('draftPipelineOptions', () => {
+  it('does not throw, which is what blanked the "New pipeline" page', () => {
+    // The editor calls this during setup. A throw there aborts rendering and the user sees
+    // an empty page rather than an empty form.
+    expect(() => draftPipelineOptions()).not.toThrow();
+  });
+
+  it('leaves both paths empty for the user to fill in', () => {
+    const draft = draftPipelineOptions();
+
+    expect(draft.source.inputPath).toBe('');
+    expect(draft.output.outputPath).toBe('');
+    // No trace of the placeholder used to get past the path validation.
+    expect(JSON.stringify(draft)).not.toContain('"/"');
+  });
+
+  it('carries the same defaults the schema would produce', () => {
+    const draft = draftPipelineOptions();
+    const parsed = pipelineOptionsSchema.parse({
+      source: { inputPath: 'C:/scans/in' },
+      output: { outputPath: 'C:/scans/out' },
+    });
+
+    // Everything except the two paths must match, or the form would start from different
+    // values than the server.
+    expect(draft.engine).toEqual(parsed.engine);
+    expect(draft.output.formats).toEqual(parsed.output.formats);
+    expect(draft.postProcessing).toEqual(parsed.postProcessing);
+    expect(draft.reliability).toEqual(parsed.reliability);
+    expect(draft.textLayerStrategy).toBe(parsed.textLayerStrategy);
+  });
+
+  it('still fails validation until the user supplies real paths', () => {
+    // The draft is a form state, not a valid pipeline: submitting it untouched must be
+    // rejected rather than silently creating a pipeline pointing nowhere.
+    expect(() => pipelineOptionsSchema.parse(draftPipelineOptions())).toThrow();
   });
 });

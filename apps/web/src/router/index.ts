@@ -63,6 +63,43 @@ export const router = createRouter({
 });
 
 /**
+ * Warm the other route chunks once the first screen is up.
+ *
+ * Every route is `() => import(...)`, so the first visit to each one fetches its chunk and the
+ * view is briefly empty — the flash users see once per screen, never again. Eager imports
+ * would remove it by making everyone download the pipeline editor's 37 kB before the first
+ * paint, which is the trade the lazy loading was there to avoid.
+ *
+ * Fetching them during idle time instead keeps the small first paint *and* makes every later
+ * navigation instant. `requestIdleCallback` yields to anything the browser would rather be
+ * doing; the timeout stops it waiting forever on a busy machine, and the setTimeout branch
+ * covers Safari, which still lacks it.
+ */
+function prefetchRouteChunks(): void {
+  const load = (): void => {
+    for (const route of routes) {
+      const component = route.component;
+      // Only the lazy ones: a resolved component is already in memory.
+      if (typeof component === 'function') {
+        void (component as () => Promise<unknown>)().catch(() => {
+          // A failed prefetch is not an error worth surfacing — navigating there will retry
+          // and report properly if it still fails.
+        });
+      }
+    }
+  };
+
+  if (typeof requestIdleCallback === 'function') {
+    requestIdleCallback(load, { timeout: 2000 });
+  } else {
+    setTimeout(load, 1000);
+  }
+}
+
+// After the first navigation resolves, so prefetching never competes with the first paint.
+void router.isReady().then(prefetchRouteChunks);
+
+/**
  * Keep protected screens behind the login.
  *
  * A guard rather than a check inside each view: a route added later is protected by default,

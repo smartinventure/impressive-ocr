@@ -1,0 +1,171 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Release
+
+on:
+  push:
+    # The tag is the trigger and the release ledger. Not a commit-message marker: a marker
+    # carries no version, re-fires on reverts and squash-merges, and cannot be re-run without
+    # inventing a new commit.
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to (re)build, e.g. v1.0.1'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ github.event.inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: '22'
+  PYTHON_VERSION: '3.12'
+
+jobs:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Resolve the version
+        id: version
+        run: echo "version=$(node deploy/set-version.mjs --current)" >> "$GITHUB_OUTPUT"
+
+      - name: The tag must match the version in the tree
+        run: |
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          # A tag that disagrees with package.json ships an app whose updater compares the
+          # wrong number — it would never see itself as up to date.
+          if [ "$TAG" != "v$VERSION" ]; then
+            echo "::error::Tag $TAG does not match version $VERSION. Use deploy/release.ps1 or release.sh."
+            exit 1
+          fi
+
+      - run: pnpm lint
+      - run: pnpm -r typecheck
+      - run: pnpm -r test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+      - working-directory: sidecar
+        run: |
+          pip install -e ".[dev]"
+          ruff check .
+          mypy src
+          pytest -q
+
+  build:
+    name: ${{ matrix.label }}
+    needs: verify
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Windows ships x64 only. PaddlePaddle publishes no win-arm64 wheels, so a native
+          # ARM64 build would install and then fail at the runtime bootstrap — a worse
+          # outcome than running under Prism emulation. See docs/releasing.md.
+          - { os: windows-latest, label: 'Windows x64', target: win, arch: x64 }
+          - { os: macos-latest, label: 'macOS arm64', target: mac, arch: arm64 }
+          - { os: macos-13, label: 'macOS x64', target: mac, arch: x64 }
+          - { os: ubuntu-latest, label: 'Linux x64', target: linux, arch: x64 }
+          - { os: ubuntu-latest, label: 'Server (headless)', target: server, arch: x64 }
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the web UI
+        run: pnpm --filter @impressive-ocr/web build
+
+      - name: Fetch the bundled uv binary
+        run: node deploy/fetch-uv.mjs --target ${{ matrix.target }} --arch ${{ matrix.arch }}
+
+      - name: Package the desktop app
+        if: matrix.target != 'server'
+        # Signing credentials are absent on forks and in dry runs; electron-builder then
+        # produces unsigned artifacts rather than failing the whole matrix.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.WINDOWS_CERT_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: pnpm --filter @impressive-ocr/desktop package --${{ matrix.arch }}
+
+      - name: Package the headless server
+        if: matrix.target == 'server'
+        run: node deploy/package-server.mjs --arch ${{ matrix.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.target }}-${{ matrix.arch }}
+          path: |
+            dist/release/**
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish the release
+    needs: [verify, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Add stable-named copies for the website
+        # `releases/latest/download/<name>` only resolves for a filename that never changes,
+        # but electron-updater needs versioned names in latest.yml. So both are published:
+        # versioned for the updater, stable aliases for the download links.
+        run: node deploy/make-stable-aliases.mjs artifacts
+
+      - name: Publish
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          name: Impressive OCR ${{ needs.verify.outputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/**/*

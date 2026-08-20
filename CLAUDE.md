@@ -191,3 +191,6 @@ Prefer clarity over brevity. Avoid abbreviations. No Hungarian notation.
 - Prefer minimal, focused changes.
 - Verify generated code typechecks and lints.
 - If a file would exceed ~500 lines, split it rather than appending.
+
+## 11. CDNs
+- Never use CDNs. Code (fonts, libraries such as vue, etc) must be locally deployed to stay free from 3rd-party online dependencies

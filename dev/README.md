@@ -10,13 +10,15 @@ Menu launchers for the development stack: the Fastify API and the Vite web UI.
 | Linux, macOS, Git Bash         | `./dev/dev.sh`     |
 
 Both present the same menu — **Start**, **Stop**, **Restart**, **Status**,
-**Environment** — and both accept a subcommand for scripting:
+**Environment**, **Check / install prerequisites** — and both accept a subcommand
+for scripting:
 
 ```bash
 ./dev/dev.sh start          # or: .\dev\dev.ps1 -Action start
 ./dev/dev.sh stop
 ./dev/dev.sh status
 ./dev/dev.sh env            # the full "where does everything go" screen
+./dev/dev.sh doctor         # what is missing, and the command that installs it
 ```
 
 Start waits until the API actually answers before reporting success, and tells you
@@ -29,6 +31,34 @@ started by hand.
 | ------- | ----------------------- |
 | Web UI  | http://localhost:5273   |
 | API     | http://127.0.0.1:8084   |
+
+## Windows: script execution policy
+
+A stock Windows machine refuses to run `dev.ps1` at all:
+
+```
+.\dev.ps1 ist nicht digital signiert. Sie koennen dieses Skript im aktuellen
+System nicht ausfuehren.
+```
+
+That is `LocalMachine` sitting at `AllSigned`, not anything wrong with the script.
+Allow scripts for your own account, once:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+`CurrentUser` takes precedence over `LocalMachine` and needs no admin rights. For a
+single session instead use `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`,
+or run the script as `powershell -ExecutionPolicy Bypass -File .\dev\dev.ps1` and change
+nothing at all.
+
+`RemoteSigned` still blocks a script carrying the internet-download marker; a git
+clone does not set one, but a script out of a downloaded zip needs `Unblock-File`.
+
+Check what is actually in force with `Get-ExecutionPolicy -List`. If `MachinePolicy`
+or `UserPolicy` is anything but `Undefined`, Group Policy decides and neither of the
+first two options will override it — use the `-File` form.
 
 ## Environment
 
@@ -75,3 +105,15 @@ Node 22+, pnpm 9+, and `pnpm install` already run. `uv` is only needed to instal
 OCR runtime, not to boot the stack, so the scripts warn rather than refuse when it is
 missing — `vendor/` is gitignored and fetched at build time, so a fresh clone has to
 supply it before OCR will work.
+
+`doctor` (menu entry 6) is the quick way to find out what a machine lacks. It checks
+Node against `engines.node` and pnpm against `packageManager` in the root
+`package.json` — a version check rather than "is it installed", because Node 20
+passes the latter and then fails somewhere far less obvious — prints the exact
+command that fixes each miss, and offers to run the ones that only touch the
+checkout (`pnpm install`, `node deploy/fetch-uv.mjs`, the pinned global pnpm). A Node
+upgrade it prints rather than runs: that replaces a system-wide interpreter and asks
+for elevation, which a dev launcher should not do behind your back.
+
+It also warns about a CPU with no PaddlePaddle wheel — Windows on ARM and Linux on
+ARM. Apple Silicon has a native wheel and is fine.

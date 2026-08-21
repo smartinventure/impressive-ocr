@@ -47,6 +47,12 @@ jobs:
       - name: Lint
         run: pnpm lint
 
+      - name: Check no source is excluded by .gitignore
+        # An unanchored pattern silently kept three real directories out of the repository,
+        # and nothing noticed until someone cloned it elsewhere. A clean `git status` cannot
+        # catch that, because an ignored file is invisible rather than untracked.
+        run: pnpm check:sources
+
       - name: Typecheck
         run: pnpm -r typecheck
 

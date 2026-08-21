@@ -4,9 +4,13 @@ node_modules/
 
 # Build output
 dist/
-build/
 out/
 *.tsbuildinfo
+
+# Compiled output only. NOT anchored, because every package produces its own — but
+# `apps/desktop/build/` is source: icons, entitlements and the NSIS script.
+build/
+!apps/desktop/build/
 
 # Python
 .venv/
@@ -19,15 +23,23 @@ __pycache__/
 *.egg-info/
 
 # Runtime data (never commit user data or models)
-runtime/
-data/
+#
+# Leading slash on every one of these. Without it git matches the name at *any* depth, and
+# these are ordinary words: `runtime/` silently excluded `apps/server/src/modules/runtime/`
+# (the GPU probe, the installer, the wheel index — eighteen source files), and `logs/` did the
+# same to `apps/web/src/features/logs/`. Nothing complained; the code simply was not in the
+# repository, and only turned up when somebody cloned it onto another machine.
+#
+# The application's data directory lives outside the repo anyway, so anchoring loses nothing.
+/runtime/
+/data/
+/logs/
 *.db
 *.db-shm
 *.db-wal
-logs/
 *.log
 
-# Bundled binaries fetched at build time
+# Bundled binaries fetched at build time. Run `node deploy/fetch-uv.mjs` after cloning.
 vendor/uv/
 
 # Editors / OS

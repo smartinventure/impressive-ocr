@@ -20,7 +20,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "pnpm -r test",
-    "db:generate": "pnpm --filter @impressive-ocr/db generate"
+    "db:generate": "pnpm --filter @impressive-ocr/db generate",
+    "check:sources": "node deploy/check-tracked-sources.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

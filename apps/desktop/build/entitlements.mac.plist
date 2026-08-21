@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!--
+      Electron needs both under the hardened runtime: its own JIT, and the ability to map
+      writable executable pages. Without them the app crashes on launch once notarised.
+    -->
+    <key>com.apple.security.cs.allow-jit</key>
+    <true/>
+    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+    <true/>
+
+    <!--
+      The Python runtime is downloaded and installed at first run, so it is not part of our
+      signature. Without this, the hardened runtime refuses to load it.
+    -->
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+
+    <!-- `uv` fetches Python and PaddleOCR; the app itself never phones home. -->
+    <key>com.apple.security.network.client</key>
+    <true/>
+
+    <!--
+      Binding a local port is what serves the UI, including to a browser on the same machine
+      in headless-style use.
+    -->
+    <key>com.apple.security.network.server</key>
+    <true/>
+
+    <!--
+      User-selected only: the app reads and writes exactly the folders the user authorises in
+      Settings, and nothing else.
+    -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+</dict>
+</plist>

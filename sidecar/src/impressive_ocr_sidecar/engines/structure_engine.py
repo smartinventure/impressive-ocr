@@ -93,8 +93,9 @@ class StructureEngine:
         predict_kwargs = build_module_kwargs(options.modules)
 
         total = _page_count(source)
-        if total <= 1:
-            # A single image, or a one-page PDF: nothing to stream, so skip the rasterising.
+        if total <= 1 and source.suffix.lower() != ".pdf":
+            # A single image is already pixels at whatever resolution it was scanned; asking
+            # PyMuPDF to render it again would only add a copy.
             yield from self._recognize_whole(source, predict_kwargs, skip_pages)
             return
 
@@ -125,7 +126,14 @@ class StructureEngine:
         predict_kwargs: dict[str, Any],
         skip_pages: frozenset[int],
     ) -> Iterator[PageResult]:
-        """Fallback for single-page input, where rendering would only add a copy."""
+        """Image input, which is already pixels and needs no rendering.
+
+        Deliberately *not* used for single-page PDFs any more. Handing a PDF to Paddle lets it
+        rasterise at a resolution of its own choosing, and measured on a 200 DPI A4 scan that
+        was materially worse than rendering it ourselves: "the new model turning on of the A3
+        high-speed" came back as "the newmodel turning on of theA3high-speed", and the raster
+        DPI the user had set was silently ignored because nothing in this path reads it.
+        """
         try:
             results = self._pipeline.predict(str(source), **predict_kwargs)
         except Exception as error:

@@ -221,3 +221,40 @@ describe('listProduced', () => {
     expect(await listProduced(root)).toEqual([]);
   });
 });
+
+describe('planDestinations containment', () => {
+  it('keeps results inside the chosen output folder when the source sits outside the input', () => {
+    // A Quick run's files come from anywhere, so `relative(inputPath, sourcePath)` yields
+    // `..` segments. Followed literally, they wrote the results next to the originals.
+    const plan = planDestinations([{ format: 'markdown', relativePath: 'doc.md' }], {
+      workDir: join('C:', 'work'),
+      outputRoot: join('C:', 'scans', 'out'),
+      relativeDirectory: join('..', 'in'),
+      outputStem: 'doc',
+    });
+
+    expect(plan[0]?.to.startsWith(join('C:', 'scans', 'out'))).toBe(true);
+  });
+
+  it('still honours a genuine subfolder', () => {
+    const plan = planDestinations([{ format: 'markdown', relativePath: 'doc.md' }], {
+      workDir: join('C:', 'work'),
+      outputRoot: join('C:', 'scans', 'out'),
+      relativeDirectory: join('2026', 'january'),
+      outputStem: 'doc',
+    });
+
+    expect(plan[0]?.to).toBe(join('C:', 'scans', 'out', '2026', 'january', 'doc.md'));
+  });
+
+  it('treats an absolute relativeDirectory as an escape attempt', () => {
+    const plan = planDestinations([{ format: 'txt', relativePath: 'doc.txt' }], {
+      workDir: join('C:', 'work'),
+      outputRoot: join('C:', 'scans', 'out'),
+      relativeDirectory: join('D:', 'elsewhere'),
+      outputStem: 'doc',
+    });
+
+    expect(plan[0]?.to.startsWith(join('C:', 'scans', 'out'))).toBe(true);
+  });
+});

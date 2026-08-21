@@ -23,6 +23,11 @@ from .api.app import create_app
 from .core.config import PROTOCOL_VERSION, ConfigError, load_config
 from .core.logging import configure_logging
 
+#: Pending connections the kernel holds while uvicorn is still starting. One backend with a
+#: small worker pool never queues more than a handful; this is headroom, not a limit worth
+#: tuning.
+SOCKET_BACKLOG = 128
+
 
 def main() -> int:
     try:
@@ -42,6 +47,19 @@ def main() -> int:
         logger.error("Could not bind", extra={"host": config.host, "port": config.port})
         print(json.dumps({"event": "error", "message": str(error)}), file=sys.stderr)
         return 3
+
+    # Listen *before* announcing the port, not just bind.
+    #
+    # A bound socket that is not listening refuses connections outright. uvicorn only starts
+    # listening after `create_app` has returned, so announcing the port here left a window --
+    # about 80 ms in practice -- in which the backend believed the sidecar was ready and every
+    # request it sent came back as ECONNREFUSED. That surfaced as "fetch failed", three
+    # retries against three freshly spawned sidecars, and a quarantined document.
+    #
+    # With `listen` called first the kernel queues arriving connections in the backlog, and
+    # uvicorn accepts them once it is up: a slow start becomes a slow response instead of a
+    # failure.
+    sock.listen(SOCKET_BACKLOG)
 
     port = sock.getsockname()[1]
     print(

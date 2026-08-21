@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { quickOptionsSchema, type QuickOptions, type QuickRun } from '@impressive-ocr/shared';
 import { ApiRequestError } from '../../../api/client';
+import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
 import { quickApi, type QuickRunProgress } from '../../../api/endpoints';
 
 /**
@@ -16,11 +17,19 @@ import { quickApi, type QuickRunProgress } from '../../../api/endpoints';
 const POLL_INTERVAL_MS = 1_000;
 
 export function useQuickRun() {
-  const source = ref<'server' | 'upload'>('server');
+  // Upload by default: someone opening this in a browser is usually not sitting at the
+  // server. The desktop app overrides it below, where both are the same machine anyway.
+  const source = ref<'server' | 'upload'>('upload');
   const serverFiles = ref<string[]>([]);
   const uploadFiles = ref<File[]>([]);
   const outputPath = ref('');
   const options = ref<QuickOptions>(quickOptionsSchema.parse({}));
+
+  const desktop = useDesktopBridge();
+  if (desktop.isDesktop.value) {
+    // The native dialog returns real paths, so the desktop never uploads to itself.
+    source.value = 'server';
+  }
 
   const run = ref<QuickRun | null>(null);
   const progress = ref<QuickRunProgress | null>(null);
@@ -52,7 +61,54 @@ export function useQuickRun() {
   );
 
   const succeeded = computed(() => progress.value?.stats.succeeded ?? 0);
-  const failed = computed(() => progress.value?.stats.failed ?? 0);
+
+  /**
+   * Anything that ended without producing output.
+   *
+   * `quarantined` is a distinct terminal state -- a job that exhausted its retries -- and
+   * counting only `failed` left the screen reporting "Finished, 0 succeeded, 0 failed" while
+   * silently having lost the document.
+   */
+  const failed = computed(
+    () => (progress.value?.stats.failed ?? 0) + (progress.value?.stats.quarantined ?? 0),
+  );
+
+  /** The most recent error, so a failed run says why rather than just showing a zero. */
+  const failureMessage = computed(() => {
+    const broken = (progress.value?.jobs ?? []).find(
+      (job) => job.errorMessage !== null && job.errorMessage !== undefined,
+    );
+    return broken?.errorMessage ?? null;
+  });
+
+  /** Which device actually ran the work, reported by the job rather than assumed. */
+  const device = computed(
+    () => (progress.value?.jobs ?? []).find((job) => job.deviceUsed)?.deviceUsed ?? null,
+  );
+
+  /**
+   * Page-level progress across the run.
+   *
+   * The sidecar reports pages as it finishes them, so a single 200-page scan shows movement
+   * instead of one bar that sits at zero for twenty minutes and then jumps to done.
+   */
+  const pageProgress = computed(() => {
+    const jobs = progress.value?.jobs ?? [];
+    const done = jobs.reduce((total, job) => total + (job.pagesDone ?? 0), 0);
+    const known = jobs.reduce((total, job) => total + (job.pageCount ?? 0), 0);
+    return { done, total: known };
+  });
+
+  /** The document being worked on right now, if any. */
+  const currentDocument = computed(() => {
+    const running = (progress.value?.jobs ?? []).find((job) => job.state === 'running');
+    if (running === undefined) return null;
+    return {
+      name: running.fileName,
+      pagesDone: running.pagesDone ?? 0,
+      pageCount: running.pageCount ?? null,
+    };
+  });
 
   const completedFraction = computed(() => {
     const total = run.value?.fileCount ?? 0;
@@ -60,13 +116,22 @@ export function useQuickRun() {
     return (succeeded.value + failed.value) / total;
   });
 
-  /** Uploads are downloaded; server runs wrote to a folder the user can already open. */
+  /**
+   * Uploads are downloaded; server runs wrote to a folder the user can already open.
+   *
+   * Requires at least one success, because a ZIP of nothing is worse than no button.
+   */
   const canDownload = computed(
     () => run.value?.source === 'upload' && isFinished.value && succeeded.value > 0,
   );
 
   const downloadUrl = computed(() =>
     run.value === null ? '' : quickApi.downloadUrl(run.value.pipelineId),
+  );
+
+  /** Fully qualified, so it can be copied somewhere and used from another tab or machine. */
+  const absoluteDownloadUrl = computed(() =>
+    downloadUrl.value === '' ? '' : new URL(downloadUrl.value, window.location.origin).toString(),
   );
 
   async function start(): Promise<void> {
@@ -112,24 +177,20 @@ export function useQuickRun() {
     }
   }
 
-  /** Clear the screen for another run, discarding anything uploaded for the last one. */
-  async function reset(): Promise<void> {
-    const finished = run.value;
+  /**
+   * Clear the screen for another run.
+   *
+   * Deliberately does *not* delete the finished run. Its download link stays valid until the
+   * retention sweep, so "start another" does not silently destroy results the user meant to
+   * fetch later -- which is exactly what a copyable link is for. Uploaded *inputs* are already
+   * gone; only the results remain, and they expire on their own.
+   */
+  function reset(): void {
     run.value = null;
     progress.value = null;
     uploadFraction.value = 0;
     error.value = null;
     stopPolling();
-
-    if (finished !== null && finished.source === 'upload') {
-      // The results have been downloaded or abandoned; either way there is no reason to leave
-      // the user's documents on the server until the retention sweep.
-      try {
-        await quickApi.discard(finished.pipelineId, finished.id);
-      } catch {
-        // The sweeper will get it.
-      }
-    }
   }
 
   async function refresh(): Promise<void> {
@@ -175,9 +236,14 @@ export function useQuickRun() {
     isFinished,
     succeeded,
     failed,
+    failureMessage,
+    device,
+    pageProgress,
+    currentDocument,
     completedFraction,
     canDownload,
     downloadUrl,
+    absoluteDownloadUrl,
     start,
     cancel,
     reset,

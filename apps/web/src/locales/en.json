@@ -8,7 +8,8 @@
     "jobs": "Jobs",
     "status": "System",
     "settings": "Settings",
-    "quick": "Quick Mode"
+    "quick": "Quick Mode",
+    "logs": "Log"
   },
   "common": {
     "select": "Select",
@@ -314,6 +315,32 @@
     "download": "Download results",
     "newRun": "Start another",
     "runtimeNeeded": "The OCR runtime is not installed yet, so nothing can run.",
-    "browseFailed": "That folder could not be opened."
+    "browseFailed": "That folder could not be opened.",
+    "addFiles": "Add files",
+    "clearAll": "Clear all",
+    "noFilesYet": "No files selected yet.",
+    "rejectedFiles": "Skipped, not a document Impressive OCR can read: {names}",
+    "hiddenFiles": "{count} other file(s) hidden — only readable documents are shown.",
+    "device": "Ran on {device}",
+    "pageProgress": "page {done} of {total}",
+    "pagesTotal": "{done}/{total} pages",
+    "downloadLater": "Or open this link later:",
+    "downloadExpires": "Available for 24 hours after the run finishes.",
+    "strategy": "Pages that already contain text",
+    "strategyHint": "Most PDFs from a scanner have no text layer. One that does is already digital.",
+    "strategyHybrid": "OCR only the pages without text (recommended)",
+    "strategySkip": "Skip the document entirely",
+    "strategyAlways": "OCR everything anyway"
+  },
+  "logs": {
+    "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",
+    "filter": "Filter",
+    "follow": "Follow",
+    "clear": "Clear log",
+    "empty": "Nothing logged yet.",
+    "truncated": "Showing the most recent part of the log; older entries are in the file on disk.",
+    "errorCount": "{count} error(s)",
+    "loadFailed": "The log could not be read.",
+    "clearFailed": "The log could not be cleared."
   }
 }

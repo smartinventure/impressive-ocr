@@ -48,6 +48,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../features/system/views/system-view.vue'),
   },
   {
+    path: '/logs',
+    name: 'logs',
+    component: () => import('../features/logs/views/logs-view.vue'),
+  },
+  {
     path: '/settings',
     name: 'settings',
     component: () => import('../features/settings/views/settings-view.vue'),

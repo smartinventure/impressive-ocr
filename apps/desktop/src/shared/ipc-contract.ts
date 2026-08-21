@@ -14,6 +14,7 @@
 export const IPC_CHANNELS = {
   /** Native folder chooser. Returns an absolute path, which no browser API can supply. */
   selectFolder: 'dialog:select-folder',
+  selectFiles: 'dialog:select-files',
   /** Reveal a produced file in Explorer/Finder. */
   showInFolder: 'shell:show-in-folder',
   /** Where the backend is listening, so the renderer can build absolute URLs if it needs to. */
@@ -38,6 +39,19 @@ export interface SelectFolderRequest {
   allowCreate?: boolean | undefined;
 }
 
+export interface SelectFilesRequest {
+  title?: string | undefined;
+  defaultPath?: string | undefined;
+  /**
+   * Extensions offered in the dialog, without the dot.
+   *
+   * The desktop build can filter at the OS level, which the browser's `accept` attribute only
+   * suggests. Quick Mode passes the formats the OCR engine can actually read, so a user
+   * cannot pick a .zip and discover the problem only after starting a run.
+   */
+  extensions?: readonly string[] | undefined;
+}
+
 export interface ServerInfo {
   url: string;
   port: number;
@@ -59,6 +73,8 @@ export interface UpdateStatus {
 export interface DesktopBridge {
   readonly isDesktop: true;
   selectFolder: (request?: SelectFolderRequest) => Promise<string | null>;
+  /** Absolute paths of the chosen files; empty when cancelled. */
+  selectFiles: (request?: SelectFilesRequest) => Promise<string[]>;
   showInFolder: (path: string) => Promise<void>;
   getServerInfo: () => Promise<ServerInfo>;
   getVersion: () => Promise<string>;

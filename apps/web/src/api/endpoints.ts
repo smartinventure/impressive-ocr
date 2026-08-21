@@ -180,6 +180,26 @@ export const quickApi = {
 
 export interface QuickRunProgress {
   pipelineId: string;
-  stats: { queued: number; running: number; succeeded: number; failed: number };
+  stats: {
+    queued: number;
+    running: number;
+    succeeded: number;
+    failed: number;
+    quarantined: number;
+    total: number;
+  };
   jobs: Job[];
+}
+
+/** The application log, for the in-app viewer. */
+export const logsApi = {
+  tail: (): Promise<LogTailResponse> => api.get('/logs'),
+  clear: (): Promise<void> => api.delete('/logs'),
+};
+
+export interface LogTailResponse {
+  text: string;
+  truncated: boolean;
+  totalBytes: number;
+  files: { name: string; bytes: number }[];
 }

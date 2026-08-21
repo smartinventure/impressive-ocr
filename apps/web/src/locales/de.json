@@ -8,7 +8,8 @@
     "jobs": "Aufträge",
     "status": "System",
     "settings": "Einstellungen",
-    "quick": "Schnellmodus"
+    "quick": "Schnellmodus",
+    "logs": "Log"
   },
   "common": {
     "select": "Auswählen",
@@ -314,6 +315,32 @@
     "download": "Ergebnisse herunterladen",
     "newRun": "Weiteren Lauf starten",
     "runtimeNeeded": "Die OCR-Laufzeitumgebung ist noch nicht installiert, es kann nichts ausgeführt werden.",
-    "browseFailed": "Dieser Ordner konnte nicht geöffnet werden."
+    "browseFailed": "Dieser Ordner konnte nicht geöffnet werden.",
+    "addFiles": "Dateien hinzufügen",
+    "clearAll": "Alle entfernen",
+    "noFilesYet": "Noch keine Dateien ausgewählt.",
+    "rejectedFiles": "Übersprungen, kein von Impressive OCR lesbares Dokument: {names}",
+    "hiddenFiles": "{count} weitere Datei(en) ausgeblendet — es werden nur lesbare Dokumente angezeigt.",
+    "device": "Ausgeführt auf {device}",
+    "pageProgress": "Seite {done} von {total}",
+    "pagesTotal": "{done}/{total} Seiten",
+    "downloadLater": "Oder diesen Link später öffnen:",
+    "downloadExpires": "24 Stunden nach Abschluss des Laufs verfügbar.",
+    "strategy": "Seiten, die bereits Text enthalten",
+    "strategyHint": "Die meisten gescannten PDFs haben keine Textebene. Eines mit Textebene ist bereits digital.",
+    "strategyHybrid": "Nur Seiten ohne Text per OCR verarbeiten (empfohlen)",
+    "strategySkip": "Dokument ganz überspringen",
+    "strategyAlways": "Trotzdem alles per OCR verarbeiten"
+  },
+  "logs": {
+    "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",
+    "filter": "Filtern",
+    "follow": "Folgen",
+    "clear": "Log leeren",
+    "empty": "Noch nichts aufgezeichnet.",
+    "truncated": "Es wird der neueste Teil des Logs angezeigt; ältere Einträge stehen in der Datei auf der Festplatte.",
+    "errorCount": "{count} Fehler",
+    "loadFailed": "Das Log konnte nicht gelesen werden.",
+    "clearFailed": "Das Log konnte nicht geleert werden."
   }
 }

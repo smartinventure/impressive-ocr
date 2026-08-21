@@ -11,6 +11,7 @@ import {
 } from './infra/module-paths';
 import { resolveSafePath } from './infra/fs/safe-path';
 import { createAuthToken } from './infra/ids';
+import { RotatingLogFile } from './infra/log-file';
 import { createLogger, type Logger } from './infra/logger';
 import { resolveAppPaths, type AppPaths } from './infra/paths';
 import { ensureCertificate } from './infra/tls/self-signed';
@@ -105,9 +106,12 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   const settings: AppSettings =
     options.port === undefined ? stored : { ...stored, port: options.port };
 
+  // Written to disk as well as the console, so the in-app log viewer has something to read.
+  const logFile = new RotatingLogFile({ directory: paths.logsDir });
   const logger = createLogger({
     level: options.logLevel ?? settings.logLevel,
     pretty: options.pretty ?? process.env.NODE_ENV !== 'production',
+    file: logFile,
   });
 
   const events = new EventBus();
@@ -200,6 +204,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     jobs,
     settings: settingsService,
     auth: authService,
+    paths,
     quick,
     quickStore,
     runtime,
@@ -288,6 +293,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
       await pool.stopAll();
       await http.close();
       closeDatabase();
+      logFile.close();
     },
   };
 }

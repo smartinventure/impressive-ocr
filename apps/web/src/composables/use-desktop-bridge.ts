@@ -10,6 +10,13 @@ import { readonly, ref } from 'vue';
  * quietly rotting behind an `if (isElectron)` that nobody exercises.
  */
 
+export interface SelectFilesRequest {
+  title?: string | undefined;
+  defaultPath?: string | undefined;
+  /** Extensions the OS dialog should offer, without the dot. */
+  extensions?: readonly string[] | undefined;
+}
+
 export interface SelectFolderRequest {
   defaultPath?: string | undefined;
   title?: string | undefined;
@@ -27,6 +34,7 @@ export interface UpdateStatus {
 interface DesktopBridge {
   readonly isDesktop: true;
   selectFolder: (request?: SelectFolderRequest) => Promise<string | null>;
+  selectFiles: (request?: SelectFilesRequest) => Promise<string[]>;
   showInFolder: (path: string) => Promise<void>;
   getServerInfo: () => Promise<{ url: string; port: number }>;
   getVersion: () => Promise<string>;
@@ -61,6 +69,11 @@ export function useDesktopBridge() {
      */
     async selectFolder(request?: SelectFolderRequest): Promise<string | null> {
       return bridge.value === null ? null : bridge.value.selectFolder(request);
+    },
+
+    /** Native multi-file picker. Empty in a browser, where no such thing exists. */
+    async selectFiles(request?: SelectFilesRequest): Promise<string[]> {
+      return bridge.value === null ? [] : bridge.value.selectFiles(request);
     },
 
     async showInFolder(path: string): Promise<void> {

@@ -60,23 +60,24 @@ describe('QuickModeView', () => {
     expect(start?.attributes('disabled')).toBeDefined();
   });
 
-  it('offers an output folder for a server run', () => {
+  it('defaults to this computer, and so to a download rather than a server folder', () => {
     const wrapper = mountView();
 
-    // A server run writes somewhere the user can open; that folder has to be chosen.
-    expect(wrapper.text()).toContain('Output folder');
+    // Someone opening the UI in a browser is usually not sitting at the server, and there is
+    // no server folder they could reach — asking for one would be a trap.
+    expect(wrapper.text()).toContain('ZIP download');
+    expect(wrapper.text()).not.toContain('Output folder');
   });
 
-  it('replaces the output folder with a download notice for uploads', async () => {
+  it('asks for an output folder once the server is chosen as the source', async () => {
     const wrapper = mountView();
 
-    const toggle = wrapper.findAll('button').find((b) => b.text().includes('From this computer'));
+    const toggle = wrapper.findAll('button').find((b) => b.text().includes('On this server'));
     await toggle?.trigger('click');
     await wrapper.vm.$nextTick();
 
-    // There is no server folder the user could reach, so asking for one would be a trap.
-    expect(wrapper.text()).toContain('ZIP download');
-    expect(wrapper.text()).not.toContain('Output folder');
+    // A server run writes somewhere the user can open; that folder has to be chosen.
+    expect(wrapper.text()).toContain('Output folder');
   });
 
   it('shows neither cancel nor download before a run starts', () => {

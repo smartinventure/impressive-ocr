@@ -196,7 +196,16 @@ function buildOptions(quick: QuickOptions, outputPath: string): PipelineOptions 
 
   return {
     ...defaults,
-    source: { ...defaults.source, inputPath: outputPath },
+    textLayerStrategy: quick.textLayerStrategy,
+    source: {
+      ...defaults.source,
+      // Nothing watches a Quick pipeline, so this is only a base for the output mover's
+      // relative-path maths. Mirroring is off because Quick files come from anywhere the user
+      // points at: relative() would produce `..` segments and walk the results back out of
+      // the folder they chose.
+      inputPath: outputPath,
+      mirrorFolderStructure: false,
+    },
     engine: {
       ...defaults.engine,
       profile: quick.profile,

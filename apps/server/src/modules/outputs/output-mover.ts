@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { readdir, rm, stat } from 'node:fs/promises';
-import { dirname, extname, join, relative } from 'node:path';
+import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import type {
   CollisionPolicy,
   OutputFormat,
@@ -53,7 +53,12 @@ export function planDestinations(
   produced: readonly { format: OutputFormat; relativePath: string }[],
   request: Pick<MoveOutputsRequest, 'workDir' | 'outputRoot' | 'relativeDirectory' | 'outputStem'>,
 ): MovePlanEntry[] {
-  const targetDir = join(request.outputRoot, request.relativeDirectory);
+  // Containment, not decoration. `relativeDirectory` is derived from
+  // `relative(inputPath, sourcePath)`, which yields `..` segments the moment a source file
+  // sits outside the configured input folder — and `join` follows them straight out of the
+  // output root. That is how a Quick run wrote its results next to the originals instead of
+  // into the folder the user chose.
+  const targetDir = containWithin(request.outputRoot, request.relativeDirectory);
 
   return produced.map((item) => {
     const extension = extname(item.relativePath);
@@ -68,6 +73,25 @@ export function planDestinations(
       to: join(targetDir, fileName),
     };
   });
+}
+
+/**
+ * Join a relative directory onto a root, refusing to leave it.
+ *
+ * Outputs must land inside the folder the user nominated. Anything that would escape falls
+ * back to the root itself: writing to the wrong place inside the chosen folder is a cosmetic
+ * problem, writing outside it is a data-integrity one.
+ */
+function containWithin(root: string, relativeDirectory: string): string {
+  if (relativeDirectory === '') return root;
+
+  const candidate = resolve(root, relativeDirectory);
+  const back = relative(resolve(root), candidate);
+
+  // `relative` gives '' for the root itself, and anything starting with '..' — or an absolute
+  // path, when the two are on different drives — for something outside it.
+  const escapes = back.startsWith('..') || isAbsolute(back);
+  return escapes ? root : candidate;
 }
 
 /**

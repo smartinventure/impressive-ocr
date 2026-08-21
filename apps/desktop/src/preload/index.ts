@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   IPC_CHANNELS,
   type DesktopBridge,
+  type SelectFilesRequest,
   type SelectFolderRequest,
   type ServerInfo,
   type UpdateStatus,
@@ -25,6 +26,9 @@ const bridge: DesktopBridge = {
 
   selectFolder: (request?: SelectFolderRequest) =>
     ipcRenderer.invoke(IPC_CHANNELS.selectFolder, request ?? {}) as Promise<string | null>,
+
+  selectFiles: (request?: SelectFilesRequest) =>
+    ipcRenderer.invoke(IPC_CHANNELS.selectFiles, request ?? {}) as Promise<string[]>,
 
   showInFolder: (path: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.showInFolder, path) as Promise<void>,

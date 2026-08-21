@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { z } from 'zod';
 import { absolutePathSchema } from './common';
-import { engineProfileSchema, outputFormatSchema } from './pipeline-options';
+import {
+  engineProfileSchema,
+  outputFormatSchema,
+  textLayerStrategySchema,
+} from './pipeline-options';
 
 /**
  * Quick Mode: OCR a handful of files once, without setting up a watched folder.
@@ -33,8 +37,46 @@ export type QuickSourceKind = z.infer<typeof quickSourceKindSchema>;
 export const quickRunStateSchema = z.enum(['preparing', 'running', 'completed', 'cancelled']);
 export type QuickRunState = z.infer<typeof quickRunStateSchema>;
 
+/**
+ * File types the OCR engine can actually read.
+ *
+ * Mirrors `SUPPORTED_SUFFIXES` in `sidecar/.../pipeline/document.py`, which is the authority —
+ * the sidecar rejects anything else outright. Declaring it here as well lets the UI filter the
+ * picker and the upload dialog, so a user cannot queue a `.md` and find out only when the job
+ * fails.
+ */
+export const PROCESSABLE_EXTENSIONS = [
+  'pdf',
+  'png',
+  'jpg',
+  'jpeg',
+  'bmp',
+  'webp',
+  'tif',
+  'tiff',
+] as const;
+
+/** For a file input's `accept` attribute. */
+export const PROCESSABLE_ACCEPT = PROCESSABLE_EXTENSIONS.map((item) => `.${item}`).join(',');
+
+/** Whether a name looks processable. Case-insensitive, because `SCAN.PDF` is common. */
+export function isProcessableFile(fileName: string): boolean {
+  const match = /\.([A-Za-z0-9]+)$/.exec(fileName);
+  if (match === null) return false;
+  return (PROCESSABLE_EXTENSIONS as readonly string[]).includes(match[1]!.toLowerCase());
+}
+
 /** The trimmed option set. Everything else comes from the pipeline defaults. */
 export const quickOptionsSchema = z.object({
+  /**
+   * What to do about pages that already carry extractable text.
+   *
+   * `hybrid` -- the default -- OCRs only the pages without a text layer, so a PDF that is
+   * already digital costs almost nothing and a scan of the same length costs full price.
+   * `skip-if-text` drops such documents entirely; `always-ocr` ignores the existing text,
+   * which is what you want when the embedded layer is itself bad OCR from another tool.
+   */
+  textLayerStrategy: textLayerStrategySchema.default('hybrid'),
   formats: z.array(outputFormatSchema).min(1).default(['markdown', 'json']),
   profile: engineProfileSchema.default('fast'),
   language: z.string().min(2).max(16).default('en'),

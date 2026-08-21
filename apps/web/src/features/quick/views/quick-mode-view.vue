@@ -102,6 +102,22 @@ function toggleFormat(format: OutputFormat): void {
           </v-chip>
         </div>
 
+        <v-select
+          v-model="quick.options.value.textLayerStrategy"
+          :items="[
+            { value: 'hybrid', title: t('quick.strategyHybrid') },
+            { value: 'skip-if-text', title: t('quick.strategySkip') },
+            { value: 'always-ocr', title: t('quick.strategyAlways') },
+          ]"
+          :label="t('quick.strategy')"
+          :hint="t('quick.strategyHint')"
+          persistent-hint
+          density="comfortable"
+          variant="outlined"
+          class="mb-4"
+          :disabled="quick.busy.value"
+        />
+
         <v-switch
           v-model="quick.options.value.tableRecognition"
           :label="t('module.table')"
@@ -165,6 +181,20 @@ function toggleFormat(format: OutputFormat): void {
         class="mb-4"
       />
 
+      <!-- Page-level movement, so a single long scan does not look stuck. -->
+      <p v-if="quick.currentDocument.value" class="text-body-2 text-medium-emphasis mb-3">
+        {{ quick.currentDocument.value.name }}
+        <template v-if="quick.currentDocument.value.pageCount">
+          &middot;
+          {{
+            t('quick.pageProgress', {
+              done: quick.currentDocument.value.pagesDone,
+              total: quick.currentDocument.value.pageCount,
+            })
+          }}
+        </template>
+      </p>
+
       <div class="d-flex ga-3 flex-wrap mb-4">
         <v-chip size="small" variant="tonal" color="succeeded" label>
           {{ t('quick.succeeded', { count: quick.succeeded.value }) }}
@@ -172,7 +202,30 @@ function toggleFormat(format: OutputFormat): void {
         <v-chip v-if="quick.failed.value > 0" size="small" variant="tonal" color="failed" label>
           {{ t('quick.failed', { count: quick.failed.value }) }}
         </v-chip>
+        <!-- Which engine actually ran it, reported by the job rather than assumed. -->
+        <v-chip v-if="quick.device.value" size="small" variant="tonal" label>
+          {{ t('quick.device', { device: quick.device.value.toUpperCase() }) }}
+        </v-chip>
+        <v-chip v-if="quick.pageProgress.value.total > 0" size="small" variant="tonal" label>
+          {{
+            t('quick.pagesTotal', {
+              done: quick.pageProgress.value.done,
+              total: quick.pageProgress.value.total,
+            })
+          }}
+        </v-chip>
       </div>
+
+      <!-- Say why, rather than leaving a zero to be interpreted. -->
+      <v-alert
+        v-if="quick.failed.value > 0 && quick.failureMessage.value"
+        type="error"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+      >
+        {{ quick.failureMessage.value }}
+      </v-alert>
 
       <v-alert
         v-if="quick.isFinished.value && quick.run.value.outputPath !== null"
@@ -210,6 +263,14 @@ function toggleFormat(format: OutputFormat): void {
           {{ t('quick.newRun') }}
         </v-btn>
       </div>
+
+      <!-- The same link, copyable. The button is a one-shot; this survives a reload and can be
+           pasted somewhere, which is what "I will fetch it later" actually needs. -->
+      <div v-if="quick.canDownload.value" class="quick__link mt-4">
+        <span class="text-caption text-medium-emphasis">{{ t('quick.downloadLater') }}</span>
+        <code class="quick__url">{{ quick.absoluteDownloadUrl.value }}</code>
+        <span class="text-caption text-medium-emphasis">{{ t('quick.downloadExpires') }}</span>
+      </div>
     </v-card>
   </div>
 </template>
@@ -223,6 +284,21 @@ function toggleFormat(format: OutputFormat): void {
   font-size: 1.5rem;
   font-weight: 600;
   letter-spacing: -0.01em;
+}
+
+.quick__link {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick__url {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  word-break: break-all;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: rgba(var(--v-theme-on-surface), 0.06);
 }
 
 .quick__formats {

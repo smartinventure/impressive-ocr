@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { destination, pino, type Logger } from 'pino';
+import type { RotatingLogFile } from './log-file';
 
 export type { Logger };
 
@@ -24,6 +25,12 @@ export interface LoggerOptions {
   level: string;
   /** Kept for call-site clarity; both modes emit JSON — pipe through `pino-pretty` in dev. */
   pretty: boolean;
+  /**
+   * Also write to a rotating file the UI can read back.
+   *
+   * Omitted in tests, and in any context where the console is the only consumer.
+   */
+  file?: RotatingLogFile | undefined;
 }
 
 export function createLogger(options: LoggerOptions): Logger {
@@ -47,8 +54,29 @@ export function createLogger(options: LoggerOptions): Logger {
      * moment the log actually matters. This app writes a handful of lines per document, so
      * the throughput an async destination buys is worth nothing against that.
      */
-    destination({ dest: 2, sync: true }),
+    options.file === undefined ? consoleDestination() : teeTo(options.file),
   );
+}
+
+function consoleDestination(): ReturnType<typeof destination> {
+  return destination({ dest: 2, sync: true });
+}
+
+/**
+ * Write every record to the console *and* the log file.
+ *
+ * The console keeps working for anyone watching a terminal or a service manager; the file is
+ * what the in-app log viewer reads. Pino writes one complete line per call, so splitting is a
+ * matter of forwarding the same string twice.
+ */
+function teeTo(file: RotatingLogFile): { write(line: string): void } {
+  const console_ = consoleDestination();
+  return {
+    write(line: string): void {
+      console_.write(line);
+      file.write(line);
+    },
+  };
 }
 
 /**

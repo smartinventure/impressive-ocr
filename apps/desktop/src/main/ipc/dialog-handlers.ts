@@ -2,7 +2,11 @@
 import { BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from 'electron';
 import { statSync } from 'node:fs';
 import { isAbsolute } from 'node:path';
-import { IPC_CHANNELS, type SelectFolderRequest } from '../../shared/ipc-contract';
+import {
+  IPC_CHANNELS,
+  type SelectFilesRequest,
+  type SelectFolderRequest,
+} from '../../shared/ipc-contract';
 
 /**
  * Native folder chooser and file reveal.
@@ -36,6 +40,39 @@ export function registerDialogHandlers(): void {
     return result.filePaths[0] ?? null;
   });
 
+  /**
+   * Native multi-file chooser, for Quick Mode.
+   *
+   * On the desktop the server and the browser are the same machine, so uploading a file to
+   * ourselves would copy every byte for nothing. The OS dialog hands back real absolute paths
+   * the backend can open directly.
+   */
+  ipcMain.handle(IPC_CHANNELS.selectFiles, async (event, raw: unknown) => {
+    const request = parseSelectFilesRequest(raw);
+    const window = BrowserWindow.fromWebContents(event.sender);
+
+    const options: OpenDialogOptions = {
+      properties: ['openFile', 'multiSelections'],
+      ...(request.title === undefined ? {} : { title: request.title }),
+      ...(request.defaultPath === undefined ? {} : { defaultPath: request.defaultPath }),
+      ...(request.extensions === undefined || request.extensions.length === 0
+        ? {}
+        : {
+            filters: [
+              { name: 'Documents', extensions: [...request.extensions] },
+              { name: 'All files', extensions: ['*'] },
+            ],
+          }),
+    };
+
+    const result =
+      window === null
+        ? await dialog.showOpenDialog(options)
+        : await dialog.showOpenDialog(window, options);
+
+    return result.canceled ? [] : result.filePaths;
+  });
+
   ipcMain.handle(IPC_CHANNELS.showInFolder, (_event, raw: unknown) => {
     // Validated even though it came from our own page: a renderer holding this channel must
     // not be able to ask the shell to act on an arbitrary string.
@@ -64,6 +101,37 @@ function parseSelectFolderRequest(raw: unknown): SelectFolderRequest {
         : undefined,
     title: typeof record.title === 'string' ? record.title.slice(0, 200) : undefined,
     allowCreate: record.allowCreate === true,
+  };
+}
+
+/**
+ * Validate the file-dialog request.
+ *
+ * Every field is checked even though it came from our own renderer: a channel exposed over
+ * `contextBridge` is reachable by anything running in that page, and the main process must
+ * not take its word for a string it will hand to the OS.
+ */
+function parseSelectFilesRequest(raw: unknown): SelectFilesRequest {
+  if (typeof raw !== 'object' || raw === null) {
+    return {};
+  }
+  const record = raw as Record<string, unknown>;
+
+  const extensions = Array.isArray(record.extensions)
+    ? record.extensions
+        .filter((value): value is string => typeof value === 'string')
+        // Letters and digits only: a filter string is not a place for a path or a wildcard.
+        .filter((value) => /^[A-Za-z0-9]{1,10}$/.test(value))
+        .slice(0, 40)
+    : undefined;
+
+  return {
+    title: typeof record.title === 'string' ? record.title.slice(0, 200) : undefined,
+    defaultPath:
+      typeof record.defaultPath === 'string' && isAbsolute(record.defaultPath)
+        ? record.defaultPath
+        : undefined,
+    extensions,
   };
 }
 

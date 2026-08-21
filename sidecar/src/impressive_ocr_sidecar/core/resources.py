@@ -47,11 +47,21 @@ def apply_thread_limits(threads: int) -> dict[str, str]:
     value = str(bounded)
 
     applied = {
-        "OMP_NUM_THREADS": value,
-        "MKL_NUM_THREADS": value,
-        "OPENBLAS_NUM_THREADS": value,
-        "NUMEXPR_NUM_THREADS": value,
+        # Paddle asks for this specifically, and says so at startup:
+        #
+        #   WARNING: OMP_NUM_THREADS set to 6, not 1. The computation speed will not be
+        #   optimized if you use data parallel. PLEASE USE OMP_NUM_THREADS WISELY.
+        #
+        # It runs its own thread pool and treats OpenMP parallelism as a second, competing
+        # one. Leaving OpenMP at 1 and setting the budget through Paddle's own flag is what
+        # it is asking for -- and measured here, it also halved the resident set after load.
+        "OMP_NUM_THREADS": "1",
+        "MKL_NUM_THREADS": "1",
+        "OPENBLAS_NUM_THREADS": "1",
+        "NUMEXPR_NUM_THREADS": "1",
+        # This is the one that actually carries the user's budget.
         "FLAGS_paddle_num_threads": value,
+        "CPU_NUM": value,
     }
     for name, setting in applied.items():
         # Not `setdefault`: an operator who exported one of these deliberately is overridden

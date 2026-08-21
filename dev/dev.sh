@@ -359,6 +359,11 @@ show_menu() {
     read -r -p '  Select: ' choice
     echo
 
+    # Enter on its own redraws rather than scolding; see dev.ps1 for the reasoning.
+    if [ -z "${choice//[[:space:]]/}" ]; then
+      continue
+    fi
+
     case "$(printf '%s' "$choice" | tr '[:upper:]' '[:lower:]' | tr -d '[:space:]')" in
       1) start_stack ;;
       2) stop_stack ;;

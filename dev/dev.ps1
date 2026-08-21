@@ -129,9 +129,23 @@ function Test-PortBusy([int] $Port) {
 }
 
 function Stop-Tree([int] $ProcessId) {
-    # /T takes the children with it: pnpm spawns vite and tsx, and killing only the parent
-    # leaves both holding their ports.
-    & taskkill /PID $ProcessId /T /F 2>&1 | Out-Null
+    # Already gone is the normal case, not an error: killing pnpm's tree takes the vite and
+    # tsx children with it, so by the time the port sweep runs the pid it found is dead.
+    if ($null -eq (Get-Process -Id $ProcessId -ErrorAction SilentlyContinue)) {
+        return
+    }
+
+    # Not `2>&1`. Windows PowerShell wraps a native command's stderr in an ErrorRecord and,
+    # under `$ErrorActionPreference = 'Stop'`, prints a NativeCommandError even when the exit
+    # code is fine -- which is what surfaced as a wall of red after a perfectly good stop.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        taskkill /PID $ProcessId /T /F > $null 2> $null
+    }
+    finally {
+        $ErrorActionPreference = $previous
+    }
 }
 
 function Resolve-Pnpm {
@@ -403,6 +417,12 @@ function Show-Menu {
         Write-Host ''
         $choice = Read-Host '  Select'
         Write-Host ''
+
+        # Enter on its own redraws rather than scolding: it is what someone types to see the
+        # current state again, and "Not an option" for a blank line reads as a fault.
+        if ($choice.Trim() -eq '') {
+            continue
+        }
 
         switch ($choice.Trim().ToLower()) {
             '1' { Start-Stack }

@@ -17,6 +17,8 @@ from typing import Any
 from ..core.errors import CorruptDocumentError, EngineLoadError
 from ..core.logging import get_logger
 from ..core.protocol import EngineModules, EngineOptions
+from ..pipeline.document import inspect as inspect_document
+from ..pipeline.rasterize import page_numbers, rendered_page
 from .base import PageResult
 from .result_adapter import to_page_result
 
@@ -86,11 +88,47 @@ class StructureEngine:
             self.load()
         assert self._pipeline is not None
 
-        predict_kwargs = build_predict_kwargs(options)
+        # Module toggles only. `page_num` belongs to the whole-document path, which this no
+        # longer uses.
+        predict_kwargs = build_module_kwargs(options.modules)
 
+        total = _page_count(source)
+        if total <= 1:
+            # A single image, or a one-page PDF: nothing to stream, so skip the rasterising.
+            yield from self._recognize_whole(source, predict_kwargs, skip_pages)
+            return
+
+        wanted = page_numbers(total, skip_pages, options.max_pages_per_document)
+
+        for number in wanted:
+            # One page in flight at a time. Handing the whole document to `predict()` held
+            # every page in memory at once and yielded nothing until all of them were done —
+            # ten minutes of "page 0 of 5" on a five-page scan, and a resident set that grew
+            # with the document rather than staying flat.
+            with rendered_page(source, number, options.raster_dpi) as image:
+                try:
+                    results = list(self._pipeline.predict(str(image), **predict_kwargs))
+                except Exception as error:  # Paddle wraps parse failures in bare Exception
+                    raise CorruptDocumentError(
+                        f"PP-StructureV3 could not read page {number}: {error}"
+                    ) from error
+
+            for result in results:
+                width, height = _page_size(result)
+                # Yielded immediately, so the backend can report this page as done before the
+                # next one starts — and can stop between pages when the job is cancelled.
+                yield to_page_result(result, page_number=number, width=width, height=height)
+
+    def _recognize_whole(
+        self,
+        source: Path,
+        predict_kwargs: dict[str, Any],
+        skip_pages: frozenset[int],
+    ) -> Iterator[PageResult]:
+        """Fallback for single-page input, where rendering would only add a copy."""
         try:
             results = self._pipeline.predict(str(source), **predict_kwargs)
-        except Exception as error:  # Paddle wraps parse failures in bare Exception
+        except Exception as error:
             raise CorruptDocumentError(
                 f"PP-StructureV3 could not read the document: {error}"
             ) from error
@@ -165,3 +203,15 @@ def _page_size(result: Any) -> tuple[float, float]:
         if shape is not None and len(shape) >= 2:
             return (float(shape[1]), float(shape[0]))
     return (1654.0, 2339.0)
+
+
+def _page_count(source: Path) -> int:
+    """Pages in the document, or 1 when that cannot be determined.
+
+    Falling back to 1 sends the file down the whole-document path, which is what a plain image
+    needs anyway — and is safer than guessing a page count that turns out to be wrong.
+    """
+    try:
+        return max(1, inspect_document(source).page_count)
+    except Exception:  # noqa: BLE001 - any failure here means "treat it as one page"
+        return 1

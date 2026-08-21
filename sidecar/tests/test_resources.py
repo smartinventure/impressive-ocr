@@ -59,22 +59,26 @@ class TestApplyThreadLimits:
 
         applied = apply_thread_limits(4)
 
-        # Setting one and not the others leaves whichever was missed on every core.
-        assert applied["OMP_NUM_THREADS"] == "4"
-        assert os.environ["OMP_NUM_THREADS"] == "4"
-        assert os.environ["MKL_NUM_THREADS"] == "4"
+        # OpenMP is pinned to 1 on Paddle's own instruction. It prints a warning when this is
+        # anything else, because its internal pool then competes with OpenMP's -- and setting
+        # it to 1 measurably halved the resident set after model load.
+        assert applied["OMP_NUM_THREADS"] == "1"
+        assert os.environ["OMP_NUM_THREADS"] == "1"
+        assert os.environ["MKL_NUM_THREADS"] == "1"
 
-        # and "correcting" it to upper case silently disables the cap.
-        assert os.environ["FLAGS_paddle_num_threads"] == "4"  # noqa: SIM112
+        # The user's budget travels through Paddle's own flag instead. Lower case on purpose:
+        # Paddle reads it case-sensitively.
+        assert applied["FLAGS_paddle_num_threads"] == "4"
+        assert os.environ["FLAGS_paddle_num_threads"] == "4"
 
     def test_overrides_an_inherited_value(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setenv("OMP_NUM_THREADS", "64")
+        monkeypatch.setenv("FLAGS_paddle_num_threads", "64")
 
         apply_thread_limits(2)
 
         # The app's own setting is the more specific instruction, so it wins.
-        assert os.environ["OMP_NUM_THREADS"] == "2"
+        assert os.environ["FLAGS_paddle_num_threads"] == "2"
 
-    def test_clamps_out_of_range_requests(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        assert apply_thread_limits(0)["OMP_NUM_THREADS"] == str(MIN_THREADS)
-        assert apply_thread_limits(9999)["OMP_NUM_THREADS"] == str(MAX_THREADS)
+    def test_clamps_out_of_range_requests(self) -> None:
+        assert apply_thread_limits(0)["FLAGS_paddle_num_threads"] == str(MIN_THREADS)
+        assert apply_thread_limits(9999)["FLAGS_paddle_num_threads"] == str(MAX_THREADS)

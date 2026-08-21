@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { quickOptionsSchema, type QuickOptions, type QuickRun } from '@impressive-ocr/shared';
 import { ApiRequestError } from '../../../api/client';
 import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
@@ -15,6 +15,34 @@ import { quickApi, type QuickRunProgress } from '../../../api/endpoints';
 
 /** Often enough to feel live, rarely enough not to matter next to OCR itself. */
 const POLL_INTERVAL_MS = 1_000;
+
+/**
+ * Where the in-flight run is remembered across navigation.
+ *
+ * `sessionStorage`, not a Pinia store: it also has to survive a page reload, which is what
+ * someone does when a long run looks stuck. Session rather than local, so it does not outlive
+ * the tab and resurrect a run whose results have long since been swept.
+ */
+const ACTIVE_RUN_KEY = 'impressive-ocr.quick.active-run';
+
+function rememberRun(run: QuickRun | null): void {
+  try {
+    if (run === null) sessionStorage.removeItem(ACTIVE_RUN_KEY);
+    else sessionStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run));
+  } catch {
+    // Private browsing, or storage full. Losing the handle costs the progress view, not the
+    // run itself, which continues on the server regardless.
+  }
+}
+
+function recallRun(): QuickRun | null {
+  try {
+    const stored = sessionStorage.getItem(ACTIVE_RUN_KEY);
+    return stored === null ? null : (JSON.parse(stored) as QuickRun);
+  } catch {
+    return null;
+  }
+}
 
 export function useQuickRun() {
   // Upload by default: someone opening this in a browser is usually not sitting at the
@@ -154,6 +182,7 @@ export function useQuickRun() {
           options: options.value,
         });
       }
+      rememberRun(run.value);
       startPolling();
     } catch (caught) {
       error.value = caught instanceof ApiRequestError ? caught.message : 'Could not start the run.';
@@ -186,6 +215,7 @@ export function useQuickRun() {
    * gone; only the results remain, and they expire on their own.
    */
   function reset(): void {
+    rememberRun(null);
     run.value = null;
     progress.value = null;
     uploadFraction.value = 0;
@@ -216,6 +246,20 @@ export function useQuickRun() {
       timer = undefined;
     }
   }
+
+  /**
+   * Pick a run back up when the screen is reopened.
+   *
+   * Navigating to the dashboard and back used to lose the progress view entirely -- the run
+   * carried on, and the only way to see it was the Jobs page.
+   */
+  onMounted(() => {
+    const previous = recallRun();
+    if (previous !== null && run.value === null) {
+      run.value = previous;
+      startPolling();
+    }
+  });
 
   onBeforeUnmount(stopPolling);
 

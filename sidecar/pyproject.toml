@@ -47,6 +47,9 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "BLE", "SIM", "RUF", "ANN", "PTH"]
 ignore = ["ANN401"]
 
 [tool.ruff.lint.per-file-ignores]
+# FLAGS_paddle_num_threads is Paddle's own name, read case-sensitively. Upper-casing it,
+# as SIM112 suggests, silently disables the thread cap.
+"tests/test_resources.py" = ["SIM112"]
 "tests/*" = ["ANN"]
 
 [tool.mypy]

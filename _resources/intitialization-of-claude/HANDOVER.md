@@ -339,13 +339,25 @@ originals.
 ## Working on it
 
 ```bash
-pnpm install
-node deploy/fetch-uv.mjs     # vendor/uv/ is a 44 MB binary, correctly gitignored
-./dev/dev.sh                 # or .\dev\dev.ps1 — start / stop / restart / status / env
+./dev/dev.sh          # or .\dev\dev.ps1 — start / stop / restart / status / env
 ```
 
-`vendor/uv/` is the one thing a fresh clone legitimately lacks. Everything else is source and
-must be in the repository — see pitfall 9 for what happens when it is not.
+That is the whole setup. **Start installs what is missing** rather than printing commands to
+copy: it enables pnpm through Corepack, runs `pnpm install` when `node_modules` is absent or
+older than `pnpm-lock.yaml`, and fetches `vendor/uv/` when it is not there. All of it is
+idempotent and silent when there is nothing to do.
+
+Node itself is the one thing Start cannot fix — a script that only runs because Node is
+missing cannot install Node — so that one prints a clear sentence and a link.
+
+On Windows, PowerShell's default execution policy blocks the script. Either
+`powershell -ExecutionPolicy Bypass -File .\dev\dev.ps1`, or once per user:
+`Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
+
+`vendor/uv/` is the one thing a fresh clone legitimately lacks; everything else is source and
+must be in the repository — see pitfall 9 for what happens when it is not. The running app
+reports a missing uv too, as the `ocr-installer` preflight check, so it surfaces before the
+user presses Install rather than as a spawn failure afterwards.
 
 Set `IMPRESSIVE_OCR_DATA_DIR` (the launchers default it beside the repo) — the runtime and
 models under it run to several GB, and the app's own default is on C:.

@@ -28,11 +28,54 @@ Nothing about a user's documents leaves their machine. No telemetry, no CDNs.
 
 ---
 
+## What hardware this needs
+
+Read this before choosing a machine to develop on. Two of them have now turned out to be
+unable to run the engine at all, for two different reasons, and in both cases every symptom
+looked like an application bug.
+
+**Required**
+
+- **x86-64 with AVX**, or **Apple Silicon**. Not "x86-64" — *with AVX*. See pitfall 1.
+- **Windows only:** the Microsoft Visual C++ 2015-2022 Redistributable (x64). A Windows
+  install that has never run an MSVC-built application does not have it.
+- **~8 GB RAM minimum, 16 GB realistic.** Models alone are 0.9–1.5 GB resident, and a 16 GB
+  laptop was already swapping under the old whole-document pipeline.
+- **~5 GB free** on the data-directory drive: 2.6 GB is enforced before install, models grow
+  after.
+
+**Optional**
+
+- An **NVIDIA GPU** with compute capability ≥ 7.0 unlocks the `paddlepaddle-gpu` wheel; ≥ 8 GB
+  VRAM additionally unlocks the `accurate` (PaddleOCR-VL) profile. Only the driver matters —
+  the wheels bundle CUDA and cuDNN, so no CUDA Toolkit install is required.
+
+**The app now checks all of this itself.** `GET /api/system/preflight` grades every item as
+`ok`, `fixable` (a missing redistributable, a tight disk) or `blocked` (no AVX, emulated ARM):
+
+- the **Dashboard** shows a banner when anything is wrong, and nothing at all when it is not;
+- the **System** page shows the full Compatibility card, with the remedy and download link;
+- `RuntimeInstaller.install()` refuses to start on anything `blocked`.
+
+The check takes about two seconds. The download it prevents is several gigabytes.
+
+---
+
 ## Where things stand
 
-**496 tests green** (373 server, 86 sidecar, 19 shared, 17 web). `pnpm lint`,
-`pnpm -r typecheck`, `pnpm format:check`, `pnpm -r test`, plus `ruff`/`mypy`/`pytest` in
-`sidecar/` all pass. Everything is committed and pushed to `main`.
+**535 tests green** — 402 server, 86 sidecar, 28 web, 19 shared. `pnpm lint`,
+`pnpm -r typecheck`, `pnpm format:check`, `pnpm -r test`, `pnpm check:sources`, and
+`ruff` / `mypy` / `pytest` in `sidecar/` all pass.
+
+Worth knowing: **the sidecar suite runs on a machine that cannot run PaddleOCR.** Paddle is
+deliberately not a dependency of `sidecar/pyproject.toml` — the backend installs the CPU or
+GPU wheel at runtime after probing — so `ruff`, `mypy` and all 86 tests need only fastapi,
+pydantic, pymupdf and the dev extras. Set it up with the bundled uv, no system Python needed:
+
+```bash
+vendor/uv/uv.exe venv --python 3.12 sidecar/.venv
+vendor/uv/uv.exe pip install --python sidecar/.venv/Scripts/python.exe -e "sidecar[dev]"
+```
 
 Working end to end, verified on real hardware: runtime install, folder watching, the queue,
 OCR through the sidecar, output writing, Quick Mode (both server-picked files and upload → ZIP
@@ -58,10 +101,16 @@ download), auth with sessions and CSRF, the dashboard, and the log viewer.
 
 This is the part worth reading twice.
 
-### 1. Windows on ARM cannot run this, and it lies about why
+### 1. The machine itself is the most likely problem, and it never says so
 
-Development happened on a **Snapdragon X** laptop. That was a mistake nobody could have known
-was a mistake up front, and it cost more time than every other problem combined.
+Two development machines have now been unable to run PaddleOCR, for two unrelated reasons.
+Neither produced an error that pointed at the hardware. Budget for this being the answer
+before spending a day inside the application.
+
+#### 1a. Windows on ARM — emulation
+
+Development happened first on a **Snapdragon X** laptop. That was a mistake nobody could have
+known was a mistake up front, and it cost more time than every other problem combined.
 
 PaddlePaddle 3.3.1 publishes exactly three wheel platforms:
 
@@ -90,6 +139,61 @@ indistinguishable from a real x86 box. The only signal that survives emulation i
 reported that very machine as native.
 
 On x86-64, re-measure everything below before trusting any of the performance conclusions.
+
+#### 1b. x86-64 is not enough — PaddlePaddle requires AVX
+
+The second machine was a **Surface Go (Intel Pentium 4415Y)**: genuinely native x86-64, no
+emulation, `platform-support.ts` correctly reported `native` — and it still could not run the
+engine, because **Intel disables AVX on the Pentium and Celeron SKUs** of a generation whose
+Core parts have it. "Recent x86-64" tells you nothing about AVX.
+
+What happens without AVX, in order:
+
+```
+paddle/base/common.dll   faults during DllMain with 0xC000001D (STATUS_ILLEGAL_INSTRUCTION)
+Python reports           ImportError: DLL load failed while importing libpaddle
+core.py line 388 then    NameError: name 'libpaddle' is not defined
+```
+
+That last line is a **bug in PaddlePaddle itself**, and it is why this is so hard to diagnose.
+Their handler is written to print exactly the sentence you need:
+
+```python
+except Exception as e:
+    if not avx_supported() and libpaddle.is_compiled_with_avx():
+        sys.stderr.write("Error: Your machine doesn't support AVX, ...")
+```
+
+but `libpaddle` is only bound when the import *succeeded*, and this block only runs when it
+*failed*. The AVX warning is unreachable. It can never be printed to any user, on any machine.
+
+There is no way around it: no-AVX Windows CPU wheels stop at **paddlepaddle 2.4.2, cp38** —
+the project needs 3.3.1 on cp312, and PaddleOCR 3.7 would not run on 2.4.2 regardless.
+
+Detection is `IsProcessorFeaturePresent(39)` on Windows, `/proc/cpuinfo` flags on Linux,
+`sysctl hw.optional.avx1_0` on macOS — all in
+`apps/server/src/modules/runtime/cpu-features.ts`. Match `avx` as a whitespace-delimited
+token, not a substring: `avx512f` contains `avx`.
+
+#### 1c. Windows needs the Visual C++ runtime, separately from all of the above
+
+On the same Surface Go, `vcomp140.dll` was also missing — a *second*, independent blocker
+that would have stopped an AVX-capable machine dead:
+
+```
+libpaddle.pyd  ->  mkldnn.dll  ->  VCOMP140.DLL   (absent)
+```
+
+`vcomp140.dll` is the MSVC OpenMP runtime, supplied by the Visual C++ 2015-2022
+Redistributable. A Windows install that has never run an MSVC-built application simply does
+not have it, and the resulting `DLL load failed` names neither the DLL nor the redistributable.
+This one is *fixable* — one download — which is precisely why preflight separates `fixable`
+from `blocked`. Fixing only this on a non-AVX machine gets you a working `mkldnn.dll` and the
+same failure one DLL later.
+
+Useful diagnostic trick: parse the PE import table of `libpaddle.pyd` and each DLL in
+`paddle/libs/`, then check each name against `System32`. That found `VCOMP140.DLL` in seconds
+where reading Python tracebacks had found nothing.
 
 ### 2. Editing sidecar source does not affect the running app
 
@@ -166,8 +270,11 @@ this fix.
   drive reference — use `"${Var}:"`. Keep `.ps1` files pure ASCII: 5.1 reads UTF-8-without-BOM
   as ANSI.
 - **Heredocs into CRLF files** create mixed line endings that Prettier then rewrites wholesale.
-- The user's **C: drive runs near-full**. Dev caches were relocated to `D:\dev-caches` with
-  user-scope env vars. Point every new toolchain cache at D:.
+- **Disk is usually the constraint.** On the Snapdragon, C: ran near-full and dev caches were
+  moved to `D:\dev-caches` with user-scope env vars; the Surface Go had no D: at all. Check
+  what drives exist before repeating either arrangement, and point new toolchain caches at
+  whichever drive has room. `uv`'s caches are already redirected into the data directory by
+  `RuntimeInstaller.uvEnvironment()` — that was a real bug, not tidiness.
 
 ### 9. An unanchored `.gitignore` pattern hid three real directories
 
@@ -189,7 +296,35 @@ An ignored file is *invisible*, not untracked, so no ordinary workflow catches t
 it. If you add a `.gitignore` entry for a data or output directory, **anchor it**: `/runtime/`,
 not `runtime/`.
 
-### 10. Licensing is load-bearing
+### 10. Two things a fresh clone hits before it ever builds
+
+Both were found by cloning onto a second machine, and neither can be reproduced on a machine
+that already works.
+
+**`better-sqlite3` tries to compile, and fails without Python.** The package has a
+`binding.gyp` and no `install` script, so pnpm applies npm's default of running
+`node-gyp rebuild`. That build is a **no-op by design** — `binding.gyp` collapses to
+`'type': 'none'` when `prebuilds/<platform>-<arch>.node` exists, which it does for every
+platform this project targets. But node-gyp needs Python just to *parse* the gyp file and
+discover there is nothing to do, so on a machine without Python the install dies with a wall
+of `gyp ERR! find Python`. Fixed by `pnpm.neverBuiltDependencies: ["better-sqlite3"]` in the
+root `package.json`. Note this is the pnpm 9 spelling; **pnpm 10 replaces it** with a
+default-deny `onlyBuiltDependencies` allowlist, so revisit it when the pinned
+`packageManager` moves.
+
+**Line endings — `format:check` failed on 186 files.** `.prettierrc.json` sets
+`"endOfLine": "lf"`, the repo has **no `.gitattributes`**, and Git for Windows clones with
+`core.autocrlf=true`. So every file arrives as CRLF and Prettier rejects all of them, on a
+tree nobody has touched. Worked around locally with `git config core.autocrlf false` and a
+re-checkout. **The durable fix is a committed `.gitattributes`** (`* text=auto eol=lf`, with
+CRLF kept for `*.bat`/`*.cmd`) — not yet done, because it renormalizes the whole repository
+and deserves its own commit. CI does not run `format:check`, so this stays invisible there.
+
+Node itself: `engines` says `>=22.12.0`. Prefer **Node 22 LTS** over 24 — not for any ABI
+reason (the prebuilds above are N-API and version-independent) but because 22 is what the
+lockfile and the original machine used.
+
+### 11. Licensing is load-bearing
 
 PyMuPDF is AGPL-3.0, which is why the project is. Before adding a dependency, check the licence
 and record it in `NOTICE`.
@@ -239,6 +374,9 @@ dev/            Menu launchers.
 
 | Concern | File |
 |---|---|
+| Can this machine run it at all | `apps/server/src/modules/runtime/preflight.ts` |
+| AVX / CPU instruction set | `apps/server/src/modules/runtime/cpu-features.ts` |
+| Visual C++ runtime check | `apps/server/src/modules/runtime/vc-runtime.ts` |
 | Emulation / platform support | `apps/server/src/modules/runtime/platform-support.ts` |
 | Thread + memory caps | `sidecar/.../core/resources.py` |
 | Page-at-a-time rendering | `sidecar/.../pipeline/rasterize.py` |

@@ -160,31 +160,106 @@ function Resolve-Pnpm {
 
 # ---------------------------------------------------------------- actions ----
 
+function Get-UvBinary {
+    if ($env:IMPRESSIVE_OCR_UV_BINARY) { return $env:IMPRESSIVE_OCR_UV_BINARY }
+    return (Join-Path $RepoRoot 'vendor\uv\uv.exe')
+}
+
+function Test-DepsStale {
+    <#
+        True when node_modules is absent, or older than the lockfile.
+
+        The mtime comparison catches the case that actually bites: pulling a branch that
+        changed dependencies, where node_modules exists and is quietly wrong.
+    #>
+    $marker = Join-Path $RepoRoot 'node_modules\.modules.yaml'
+    if (-not (Test-Path $marker)) { return $true }
+
+    $lock = Join-Path $RepoRoot 'pnpm-lock.yaml'
+    if (-not (Test-Path $lock)) { return $false }
+
+    return ((Get-Item $lock).LastWriteTime -gt (Get-Item $marker).LastWriteTime)
+}
+
 function Test-Prerequisites {
     $ok = $true
 
     $node = Get-Command node -ErrorAction SilentlyContinue
     if ($node) { Write-Dim ("  node  " + (& node --version)) }
-    else { Write-Bad '  node  MISSING - install Node 22 or newer'; $ok = $false }
+    else { Write-Bad '  node  MISSING - install Node 22 or newer from https://nodejs.org'; $ok = $false }
 
     $pnpm = Resolve-Pnpm
     if ($pnpm) { Write-Dim ("  pnpm  " + (& $pnpm --version)) }
-    else { Write-Bad '  pnpm  MISSING - npm install -g pnpm'; $ok = $false }
+    else { Write-Bad '  pnpm  MISSING'; $ok = $false }
 
-    if (-not (Test-Path (Join-Path $RepoRoot 'node_modules'))) {
-        Write-Warn '  deps  not installed - run: pnpm install'
-        $ok = $false
-    }
+    if (Test-DepsStale) { Write-Warn '  deps  not installed, or older than pnpm-lock.yaml'; $ok = $false }
     else { Write-Dim '  deps  installed' }
 
     # uv is only needed to install the OCR runtime, not to boot the stack, so a miss here
     # is a warning rather than a failure.
-    $uv = $env:IMPRESSIVE_OCR_UV_BINARY
-    if (-not $uv) { $uv = Join-Path $RepoRoot 'vendor\uv\uv.exe' }
+    $uv = Get-UvBinary
     if (Test-Path $uv) { Write-Dim "  uv    $uv" }
-    else { Write-Warn "  uv    MISSING at $uv - the OCR runtime cannot be installed (see: Environment)" }
+    else { Write-Warn "  uv    MISSING at $uv - the OCR runtime cannot be installed" }
 
     return $ok
+}
+
+function Install-Prerequisites {
+    <#
+        Do the setup rather than printing commands for someone to copy.
+
+        A fresh clone legitimately needs `pnpm install` and `node deploy/fetch-uv.mjs`, and
+        there is no reason a person should have to know that. Everything here is idempotent
+        and silent when there is nothing to do, so Start stays fast on an already-set-up
+        machine.
+
+        Node itself is the one thing that cannot be fixed from inside a script that is only
+        running because Node is absent -- that one gets a clear sentence instead.
+    #>
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Write-Bad '  Node is not installed, and this is the one thing Start cannot fix for you.'
+        Write-Dim '  Install Node 22 or newer from https://nodejs.org, then run Start again.'
+        return $false
+    }
+
+    # pnpm ships with Node as a Corepack shim; enabling it is preferable to a global npm
+    # install because the version then comes from packageManager in package.json.
+    if (-not (Resolve-Pnpm)) {
+        Write-Head '  Enabling pnpm via Corepack'
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { & corepack enable 2>$null | Out-Null } finally { $ErrorActionPreference = $previous }
+
+        if (-not (Resolve-Pnpm)) {
+            Write-Bad '  Could not enable pnpm automatically.'
+            Write-Dim '  Run: corepack enable      (an elevated prompt may be required)'
+            return $false
+        }
+        Write-Good '  pnpm ready'
+    }
+
+    if (Test-DepsStale) {
+        Write-Head '  Installing dependencies (first run takes a few minutes)'
+        & (Resolve-Pnpm) 'install' '--dir' $RepoRoot
+        if ($LASTEXITCODE -ne 0) {
+            Write-Bad '  pnpm install failed. The output above says why.'
+            return $false
+        }
+        Write-Good '  Dependencies installed'
+    }
+
+    # Fetched rather than committed: it is a 44 MB binary. Without it the app runs, but the
+    # OCR runtime cannot be installed -- so fetch it now rather than at the point of failure.
+    if (-not (Test-Path (Get-UvBinary))) {
+        Write-Head '  Fetching uv (44 MB, needed to install the OCR runtime)'
+        & node (Join-Path $RepoRoot 'deploy\fetch-uv.mjs')
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn '  Could not fetch uv. The stack will start, but the OCR runtime cannot install.'
+        }
+        else { Write-Good '  uv ready' }
+    }
+
+    return $true
 }
 
 function Start-Stack {
@@ -195,8 +270,20 @@ function Start-Stack {
 
     Write-Head 'Checking prerequisites'
     if (-not (Test-Prerequisites)) {
-        Write-Bad 'Cannot start until the items above are resolved.'
-        return
+        # Not a refusal: work out what is missing and install it. Only what genuinely cannot
+        # be fixed from here -- Node itself -- stops the launch.
+        Write-Host ''
+        Write-Head 'Setting up what is missing'
+        if (-not (Install-Prerequisites)) {
+            Write-Bad 'Cannot start until the items above are resolved.'
+            return
+        }
+        Write-Host ''
+        Write-Head 'Re-checking'
+        if (-not (Test-Prerequisites)) {
+            Write-Bad 'Cannot start until the items above are resolved.'
+            return
+        }
     }
 
     $pnpm = Resolve-Pnpm

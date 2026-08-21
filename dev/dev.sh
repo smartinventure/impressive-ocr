@@ -9,6 +9,7 @@
 # Usage:  ./dev/dev.sh              interactive menu
 #         ./dev/dev.sh start
 #         ./dev/dev.sh stop
+#         ./dev/dev.sh doctor      check prerequisites, offer to install them
 
 set -uo pipefail
 
@@ -43,6 +44,11 @@ dim_()  { printf '%s%s%s\n' "$C_DIM"  "$*" "$C_OFF"; }
 rule_() { dim_ '--------------------------------------------------------------------------'; }
 
 is_windows() { case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) return 0 ;; *) return 1 ;; esac }
+
+# What this machine needs and how to get it: collect_prerequisites, check_prerequisites,
+# install_prerequisites. Kept separate because the launcher is long enough.
+# shellcheck source=dev/preflight.sh
+. "$DEV_DIR/preflight.sh"
 
 # ------------------------------------------------------------ environment ----
 
@@ -115,30 +121,6 @@ kill_tree() {
 }
 
 # ---------------------------------------------------------------- actions ----
-
-check_prerequisites() {
-  local ok=0
-
-  if command -v node >/dev/null 2>&1; then dim_ "  node  $(node --version)"
-  else bad_ '  node  MISSING - install Node 22 or newer'; ok=1; fi
-
-  if command -v pnpm >/dev/null 2>&1; then dim_ "  pnpm  $(pnpm --version)"
-  else bad_ '  pnpm  MISSING - npm install -g pnpm'; ok=1; fi
-
-  if [ -d "$REPO_ROOT/node_modules" ]; then dim_ '  deps  installed'
-  else warn_ '  deps  not installed - run: pnpm install'; ok=1; fi
-
-  # uv is only needed to install the OCR runtime, not to boot the stack, so a miss here is
-  # a warning rather than a failure.
-  local uv="${IMPRESSIVE_OCR_UV_BINARY:-}"
-  if [ -z "$uv" ]; then
-    if is_windows; then uv="$REPO_ROOT/vendor/uv/uv.exe"; else uv="$REPO_ROOT/vendor/uv/uv"; fi
-  fi
-  if [ -x "$uv" ] || [ -f "$uv" ]; then dim_ "  uv    $uv"
-  else warn_ "  uv    MISSING at $uv - the OCR runtime cannot be installed (see: Environment)"; fi
-
-  return $ok
-}
 
 wait_for_api() {
   local deadline=$((SECONDS + 90))
@@ -354,6 +336,7 @@ show_menu() {
     echo '  3) Restart'
     echo '  4) Status'
     echo '  5) Environment / where things are stored'
+    echo '  6) Check / install prerequisites'
     echo '  Q) Quit'
     echo
     read -r -p '  Select: ' choice
@@ -370,6 +353,7 @@ show_menu() {
       3) stop_stack; sleep 1; start_stack ;;
       4) show_status ;;
       5) show_environment ;;
+      6) install_prerequisites ;;
       q | quit | exit) return 0 ;;
       *) warn_ '  Not an option.' ;;
     esac
@@ -390,6 +374,7 @@ case "${1:-menu}" in
   restart) stop_stack; sleep 1; start_stack ;;
   status)  show_status ;;
   env)     show_environment ;;
+  doctor)  install_prerequisites ;;
   menu)    show_menu ;;
-  *)       echo "usage: $0 [start|stop|restart|status|env]" >&2; exit 2 ;;
+  *)       echo "usage: $0 [start|stop|restart|status|env|doctor]" >&2; exit 2 ;;
 esac

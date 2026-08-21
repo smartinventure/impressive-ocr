@@ -9,10 +9,11 @@
 # Usage:  .\dev\dev.ps1              interactive menu
 #         .\dev\dev.ps1 -Action start
 #         .\dev\dev.ps1 -Action stop
+#         .\dev\dev.ps1 -Action doctor    check prerequisites, offer to install them
 
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'start', 'stop', 'restart', 'status', 'env')]
+    [ValidateSet('menu', 'start', 'stop', 'restart', 'status', 'env', 'doctor')]
     [string] $Action = 'menu'
 )
 
@@ -31,6 +32,10 @@ $EnvFile   = Join-Path $DevDir 'dev.env'
 # packages/shared/src/settings.ts respectively.
 $WebPort = 5273
 $ApiPort = 8084
+
+# What this machine needs and how to get it: Get-Prerequisites, Test-Prerequisites,
+# Install-Prerequisites, Resolve-Pnpm. Kept separate because the launcher is long enough.
+. (Join-Path $DevDir 'preflight.ps1')
 
 # ------------------------------------------------------------ presentation ----
 
@@ -148,44 +153,7 @@ function Stop-Tree([int] $ProcessId) {
     }
 }
 
-function Resolve-Pnpm {
-    foreach ($candidate in @('pnpm.cmd', 'pnpm')) {
-        $command = Get-Command $candidate -ErrorAction SilentlyContinue
-        if ($command) { return $command.Source }
-    }
-    $fallback = Join-Path $env:APPDATA 'npm\pnpm.cmd'
-    if (Test-Path $fallback) { return $fallback }
-    return $null
-}
-
 # ---------------------------------------------------------------- actions ----
-
-function Test-Prerequisites {
-    $ok = $true
-
-    $node = Get-Command node -ErrorAction SilentlyContinue
-    if ($node) { Write-Dim ("  node  " + (& node --version)) }
-    else { Write-Bad '  node  MISSING - install Node 22 or newer'; $ok = $false }
-
-    $pnpm = Resolve-Pnpm
-    if ($pnpm) { Write-Dim ("  pnpm  " + (& $pnpm --version)) }
-    else { Write-Bad '  pnpm  MISSING - npm install -g pnpm'; $ok = $false }
-
-    if (-not (Test-Path (Join-Path $RepoRoot 'node_modules'))) {
-        Write-Warn '  deps  not installed - run: pnpm install'
-        $ok = $false
-    }
-    else { Write-Dim '  deps  installed' }
-
-    # uv is only needed to install the OCR runtime, not to boot the stack, so a miss here
-    # is a warning rather than a failure.
-    $uv = $env:IMPRESSIVE_OCR_UV_BINARY
-    if (-not $uv) { $uv = Join-Path $RepoRoot 'vendor\uv\uv.exe' }
-    if (Test-Path $uv) { Write-Dim "  uv    $uv" }
-    else { Write-Warn "  uv    MISSING at $uv - the OCR runtime cannot be installed (see: Environment)" }
-
-    return $ok
-}
 
 function Start-Stack {
     if ((Test-PortBusy $ApiPort) -or (Test-PortBusy $WebPort)) {
@@ -413,6 +381,7 @@ function Show-Menu {
         Write-Host '  3) Restart'
         Write-Host '  4) Status'
         Write-Host '  5) Environment / where things are stored'
+        Write-Host '  6) Check / install prerequisites'
         Write-Host '  Q) Quit'
         Write-Host ''
         $choice = Read-Host '  Select'
@@ -430,6 +399,7 @@ function Show-Menu {
             '3' { Stop-Stack; Start-Sleep -Seconds 1; Start-Stack }
             '4' { Show-Status }
             '5' { Show-Environment }
+            '6' { Install-Prerequisites }
             'q' { return }
             'quit' { return }
             'exit' { return }
@@ -452,5 +422,6 @@ switch ($Action) {
     'restart' { Stop-Stack; Start-Sleep -Seconds 1; Start-Stack }
     'status' { Show-Status }
     'env' { Show-Environment }
+    'doctor' { Install-Prerequisites }
     default { Show-Menu }
 }

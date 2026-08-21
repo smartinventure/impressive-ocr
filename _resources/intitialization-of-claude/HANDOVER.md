@@ -169,7 +169,27 @@ this fix.
 - The user's **C: drive runs near-full**. Dev caches were relocated to `D:\dev-caches` with
   user-scope env vars. Point every new toolchain cache at D:.
 
-### 9. Licensing is load-bearing
+### 9. An unanchored `.gitignore` pattern hid three real directories
+
+`.gitignore` had `runtime/`, `logs/` and `build/` with no leading slash. Git matches an
+unanchored pattern at **any depth**, so these were never committed:
+
+```
+apps/server/src/modules/runtime/    GPU probe, installer, wheel index — 18 files
+apps/web/src/features/logs/         the log viewer
+apps/desktop/build/                 icons, entitlements, the NSIS script
+```
+
+Nothing complained. `git status` was clean, every check passed, and the code was simply absent
+from the repository — including from the first version of this very document, which cited a
+file the repo did not contain. It surfaced only when someone cloned it onto another machine.
+
+An ignored file is *invisible*, not untracked, so no ordinary workflow catches this.
+`pnpm check:sources` (`deploy/check-tracked-sources.mjs`) now asks git directly, and CI runs
+it. If you add a `.gitignore` entry for a data or output directory, **anchor it**: `/runtime/`,
+not `runtime/`.
+
+### 10. Licensing is load-bearing
 
 PyMuPDF is AGPL-3.0, which is why the project is. Before adding a dependency, check the licence
 and record it in `NOTICE`.
@@ -185,8 +205,12 @@ originals.
 
 ```bash
 pnpm install
-./dev/dev.sh          # or .\dev\dev.ps1 — menu: start / stop / restart / status / env
+node deploy/fetch-uv.mjs     # vendor/uv/ is a 44 MB binary, correctly gitignored
+./dev/dev.sh                 # or .\dev\dev.ps1 — start / stop / restart / status / env
 ```
+
+`vendor/uv/` is the one thing a fresh clone legitimately lacks. Everything else is source and
+must be in the repository — see pitfall 9 for what happens when it is not.
 
 Set `IMPRESSIVE_OCR_DATA_DIR` (the launchers default it beside the repo) — the runtime and
 models under it run to several GB, and the app's own default is on C:.
@@ -195,8 +219,9 @@ Web UI on `:5273`, API on `:8084`. The OCR runtime installs from the UI on first
 multi-GB download.
 
 Before every commit: `pnpm lint`, `pnpm -r typecheck`, `pnpm format:check`, `pnpm -r test`,
-and in `sidecar/`: `ruff check .`, `mypy src`, `pytest -q`. CI runs lint, typecheck and test —
-**not** `format:check`, so that one is easy to let drift.
+`pnpm check:sources`, and in `sidecar/`: `ruff check .`, `mypy src`, `pytest -q`. CI runs
+lint, typecheck, test and `check:sources` — **not** `format:check`, so that one is easy to let
+drift.
 
 ### Layout
 

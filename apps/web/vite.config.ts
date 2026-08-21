@@ -18,6 +18,15 @@ export default defineConfig({
     globals: true,
     // Vuetify ships untranspiled ESM that Vitest must not externalise.
     server: { deps: { inline: ['vuetify'] } },
+    /**
+     * Well above Vitest's 5s default, because these tests mount whole Vuetify screens.
+     *
+     * `opens every panel without throwing` builds the pipeline editor and cycles six
+     * expansion panels: 4.3s alone on a 2-core 1.6 GHz laptop, and 5.4s when the rest of the
+     * suite is competing for the same cores — a failure that says nothing about the code and
+     * only appears on slow or loaded machines, CI runners included.
+     */
+    testTimeout: 30_000,
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.ts'],
   },

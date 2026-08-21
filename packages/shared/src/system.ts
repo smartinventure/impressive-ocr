@@ -87,6 +87,29 @@ export function formatVramGib(bytes: number): string {
 // Python runtime bootstrap
 // ---------------------------------------------------------------------------
 
+/**
+ * What an install is about to do, so it can be confirmed before it starts.
+ *
+ * The CPU and GPU builds differ by most of a gigabyte, and the choice between them is made
+ * from a hardware probe the user never sees. Downloading that much on somebody's metered
+ * connection without saying so first is not acceptable.
+ */
+export const runtimeInstallPlanSchema = z.object({
+  flavor: z.enum(['cpu', 'gpu']),
+  packageName: z.string(),
+  /** "PaddlePaddle GPU (bundled CUDA 12.9)" — what is actually being fetched. */
+  description: z.string(),
+  /** Why this build was chosen, in one sentence. */
+  rationale: z.string(),
+  downloadBytes: z.number().int().min(0),
+  installedBytes: z.number().int().min(0),
+  targetPath: z.string(),
+  freeBytes: z.number().int().min(0).nullable(),
+  enoughSpace: z.boolean(),
+});
+
+export type RuntimeInstallPlan = z.infer<typeof runtimeInstallPlanSchema>;
+
 export const runtimeStateSchema = z.enum([
   'not-installed',
   'installing',

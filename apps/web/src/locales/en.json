@@ -91,7 +91,18 @@
   "runtime": {
     "notInstalled": "The OCR runtime is not installed yet.",
     "install": "Install the OCR runtime",
-    "installing": "Installing…"
+    "installing": "Installing…",
+    "confirmTitle": "Install the OCR runtime?",
+    "confirmStart": "Download and install",
+    "confirmNote": "The download runs for several minutes and can be cancelled while it is going. Nothing has been downloaded yet.",
+    "build": "Build",
+    "download": "Download",
+    "onDisk": "On disk when done",
+    "location": "Installed into",
+    "freeSpace": "Free on that drive",
+    "about": "about {size}",
+    "tightSpace": "That drive may not have enough free space for the install and its temporary files.",
+    "planFailed": "Could not work out what would be installed. Is the service still running?"
   },
   "errors": {
     "loadFailed": "Could not load data from the service.",

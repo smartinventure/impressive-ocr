@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { statfs } from 'node:fs/promises';
-import { parse } from 'node:path';
+import { dirname, parse, resolve } from 'node:path';
 
 /**
  * Free-space check for the runtime install.
@@ -14,8 +14,29 @@ import { parse } from 'node:path';
 /** Python + PaddlePaddle + PaddleOCR, measured on a real install. */
 export const RUNTIME_INSTALL_BYTES = 1_200_000_000;
 
+/**
+ * Everything downloaded besides the PaddlePaddle wheel itself: the pinned CPython build and
+ * the PaddleOCR dependency tree (numpy, OpenCV, shapely and the rest).
+ *
+ * An estimate, unlike the wheel sizes in `wheel-index.ts` which are measured. It exists so
+ * the pre-install confirmation can quote a total rather than only the largest single item.
+ */
+export const SUPPORTING_DOWNLOAD_BYTES = 450_000_000;
+
 /** Model weights for the Fast profile; the VLM needs considerably more. */
 export const MODEL_DOWNLOAD_BYTES = 400_000_000;
+
+/**
+ * Installed footprint by flavour.
+ *
+ * The GPU figure is an estimate and deliberately generous: the wheel bundles CUDA and cuDNN,
+ * which expand to several times the download. Correct it once a real GPU install has been
+ * measured — no one has run one yet.
+ */
+export const INSTALLED_BYTES_BY_FLAVOR = {
+  cpu: RUNTIME_INSTALL_BYTES + MODEL_DOWNLOAD_BYTES,
+  gpu: 3_500_000_000 + MODEL_DOWNLOAD_BYTES,
+} as const;
 
 /**
  * Headroom on top of the install itself.
@@ -68,6 +89,30 @@ export async function measureDiskSpace(path: string): Promise<DiskSpace | null> 
     // An unmeasurable filesystem must not block the install — better to try and fail with
     // pip's own error than to refuse on a network share we simply cannot stat.
     return null;
+  }
+}
+
+/**
+ * Free space for a directory that may not exist yet.
+ *
+ * The runtime directory is created *by* the install, so measuring it before the first one
+ * fails — and answering "unknown free space" for a drive with three terabytes on it is worse
+ * than useless in a dialog asking someone to approve a download. Walks up to the nearest
+ * ancestor that does exist, which is on the same filesystem in every case that matters.
+ */
+export async function measureDiskSpaceForTarget(path: string): Promise<DiskSpace | null> {
+  let current = resolve(path);
+  for (;;) {
+    const space = await measureDiskSpace(current);
+    if (space !== null) {
+      return space;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      // `dirname` fixes at the filesystem root, so this terminates.
+      return null;
+    }
+    current = parent;
   }
 }
 

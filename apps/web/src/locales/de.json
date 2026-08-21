@@ -91,7 +91,18 @@
   "runtime": {
     "notInstalled": "Die OCR-Laufzeitumgebung ist noch nicht installiert.",
     "install": "OCR-Laufzeitumgebung installieren",
-    "installing": "Wird installiert…"
+    "installing": "Wird installiert…",
+    "confirmTitle": "OCR-Laufzeitumgebung installieren?",
+    "confirmStart": "Herunterladen und installieren",
+    "confirmNote": "Der Download dauert mehrere Minuten und kann jederzeit abgebrochen werden. Bisher wurde nichts heruntergeladen.",
+    "build": "Variante",
+    "download": "Download",
+    "onDisk": "Belegt nach Abschluss",
+    "location": "Installiert nach",
+    "freeSpace": "Frei auf diesem Laufwerk",
+    "about": "ca. {size}",
+    "tightSpace": "Auf diesem Laufwerk ist möglicherweise zu wenig Platz für die Installation und ihre temporären Dateien.",
+    "planFailed": "Es konnte nicht ermittelt werden, was installiert würde. Läuft der Dienst noch?"
   },
   "errors": {
     "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",

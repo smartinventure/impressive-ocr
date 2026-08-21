@@ -45,6 +45,9 @@ export function registerSystemRoutes(app: AppFastify, services: AppServices): vo
 
   app.get('/api/system/runtime', () => services.runtime.getStatus());
 
+  /** What an install would download, so the UI can ask before starting one. */
+  app.get('/api/system/runtime/plan', async () => services.runtime.planInstall());
+
   app.post('/api/system/runtime/install', (_request, reply) => {
     // Fire and forget: the install runs for minutes and reports through SSE, so holding the
     // request open would just give the browser a timeout to deal with.

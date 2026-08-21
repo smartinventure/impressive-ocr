@@ -14,6 +14,7 @@ import type {
   JobListItem,
   JobState,
   PipelineWithStatus,
+  RuntimeInstallPlan,
   RuntimeStatus,
   SystemStatus,
   UpdatePipelineRequest,
@@ -96,6 +97,8 @@ export const systemApi = {
   hardware: () => api.get<HardwareWithExplanation>('/system/hardware'),
   probeHardware: () => api.post<HardwareCapabilities>('/system/hardware/probe'),
   runtime: () => api.get<RuntimeStatus>('/system/runtime'),
+  /** What an install would download. Shown for confirmation before one is started. */
+  runtimePlan: () => api.get<RuntimeInstallPlan>('/system/runtime/plan'),
   installRuntime: () => api.post<RuntimeStatus>('/system/runtime/install'),
   cancelInstall: () => api.post<{ cancelled: boolean }>('/system/runtime/cancel'),
   pauseAll: () => api.post<{ globallyPaused: boolean }>('/system/pause'),

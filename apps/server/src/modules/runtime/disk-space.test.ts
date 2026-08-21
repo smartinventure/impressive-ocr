@@ -1,13 +1,35 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
+import { join } from 'node:path';
 import {
   InsufficientDiskSpaceError,
   REQUIRED_INSTALL_BYTES,
   assertEnoughSpaceForInstall,
   formatGib,
   measureDiskSpace,
+  measureDiskSpaceForTarget,
 } from './disk-space';
+
+describe('measureDiskSpaceForTarget', () => {
+  it('measures a directory that does not exist yet, via its nearest existing parent', async () => {
+    // The runtime directory is created by the install, so the pre-install dialog always asks
+    // about a path that is not there yet. Reporting "unknown" would be the wrong answer.
+    const target = join(tmpdir(), 'impressive-ocr-not-created-yet', 'runtime', 'venv');
+
+    const space = await measureDiskSpaceForTarget(target);
+
+    expect(space).not.toBeNull();
+    expect(space?.freeBytes).toBeGreaterThan(0);
+  });
+
+  it('agrees with a direct measurement of a path that does exist', async () => {
+    const direct = await measureDiskSpace(tmpdir());
+    const walked = await measureDiskSpaceForTarget(tmpdir());
+
+    expect(walked?.totalBytes).toBe(direct?.totalBytes);
+  });
+});
 
 /**
  * Added after a full disk crashed the server mid-install: pip failed deep inside its own

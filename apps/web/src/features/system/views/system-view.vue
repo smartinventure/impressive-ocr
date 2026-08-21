@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import type { RuntimeInstallPlan } from '@impressive-ocr/shared';
 import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 
@@ -18,11 +19,36 @@ const { t } = useI18n();
 const hardware = ref<HardwareWithExplanation | null>(null);
 const installing = computed(() => store.runtime?.state === 'installing');
 
+/**
+ * Nothing is downloaded until this plan has been shown and accepted.
+ *
+ * The build is chosen from a hardware probe the user never sees, and the CPU and GPU wheels
+ * differ by most of a gigabyte — starting that on someone's connection unannounced is not on.
+ */
+const plan = ref<RuntimeInstallPlan | null>(null);
+const planPending = ref(false);
+const planError = ref<string | null>(null);
+const confirmOpen = ref(false);
+
 function formatBytes(bytes: number): string {
   return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
-async function install(): Promise<void> {
+async function askToInstall(): Promise<void> {
+  planPending.value = true;
+  planError.value = null;
+  try {
+    plan.value = await systemApi.runtimePlan();
+    confirmOpen.value = true;
+  } catch {
+    planError.value = t('runtime.planFailed');
+  } finally {
+    planPending.value = false;
+  }
+}
+
+async function confirmInstall(): Promise<void> {
+  confirmOpen.value = false;
   await systemApi.installRuntime();
 }
 
@@ -74,9 +100,10 @@ onMounted(async () => {
       </div>
 
       <div v-if="!store.runtimeReady && !installing" class="mt-4">
-        <v-btn color="primary" prepend-icon="download" @click="install">
+        <v-btn color="primary" prepend-icon="download" :loading="planPending" @click="askToInstall">
           {{ t('runtime.install') }}
         </v-btn>
+        <div v-if="planError" class="ocr-alert-error mt-3">{{ planError }}</div>
       </div>
 
       <dl v-if="store.runtimeReady" class="system__facts mt-3">
@@ -155,6 +182,52 @@ onMounted(async () => {
         </tbody>
       </v-table>
     </v-card>
+    <!-- Pre-install confirmation. Nothing is downloaded before this is accepted. -->
+    <v-dialog v-model="confirmOpen" max-width="560">
+      <v-card v-if="plan" class="pa-5">
+        <h2 class="text-h6 mb-2">{{ t('runtime.confirmTitle') }}</h2>
+        <p class="text-body-2 mb-4">{{ plan.rationale }}</p>
+
+        <dl class="system__facts mb-4">
+          <div>
+            <dt>{{ t('runtime.build') }}</dt>
+            <dd class="ocr-mono">{{ plan.description }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('runtime.download') }}</dt>
+            <dd class="ocr-mono">
+              {{ t('runtime.about', { size: formatBytes(plan.downloadBytes) }) }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ t('runtime.onDisk') }}</dt>
+            <dd class="ocr-mono">
+              {{ t('runtime.about', { size: formatBytes(plan.installedBytes) }) }}
+            </dd>
+          </div>
+          <div>
+            <dt>{{ t('runtime.location') }}</dt>
+            <dd class="ocr-mono">{{ plan.targetPath }}</dd>
+          </div>
+          <div v-if="plan.freeBytes !== null">
+            <dt>{{ t('runtime.freeSpace') }}</dt>
+            <dd class="ocr-mono">{{ formatBytes(plan.freeBytes) }}</dd>
+          </div>
+        </dl>
+
+        <v-alert v-if="!plan.enoughSpace" type="warning" density="compact" class="mb-4">
+          {{ t('runtime.tightSpace') }}
+        </v-alert>
+        <p class="text-body-2 text-medium-emphasis mb-4">{{ t('runtime.confirmNote') }}</p>
+
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="confirmOpen = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="primary" prepend-icon="download" @click="confirmInstall">
+            {{ t('runtime.confirmStart') }}
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 

@@ -39,6 +39,22 @@ globalThis.matchMedia ??= ((query: string) => ({
   dispatchEvent: vi.fn(),
 })) as unknown as typeof matchMedia;
 
+// VOverlay — every dialog, menu and tooltip — subscribes to this when it opens.
+globalThis.visualViewport ??= {
+  width: 1024,
+  height: 768,
+  scale: 1,
+  offsetLeft: 0,
+  offsetTop: 0,
+  pageLeft: 0,
+  pageTop: 0,
+  onresize: null,
+  onscroll: null,
+  addEventListener(): void {},
+  removeEventListener(): void {},
+  dispatchEvent: (): boolean => true,
+} as unknown as typeof visualViewport;
+
 // jsdom implements neither, and CSS transitions are irrelevant to a mount test.
 Element.prototype.animate ??= (() => ({
   finished: Promise.resolve(),

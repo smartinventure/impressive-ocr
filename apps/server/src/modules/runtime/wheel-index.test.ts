@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
 import type { GpuInfo, HardwareCapabilities } from '@impressive-ocr/shared';
-import { pipInstallArgs, selectCudaBuild, selectWheel } from './wheel-index';
+import { describeSelection, pipInstallArgs, selectCudaBuild, selectWheel } from './wheel-index';
 
 function hardware(overrides: Partial<HardwareCapabilities> = {}): HardwareCapabilities {
   return {
@@ -125,5 +125,35 @@ describe('pipInstallArgs', () => {
 
   it('pins an exact version when one is given', () => {
     expect(pipInstallArgs(selectWheel(hardware()), '3.2.2')).toContain('paddlepaddle==3.2.2');
+  });
+});
+
+describe('the pre-install confirmation', () => {
+  it('carries a wheel size, and the GPU build is much larger than the CPU one', () => {
+    // The whole point of asking first: 772 MB versus 100 MB is not a detail to discover from
+    // a progress bar.
+    const cpu = selectWheel(hardware());
+    const gpuSelection = selectWheel(
+      hardware({ gpu: gpu(), canUseGpu: true, gpuUnavailableReason: null }),
+    );
+
+    expect(cpu.wheelBytes).toBeGreaterThan(0);
+    expect(gpuSelection.wheelBytes).toBeGreaterThan(cpu.wheelBytes * 3);
+  });
+
+  it('says the card and driver are why a GPU build was chosen', () => {
+    const machine = hardware({ gpu: gpu(), canUseGpu: true, gpuUnavailableReason: null });
+
+    const rationale = describeSelection(selectWheel(machine), machine);
+
+    expect(rationale).toContain(gpu().name);
+    expect(rationale).toContain(gpu().driverVersion);
+    expect(rationale).toContain('No separate CUDA Toolkit');
+  });
+
+  it('says plainly when there is no usable GPU', () => {
+    const machine = hardware();
+
+    expect(describeSelection(selectWheel(machine), machine)).toContain('No usable GPU');
   });
 });

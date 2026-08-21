@@ -19,7 +19,24 @@ export interface WheelSelection {
   indexUrl: string | undefined;
   /** Shown in the setup wizard so the user knows what is being downloaded. */
   description: string;
+  /** The wheel itself, for the confirmation shown before a multi-gigabyte download. */
+  wheelBytes: number;
 }
+
+/**
+ * Wheel sizes, measured against the indexes on 2026-08-21 for PaddlePaddle 3.3.1,
+ * cp312 / win_amd64 — the interpreter this installer pins.
+ *
+ * They differ by more than a factor of seven, which is the whole reason the user is asked
+ * before the download rather than after it. A figure that drifts by a hundred megabytes over
+ * a release is still worth showing; a silent 772 MB is not.
+ */
+const CPU_WHEEL_BYTES = 100 * 1024 ** 2;
+const GPU_WHEEL_BYTES: Record<string, number> = {
+  cu129: 772 * 1024 ** 2,
+  cu126: 553 * 1024 ** 2,
+  cu118: 731 * 1024 ** 2,
+};
 
 const PADDLE_INDEX_BASE = 'https://www.paddlepaddle.org.cn/packages/stable';
 
@@ -40,6 +57,7 @@ export const CPU_SELECTION: WheelSelection = {
   packageName: 'paddlepaddle',
   indexUrl: undefined,
   description: 'PaddlePaddle (CPU)',
+  wheelBytes: CPU_WHEEL_BYTES,
 };
 
 export function selectWheel(hardware: HardwareCapabilities): WheelSelection {
@@ -57,7 +75,27 @@ export function selectWheel(hardware: HardwareCapabilities): WheelSelection {
     packageName: 'paddlepaddle-gpu',
     indexUrl: `${PADDLE_INDEX_BASE}/${build.tag}/`,
     description: `PaddlePaddle GPU (bundled CUDA ${build.cuda})`,
+    wheelBytes: GPU_WHEEL_BYTES[build.tag] ?? GPU_WHEEL_BYTES.cu129 ?? CPU_WHEEL_BYTES,
   };
+}
+
+/**
+ * One sentence on why this build was chosen, for the confirmation dialog.
+ *
+ * A user staring at "772 MB" deserves to know whether that is because their card qualified or
+ * because it did not — those lead to completely different next actions.
+ */
+export function describeSelection(
+  selection: WheelSelection,
+  hardware: HardwareCapabilities,
+): string {
+  if (selection.flavor === 'gpu' && hardware.gpu !== null) {
+    return `${hardware.gpu.name}, driver ${hardware.gpu.driverVersion}, runs this bundled CUDA build. No separate CUDA Toolkit is needed.`;
+  }
+  if (hardware.gpu !== null && hardware.canUseGpu) {
+    return `${hardware.gpu.name} qualifies, but its driver (${hardware.gpu.driverVersion}) is older than any bundled CUDA build here, so processing runs on the CPU.`;
+  }
+  return 'No usable GPU was found, so processing runs on the CPU.';
 }
 
 /** Newest bundled CUDA the installed driver can run, or null if even the oldest is too new. */

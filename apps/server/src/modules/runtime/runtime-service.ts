@@ -1,17 +1,27 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { dirname } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
 import {
   hardwareCapabilitiesSchema,
   runtimeStatusSchema,
   type HardwareCapabilities,
+  type RuntimeInstallPlan,
   type RuntimeStatus,
 } from '@impressive-ocr/shared';
 import type { Logger } from '../../infra/logger';
 import { venvPython } from '../../infra/paths';
 import { type EventBus, stamp } from '../events/event-bus';
+import {
+  INSTALL_HEADROOM_BYTES,
+  INSTALLED_BYTES_BY_FLAVOR,
+  measureDiskSpaceForTarget,
+  MODEL_DOWNLOAD_BYTES,
+  SUPPORTING_DOWNLOAD_BYTES,
+} from './disk-space';
 import { probeHardware } from './gpu-probe';
 import { type RuntimeInstaller } from './runtime-installer';
+import { describeSelection, selectWheel } from './wheel-index';
 
 /**
  * Owns the Python runtime's state: probe the hardware, install on request, report progress.
@@ -130,6 +140,36 @@ export class RuntimeService {
 
   pythonPath(): string {
     return venvPython(this.options.venvDir);
+  }
+
+  /**
+   * What `startInstall` would download, without starting it.
+   *
+   * Separate from the install itself so the UI can put a size in front of the user and wait
+   * for an answer. The numbers come from the same wheel selection the installer will make,
+   * not from a second guess at it.
+   */
+  async planInstall(): Promise<RuntimeInstallPlan> {
+    const hardware = this.hardware ?? (await this.probe());
+    const selection = selectWheel(hardware);
+    const downloadBytes = selection.wheelBytes + SUPPORTING_DOWNLOAD_BYTES + MODEL_DOWNLOAD_BYTES;
+    const installedBytes = INSTALLED_BYTES_BY_FLAVOR[selection.flavor];
+    const targetPath = dirname(this.options.venvDir);
+    const space = await measureDiskSpaceForTarget(targetPath);
+
+    return {
+      flavor: selection.flavor,
+      packageName: selection.packageName,
+      description: selection.description,
+      rationale: describeSelection(selection, hardware),
+      downloadBytes,
+      installedBytes,
+      targetPath,
+      freeBytes: space?.freeBytes ?? null,
+      // Unmeasurable free space must not block the install; the installer checks again and
+      // fails with a precise message if the disk really is too full.
+      enoughSpace: space === null || space.freeBytes >= installedBytes + INSTALL_HEADROOM_BYTES,
+    };
   }
 
   async probe(): Promise<HardwareCapabilities> {

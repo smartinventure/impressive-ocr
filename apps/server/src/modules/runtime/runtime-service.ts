@@ -5,12 +5,14 @@ import {
   hardwareCapabilitiesSchema,
   runtimeStatusSchema,
   type HardwareCapabilities,
+  type PreflightReport,
   type RuntimeStatus,
 } from '@impressive-ocr/shared';
 import type { Logger } from '../../infra/logger';
 import { venvPython } from '../../infra/paths';
 import { type EventBus, stamp } from '../events/event-bus';
 import { probeHardware } from './gpu-probe';
+import { runPreflight } from './preflight';
 import { type RuntimeInstaller } from './runtime-installer';
 
 /**
@@ -130,6 +132,16 @@ export class RuntimeService {
 
   pythonPath(): string {
     return venvPython(this.options.venvDir);
+  }
+
+  /**
+   * Whether this machine can run the engine, and what to do about it if not.
+   *
+   * Not cached: the interesting answers change while the user is looking at the page — they
+   * install the Visual C++ runtime, or free up a drive, and want to see it clear.
+   */
+  async preflight(): Promise<PreflightReport> {
+    return runPreflight(this.options.venvDir);
   }
 
   async probe(): Promise<HardwareCapabilities> {

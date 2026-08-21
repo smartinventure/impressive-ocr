@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
+import PreflightCard from '../components/preflight-card.vue';
 
 /**
  * System status, and the place the OCR runtime gets installed.
@@ -39,6 +40,10 @@ onMounted(async () => {
 <template>
   <div class="system">
     <h1 class="system__title">{{ t('nav.status') }}</h1>
+
+    <!-- Compatibility, above the install button on purpose: the answer to "can this machine
+         run it at all" is worth more than a progress bar on a download that cannot succeed. -->
+    <PreflightCard />
 
     <!-- Runtime -->
     <v-card class="pa-5 mb-4">

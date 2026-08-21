@@ -14,6 +14,7 @@ import type {
   JobListItem,
   JobState,
   PipelineWithStatus,
+  PreflightReport,
   RuntimeStatus,
   SystemStatus,
   UpdatePipelineRequest,
@@ -96,6 +97,8 @@ export const systemApi = {
   hardware: () => api.get<HardwareWithExplanation>('/system/hardware'),
   probeHardware: () => api.post<HardwareCapabilities>('/system/hardware/probe'),
   runtime: () => api.get<RuntimeStatus>('/system/runtime'),
+  /** Can this machine run the engine? Probes the CPU, so it is asked for, not polled. */
+  preflight: () => api.get<PreflightReport>('/system/preflight'),
   installRuntime: () => api.post<RuntimeStatus>('/system/runtime/install'),
   cancelInstall: () => api.post<{ cancelled: boolean }>('/system/runtime/cancel'),
   pauseAll: () => api.post<{ globallyPaused: boolean }>('/system/pause'),

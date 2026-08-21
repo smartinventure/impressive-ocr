@@ -3,6 +3,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dashboardApi, type DashboardSnapshot } from '../../../api/endpoints';
+import CompatibilityBanner from '../../../components/compatibility-banner.vue';
 
 /**
  * The overview: what the machine is doing, and what it has got through.
@@ -66,6 +67,10 @@ onBeforeUnmount(() => {
     </header>
 
     <v-alert v-if="error" type="error" density="compact" class="mb-4">{{ error }}</v-alert>
+
+    <!-- Whether the engine can run here at all, and what is missing if not. First thing on
+         the page, because it decides whether anything below it matters. -->
+    <CompatibilityBanner />
 
     <!-- Stated plainly, because every symptom of an emulated platform looks like a bug in
          this application rather than a machine that cannot run the workload. -->

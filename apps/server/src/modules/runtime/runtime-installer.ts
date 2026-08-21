@@ -8,6 +8,7 @@ import { runCommand } from '../../infra/process/run-command';
 import { toUserMessage } from './progress-output';
 import { assertEnoughSpaceForInstall } from './disk-space';
 import { repairModelCache } from './model-cache';
+import { PreflightBlockedError, runPreflight } from './preflight';
 import { pipInstallArgs, selectWheel, type WheelSelection } from './wheel-index';
 
 /**
@@ -122,6 +123,11 @@ export class RuntimeInstaller {
     await ensureDirectory(this.options.venvDir);
     await assertEnoughSpaceForInstall(this.options.venvDir);
 
+    // And the questions no download can answer. A CPU without AVX cannot execute any current
+    // PaddlePaddle build, so the alternative to this check is several gigabytes followed by
+    // `DLL load failed` — an error naming neither the CPU nor the instruction set.
+    await this.assertPreflightPasses();
+
     await this.step('install-python', onProgress, `Downloading Python ${PYTHON_VERSION}`, () =>
       this.run(['python', 'install', PYTHON_VERSION], onProgress, 'install-python', signal),
     );
@@ -190,6 +196,27 @@ export class RuntimeInstaller {
   /** True when a usable interpreter already exists, so setup can be skipped. */
   async isInstalled(): Promise<boolean> {
     return exists(venvPython(this.options.venvDir));
+  }
+
+  /**
+   * Stop before the download when the result could not possibly run.
+   *
+   * Only `blocked` checks refuse. A `fixable` one — a missing Visual C++ runtime, a tight
+   * disk — is reported and allowed through, because the user may well be resolving it in
+   * another window and refusing would be presumptuous.
+   */
+  private async assertPreflightPasses(): Promise<void> {
+    const report = await runPreflight(this.options.venvDir);
+
+    for (const check of report.checks) {
+      if (check.severity !== 'ok') {
+        this.options.logger.warn({ check: check.id, severity: check.severity }, check.detail);
+      }
+    }
+
+    if (!report.canInstall) {
+      throw new PreflightBlockedError(report);
+    }
   }
 
   /**

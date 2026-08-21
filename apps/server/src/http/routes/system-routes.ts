@@ -45,6 +45,15 @@ export function registerSystemRoutes(app: AppFastify, services: AppServices): vo
 
   app.get('/api/system/runtime', () => services.runtime.getStatus());
 
+  /**
+   * Can this machine run the OCR engine, and what would it take?
+   *
+   * Deliberately its own endpoint rather than part of `/hardware`: it shells out to probe the
+   * CPU and touches the filesystem, so it is a couple of seconds' work that the System page
+   * asks for explicitly rather than something every status poll pays for.
+   */
+  app.get('/api/system/preflight', async () => services.runtime.preflight());
+
   app.post('/api/system/runtime/install', (_request, reply) => {
     // Fire and forget: the install runs for minutes and reports through SSE, so holding the
     // request open would just give the browser a timeout to deal with.

@@ -13,6 +13,7 @@ export * from './pipeline-options';
 export * from './pipeline';
 export * from './job';
 export * from './system';
+export * from './preflight';
 export * from './settings';
 export * from './auth';
 export * from './quick-run';

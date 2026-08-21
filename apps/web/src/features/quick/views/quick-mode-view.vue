@@ -123,6 +123,8 @@ function toggleFormat(format: OutputFormat): void {
           :label="t('module.table')"
           color="primary"
           density="compact"
+          :hint="t('quick.tableCost')"
+          persistent-hint
           :disabled="quick.busy.value"
         />
         <v-switch

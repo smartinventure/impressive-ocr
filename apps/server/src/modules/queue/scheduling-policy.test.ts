@@ -233,18 +233,25 @@ describe('canRetry', () => {
 
 describe('deviceCapacity', () => {
   it('allows a single GPU job so the model is not loaded twice', () => {
-    expect(deviceCapacity(gpuAvailable).gpu).toBe(1);
+    expect(deviceCapacity(gpuAvailable, 4).gpu).toBe(1);
   });
 
   it('reports no GPU capacity when none qualifies', () => {
-    expect(deviceCapacity(hardware()).gpu).toBe(0);
+    expect(deviceCapacity(hardware(), 4).gpu).toBe(0);
   });
 
-  it('leaves CPU headroom so the UI stays responsive', () => {
-    expect(deviceCapacity(hardware({ cpuCores: 8 })).cpu).toBe(4);
+  it('follows the configured limit rather than the core count', () => {
+    // Each concurrent document is a separate sidecar holding its own multi-gigabyte model
+    // set. Deriving this from cores meant six of them on a 12-core laptop, which swapped.
+    expect(deviceCapacity(hardware({ cpuCores: 12 }), 1).cpu).toBe(1);
+    expect(deviceCapacity(hardware({ cpuCores: 12 }), 3).cpu).toBe(3);
+  });
+
+  it('does not grow the limit just because the machine has many cores', () => {
+    expect(deviceCapacity(hardware({ cpuCores: 64 }), 2).cpu).toBe(2);
   });
 
   it('always allows at least one CPU job', () => {
-    expect(deviceCapacity(hardware({ cpuCores: 1 })).cpu).toBe(1);
+    expect(deviceCapacity(hardware({ cpuCores: 1 }), 0).cpu).toBe(1);
   });
 });

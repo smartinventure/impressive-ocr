@@ -22,6 +22,7 @@ import { registerEventRoutes } from './routes/events-routes';
 import { registerFilesystemRoutes } from './routes/filesystem-routes';
 import { registerJobRoutes } from './routes/jobs-routes';
 import { registerPipelineRoutes } from './routes/pipelines-routes';
+import { registerDashboardRoutes } from './routes/dashboard-routes';
 import { registerLogRoutes } from './routes/logs-routes';
 import { registerQuickRoutes } from './routes/quick-routes';
 import { registerSystemRoutes } from './routes/system-routes';
@@ -129,6 +130,7 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
   registerPipelineRoutes(app, options.services);
   registerQuickRoutes(app, options.services);
   registerLogRoutes(app, options.services);
+  registerDashboardRoutes(app, options.services);
   registerJobRoutes(app, options.services);
   registerSystemRoutes(app, options.services);
   registerFilesystemRoutes(app, options.services);

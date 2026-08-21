@@ -51,6 +51,11 @@ class EngineOptions(BaseModel):
     raster_dpi: int = Field(default=200, alias="rasterDpi")
     max_pages_per_document: int = Field(default=0, alias="maxPagesPerDocument")
     modules: EngineModules = Field(default_factory=EngineModules)
+    #: Threads the engine may use. 0 means "decide from the machine".
+    #:
+    #: Paddle otherwise grabs every core, which on a laptop is the difference between a slow
+    #: background job and an unusable computer.
+    cpu_threads: int = Field(default=0, alias="cpuThreads")
 
     model_config = {"populate_by_name": True}
 

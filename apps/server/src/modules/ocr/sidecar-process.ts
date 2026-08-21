@@ -23,6 +23,8 @@ export interface SidecarProcessOptions {
   authToken: string;
   modelCacheDir: string;
   logLevel: string;
+  /** Share of the machine's cores OCR may use. */
+  cpuBudgetPercent: number;
   logger: Logger;
 }
 
@@ -78,6 +80,8 @@ export class SidecarProcess {
         IMPRESSIVE_OCR_DEVICE: this.options.device,
         IMPRESSIVE_OCR_MODEL_CACHE_DIR: this.options.modelCacheDir,
         IMPRESSIVE_OCR_LOG_LEVEL: this.options.logLevel,
+        // Read before Paddle is imported; see core/resources.py for why it matters.
+        IMPRESSIVE_OCR_CPU_BUDGET_PERCENT: String(this.options.cpuBudgetPercent),
         // Unbuffered, or the handshake line can sit in Python's stdout buffer and the
         // start times out even though the process is healthy.
         PYTHONUNBUFFERED: '1',

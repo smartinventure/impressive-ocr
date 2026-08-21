@@ -9,7 +9,8 @@
     "status": "System",
     "settings": "Einstellungen",
     "quick": "Schnellmodus",
-    "logs": "Log"
+    "logs": "Log",
+    "dashboard": "Dashboard"
   },
   "common": {
     "select": "Auswählen",
@@ -260,7 +261,12 @@
     "schemeHttp": "http (nur dieser Rechner)",
     "schemeHttps": "https (selbstsigniertes Zertifikat)",
     "schemeHint": "https ist erforderlich, um diese Instanz über das Netzwerk zu erreichen. Beim ersten Start wird ein selbstsigniertes Zertifikat erzeugt; Ihr Browser warnt einmalig.",
-    "networkRequirements": "Für den Zugriff über das Netzwerk sind Authentifizierung, ein Passwort und https erforderlich."
+    "networkRequirements": "Für den Zugriff über das Netzwerk sind Authentifizierung, ein Passwort und https erforderlich.",
+    "resourcesTitle": "Ressourcennutzung",
+    "cpuBudget": "Anteil des Prozessors, den OCR nutzen darf",
+    "cpuBudgetHint": "Weniger Threads bedeuten weniger Arbeitsspeicher und weniger CPU. Verringern Sie diesen Wert, wenn der Rechner während der OCR nicht mehr reagiert.",
+    "concurrency": "Gleichzeitig verarbeitete Dokumente",
+    "concurrencyHint": "Jedes hält eine eigene Kopie der OCR-Modelle im Speicher — etwa 2–4 GB. Nur erhöhen, wenn genügend RAM vorhanden ist."
   },
   "auth": {
     "signInTitle": "Anmelden",
@@ -330,7 +336,8 @@
     "strategyHint": "Die meisten gescannten PDFs haben keine Textebene. Eines mit Textebene ist bereits digital.",
     "strategyHybrid": "Nur Seiten ohne Text per OCR verarbeiten (empfohlen)",
     "strategySkip": "Dokument ganz überspringen",
-    "strategyAlways": "Trotzdem alles per OCR verarbeiten"
+    "strategyAlways": "Trotzdem alles per OCR verarbeiten",
+    "tableCost": "Lädt 5 zusätzliche Modelle und benötigt spürbar mehr Arbeitsspeicher."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",
@@ -342,5 +349,27 @@
     "errorCount": "{count} Fehler",
     "loadFailed": "Das Log konnte nicht gelesen werden.",
     "clearFailed": "Das Log konnte nicht geleert werden."
+  },
+  "dashboard": {
+    "cpu": "Prozessor",
+    "memory": "Arbeitsspeicher",
+    "engine": "OCR-Engine",
+    "cores": "{count} Kerne",
+    "memoryDetail": "{free} frei von {total}",
+    "memoryPressure": "Kaum noch Arbeitsspeicher — die OCR wird deutlich langsamer.",
+    "noGpu": "Keine kompatible GPU",
+    "processed": "Verarbeitet in {hours} Std.",
+    "pagesCount": "{count} Seiten",
+    "failedCount": "{count} fehlgeschlagen",
+    "pipelines": "Pipelines",
+    "noPipelines": "Noch keine Pipelines eingerichtet.",
+    "name": "Name",
+    "input": "Eingang",
+    "output": "Ausgang",
+    "settings": "Einstellungen",
+    "queued": "Warteschlange",
+    "done": "Fertig",
+    "paused": "Pausiert",
+    "loadFailed": "Das Dashboard konnte nicht geladen werden."
   }
 }

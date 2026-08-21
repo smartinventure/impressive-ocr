@@ -27,6 +27,23 @@ export const appSettingsSchema = z.object({
   folderAllowlist: z.array(absolutePathSchema).default([]),
   openBrowserOnStart: z.boolean().default(true),
   startMinimizedToTray: z.boolean().default(false),
+  /**
+   * Share of the CPU cores OCR may use, as a percentage.
+   *
+   * PaddleOCR defaults to every core it can find, which on a laptop means the fan spins up
+   * and everything else stops responding. 50 leaves half the machine for the person using it.
+   * Applied as a thread cap on the sidecar, not a scheduler priority: fewer threads is the
+   * only limit that reduces *memory* as well as CPU, and memory is what actually made the
+   * machine swap.
+   */
+  cpuBudgetPercent: z.number().int().min(10).max(100).default(50),
+  /**
+   * How many documents may be OCR'd at once, across all pipelines.
+   *
+   * Each concurrent document means another warm model set resident in RAM -- roughly 2-4 GB
+   * for PP-StructureV3. On a 16 GB laptop two is already most of the machine.
+   */
+  maxConcurrentDocuments: z.number().int().min(1).max(16).default(1),
   /** Days of job history to retain; 0 disables pruning. */
   historyRetentionDays: z.number().int().min(0).max(3650).default(90),
   locale: z.enum(['en', 'de']).default('en'),

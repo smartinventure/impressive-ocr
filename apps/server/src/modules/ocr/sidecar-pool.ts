@@ -21,6 +21,8 @@ export interface SidecarPoolOptions {
   authToken: string;
   modelCacheDir: string;
   logLevel: string;
+  /** Share of the machine's cores OCR may use; read fresh so a settings change applies. */
+  cpuBudgetPercent: () => number;
   logger: Logger;
 }
 
@@ -98,6 +100,7 @@ export class SidecarPool {
       authToken: this.options.authToken,
       modelCacheDir: this.options.modelCacheDir,
       logLevel: this.options.logLevel,
+      cpuBudgetPercent: this.options.cpuBudgetPercent(),
       logger: this.options.logger,
     });
 

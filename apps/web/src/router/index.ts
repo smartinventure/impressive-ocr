@@ -9,7 +9,12 @@ import { useAuthStore } from '../stores/auth-store';
  * History mode, matched by the server's SPA fallback, so a deep link survives a refresh.
  */
 const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: { name: 'pipelines' } },
+  { path: '/', redirect: { name: 'dashboard' } },
+  {
+    path: '/dashboard',
+    name: 'dashboard',
+    component: () => import('../features/dashboard/views/dashboard-view.vue'),
+  },
   {
     path: '/pipelines',
     name: 'pipelines',
@@ -63,7 +68,7 @@ const routes: RouteRecordRaw[] = [
     component: () => import('../features/auth/views/login-view.vue'),
     meta: { public: true },
   },
-  { path: '/:pathMatch(.*)*', redirect: { name: 'pipelines' } },
+  { path: '/:pathMatch(.*)*', redirect: { name: 'dashboard' } },
 ];
 
 export const router = createRouter({
@@ -125,7 +130,7 @@ router.beforeEach(async (to) => {
 
   if (to.meta.public === true) {
     // Nothing to sign in to, or already signed in: the login screen would be a dead end.
-    return auth.mustSignIn ? true : { name: 'pipelines' };
+    return auth.mustSignIn ? true : { name: 'dashboard' };
   }
 
   if (auth.mustSignIn) {

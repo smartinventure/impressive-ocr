@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { and, count, desc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   jobEvents,
   jobOutputs,
@@ -254,6 +254,39 @@ export class JobRepository {
         // `invoice/invoice.md`, not `invoice.pdf/invoice.md`.
         documentName: row.documentName.replace(/\.[^.]+$/, ''),
       }));
+  }
+
+  /**
+   * How much has been processed since a moment, across every pipeline.
+   *
+   * Counted from `finishedAt` rather than `discoveredAt`: the question the dashboard answers
+   * is "what did this machine get through", not "what arrived".
+   */
+  throughputSince(since: Date): {
+    succeeded: number;
+    failed: number;
+    quarantined: number;
+    pages: number;
+  } {
+    const rows = this.db
+      .select({ state: jobs.state, pages: jobs.pagesDone })
+      .from(jobs)
+      .where(and(isNotNull(jobs.finishedAt), gte(jobs.finishedAt, since.toISOString())))
+      .all();
+
+    let succeeded = 0;
+    let failed = 0;
+    let quarantined = 0;
+    let pages = 0;
+
+    for (const row of rows) {
+      if (row.state === 'succeeded') succeeded += 1;
+      else if (row.state === 'quarantined') quarantined += 1;
+      else if (row.state === 'failed') failed += 1;
+      pages += row.pages;
+    }
+
+    return { succeeded, failed, quarantined, pages };
   }
 
   rememberHash(pipelineId: string, contentHash: string): void {

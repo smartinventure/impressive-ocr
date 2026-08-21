@@ -27,6 +27,8 @@ export interface SchedulerOptions {
   hardware: () => HardwareCapabilities;
   isRuntimeReady: () => boolean;
   isGloballyPaused: () => boolean;
+  /** Documents allowed in flight at once. Each costs a warm model set in RAM. */
+  maxConcurrentDocuments: () => number;
 }
 
 interface RunningJob {
@@ -116,7 +118,9 @@ export class Scheduler {
 
   private async fillCapacity(): Promise<void> {
     const hardware = this.options.hardware();
-    const capacity = deviceCapacity(hardware);
+    // Read fresh each tick, so changing the limit in Settings takes effect immediately
+    // rather than at the next restart.
+    const capacity = deviceCapacity(hardware, this.options.maxConcurrentDocuments());
     const now = new Date();
 
     const eligible = this.eligiblePipelines(now);

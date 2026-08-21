@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { AppPaths } from './infra/paths';
+import type { ResourceMonitor } from './modules/runtime/resource-usage';
 import type { AuthService } from './modules/auth/auth-service';
 import type { EventBus } from './modules/events/event-bus';
 import type { SidecarPool } from './modules/ocr/sidecar-pool';
@@ -27,6 +28,8 @@ export interface AppServices {
   quick: QuickRunService;
   /** Where the log file lives, for the in-app viewer. */
   paths: AppPaths;
+  /** Live CPU and memory, sampled between calls. */
+  resources: ResourceMonitor;
   quickStore: QuickRunStore;
   runtime: RuntimeService;
   scheduler: Scheduler;

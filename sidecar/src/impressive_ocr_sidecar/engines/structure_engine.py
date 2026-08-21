@@ -36,6 +36,9 @@ class StructureEngine:
         self._pipeline: Any = None
         self._version = "unknown"
 
+    def is_loaded(self) -> bool:
+        return self._pipeline is not None
+
     def load(self) -> None:
         """Instantiate the pipeline, downloading weights on first run.
 

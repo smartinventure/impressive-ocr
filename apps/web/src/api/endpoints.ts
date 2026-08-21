@@ -203,3 +203,33 @@ export interface LogTailResponse {
   totalBytes: number;
   files: { name: string; bytes: number }[];
 }
+
+/** The overview screen, in one request rather than four. */
+export const dashboardApi = {
+  get: (hours = 24): Promise<DashboardSnapshot> => api.get(`/dashboard?hours=${hours}`),
+};
+
+export interface DashboardSnapshot {
+  windowHours: number;
+  resources: {
+    cpuBusyFraction: number | null;
+    totalMemoryBytes: number;
+    freeMemoryBytes: number;
+    memoryUsedFraction: number;
+    processMemoryBytes: number;
+  };
+  hardware: HardwareCapabilities;
+  runtime: { state: string; device: string | null };
+  throughput: { succeeded: number; failed: number; quarantined: number; pages: number };
+  pipelines: {
+    id: string;
+    name: string;
+    enabled: boolean;
+    status: string;
+    inputPath: string;
+    outputPath: string;
+    formats: string[];
+    profile: string;
+    stats: { queued: number; running: number; succeeded: number; failed: number };
+  }[];
+}

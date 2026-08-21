@@ -34,6 +34,9 @@ class VlEngine:
         self._pipeline: Any = None
         self._version = "unknown"
 
+    def is_loaded(self) -> bool:
+        return self._pipeline is not None
+
     def load(self) -> None:
         if self._pipeline is not None:
             return

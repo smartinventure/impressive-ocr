@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from .resources import apply_thread_limits, resolve_thread_count
+
 PROTOCOL_VERSION = 1
 AUTH_HEADER = "x-impressive-ocr-token"
 
@@ -52,6 +54,8 @@ class SidecarConfig:
     device: Device
     model_cache_dir: str
     log_level: str
+    #: Share of the machine's cores OCR may use. Applied as a thread cap before Paddle loads.
+    cpu_budget_percent: int
 
     @property
     def is_gpu(self) -> bool:
@@ -96,6 +100,7 @@ def load_config() -> SidecarConfig:
         device=device,
         model_cache_dir=_require("MODEL_CACHE_DIR"),
         log_level=os.environ.get(_ENV_PREFIX + "LOG_LEVEL", "info"),
+        cpu_budget_percent=int(os.environ.get(_ENV_PREFIX + "CPU_BUDGET_PERCENT", "50")),
     )
 
 
@@ -120,6 +125,12 @@ def apply_paddle_environment(config: SidecarConfig) -> None:
     os.environ.setdefault("MODELSCOPE_CACHE", str(cache / "modelscope"))
     os.environ.setdefault("XDG_CACHE_HOME", str(cache / "xdg"))
     os.environ.setdefault("PADDLE_PDX_LOCAL_FONT_FILE_PATH", str(bundled_font_path()))
+
+    # Thread caps must be set before Paddle is imported: OpenMP reads its configuration once,
+    # at load time, and ignores anything set afterwards. Left alone it takes every core, and
+    # each thread's buffers are what pushed a 16 GB laptop into swapping.
+    threads = resolve_thread_count(os.cpu_count(), config.cpu_budget_percent)
+    apply_thread_limits(threads)
 
     if not config.is_gpu:
         # Belt and braces: keep Paddle off the GPU even if a CUDA build is installed.

@@ -12,6 +12,7 @@ import {
 import { resolveSafePath } from './infra/fs/safe-path';
 import { createAuthToken } from './infra/ids';
 import { RotatingLogFile } from './infra/log-file';
+import { ResourceMonitor } from './modules/runtime/resource-usage';
 import { createLogger, type Logger } from './infra/logger';
 import { resolveAppPaths, type AppPaths } from './infra/paths';
 import { ensureCertificate } from './infra/tls/self-signed';
@@ -140,6 +141,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     authToken: createAuthToken(),
     modelCacheDir: paths.modelCacheDir,
     logLevel: settings.logLevel,
+    // A function, not a value: changing the budget in Settings then applies to the next
+    // sidecar rather than needing a restart.
+    cpuBudgetPercent: () => settingsService.get().cpuBudgetPercent,
     logger,
   });
 
@@ -175,6 +179,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     hardware: () => runtime.getHardware(),
     isRuntimeReady: () => runtime.isReady(),
     isGloballyPaused,
+    maxConcurrentDocuments: () => settingsService.get().maxConcurrentDocuments,
     executor: new JobExecutor({
       jobs,
       pool,
@@ -205,6 +210,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     settings: settingsService,
     auth: authService,
     paths,
+    resources: new ResourceMonitor(),
     quick,
     quickStore,
     runtime,

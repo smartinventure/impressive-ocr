@@ -95,6 +95,29 @@ def _run(request: JobRequest, engine: OcrEngine, started: float) -> Iterator[Sid
 
     yield AcceptedMessage(job_id=request.job_id, page_count=page_cap)
 
+    # Loading the models is most of the wall clock on a cold CPU run -- minutes, during which
+    # the only thing the UI could previously say was "page 0 of N". Announcing it turns an
+    # apparent hang into a step with a name.
+    if not engine.is_loaded():
+        yield LogMessage(
+            job_id=request.job_id,
+            level="info",
+            message="Loading the OCR models (first document takes longer)",
+        )
+        load_started = time.monotonic()
+        engine.load()
+        yield LogMessage(
+            job_id=request.job_id,
+            level="info",
+            message=f"Models ready in {time.monotonic() - load_started:.0f}s",
+        )
+
+    yield LogMessage(
+        job_id=request.job_id,
+        level="info",
+        message=f"Reading {page_cap or info.page_count} page(s)",
+    )
+
     pages = []
     page_started = time.monotonic()
     for page in engine.recognize(source, request.engine, skip_pages=skip_pages):

@@ -31,8 +31,9 @@ const showChrome = computed(() => route.name !== 'login');
 const { t, locale } = useI18n();
 
 const nav = computed(() => [
-  // Quick Mode leads: it is the shortest path to a result, and the one a new user wants
-  // before they are ready to think about watched folders.
+  // Dashboard first: what the machine is doing and what it has got through. Quick Mode
+  // next, being the shortest path to an actual result.
+  { to: { name: 'dashboard' }, icon: 'dashboard', label: t('nav.dashboard') },
   { to: { name: 'quick' }, icon: 'bolt', label: t('nav.quick') },
   { to: { name: 'pipelines' }, icon: 'account_tree', label: t('nav.pipelines') },
   { to: { name: 'jobs' }, icon: 'history', label: t('nav.jobs') },

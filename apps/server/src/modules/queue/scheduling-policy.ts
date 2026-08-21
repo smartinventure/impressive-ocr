@@ -159,11 +159,27 @@ export function canRetry(attempts: number, maxAttempts: number, retryable: boole
  * The GPU lane is fixed at one while a vision-language model holds several gigabytes of
  * VRAM — a second concurrent job would not go faster, it would go out of memory.
  */
-export function deviceCapacity(hardware: HardwareCapabilities): Record<ResolvedDevice, number> {
+/**
+ * How many documents may be in flight per device.
+ *
+ * **Memory, not cores.** This used to return `cpuCores / 2`, which on a 12-core laptop meant
+ * six concurrent documents — and each one is a separate sidecar holding its own warm
+ * PP-StructureV3 model set, roughly 2-4 GB. Six of those is 12-24 GB on a 16 GB machine, so
+ * it swapped: memory pegged at 97%, CPU down at 10-30% because everything was waiting on the
+ * disk, and a five-page document sat on page 0 for ten minutes.
+ *
+ * The limit is therefore what the user configured, defaulting to one. Cores decide how fast a
+ * single document is OCR'd (via the thread cap in the sidecar); they do not decide how many
+ * model sets fit in RAM.
+ */
+export function deviceCapacity(
+  hardware: HardwareCapabilities,
+  maxConcurrentDocuments: number,
+): Record<ResolvedDevice, number> {
+  const limit = Math.max(1, maxConcurrentDocuments);
   return {
+    // The VLM holds VRAM for its whole lifetime, so the GPU lane has always been one.
     gpu: hardware.canUseGpu ? 1 : 0,
-    // Leave headroom: OCR is CPU-bound and starving the UI thread makes the app feel broken
-    // exactly while it is working hardest.
-    cpu: Math.max(1, Math.floor(hardware.cpuCores / 2)),
+    cpu: limit,
   };
 }

@@ -9,7 +9,8 @@
     "status": "System",
     "settings": "Settings",
     "quick": "Quick Mode",
-    "logs": "Log"
+    "logs": "Log",
+    "dashboard": "Dashboard"
   },
   "common": {
     "select": "Select",
@@ -260,7 +261,12 @@
     "schemeHttp": "http (this machine only)",
     "schemeHttps": "https (self-signed certificate)",
     "schemeHint": "https is required to reach this instance over the network. A self-signed certificate is generated on first use; your browser will warn once.",
-    "networkRequirements": "Reaching this instance over the network requires authentication, a password, and https."
+    "networkRequirements": "Reaching this instance over the network requires authentication, a password, and https.",
+    "resourcesTitle": "Resource use",
+    "cpuBudget": "Share of the processor OCR may use",
+    "cpuBudgetHint": "Fewer threads means less memory as well as less CPU. Lower this if the machine becomes unresponsive while OCR runs.",
+    "concurrency": "Documents processed at once",
+    "concurrencyHint": "Each one holds its own copy of the OCR models in memory — roughly 2-4 GB. Raise it only if you have RAM to spare."
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -330,7 +336,8 @@
     "strategyHint": "Most PDFs from a scanner have no text layer. One that does is already digital.",
     "strategyHybrid": "OCR only the pages without text (recommended)",
     "strategySkip": "Skip the document entirely",
-    "strategyAlways": "OCR everything anyway"
+    "strategyAlways": "OCR everything anyway",
+    "tableCost": "Loads 5 extra models and uses noticeably more memory."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",
@@ -342,5 +349,27 @@
     "errorCount": "{count} error(s)",
     "loadFailed": "The log could not be read.",
     "clearFailed": "The log could not be cleared."
+  },
+  "dashboard": {
+    "cpu": "Processor",
+    "memory": "Memory",
+    "engine": "OCR engine",
+    "cores": "{count} cores",
+    "memoryDetail": "{free} free of {total}",
+    "memoryPressure": "Very little memory left — OCR will slow sharply.",
+    "noGpu": "No compatible GPU",
+    "processed": "Processed in {hours}h",
+    "pagesCount": "{count} pages",
+    "failedCount": "{count} failed",
+    "pipelines": "Pipelines",
+    "noPipelines": "No pipelines configured yet.",
+    "name": "Name",
+    "input": "Input",
+    "output": "Output",
+    "settings": "Settings",
+    "queued": "Queued",
+    "done": "Done",
+    "paused": "Paused",
+    "loadFailed": "The dashboard could not be loaded."
   }
 }

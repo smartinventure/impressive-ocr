@@ -60,4 +60,5 @@ def _config(tmp_path: Path) -> SidecarConfig:
         device="cpu",
         model_cache_dir=str(tmp_path / "models"),
         log_level="INFO",
+        cpu_budget_percent=50,
     )

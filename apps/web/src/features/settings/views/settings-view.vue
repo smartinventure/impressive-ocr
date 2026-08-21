@@ -178,6 +178,36 @@ onMounted(load);
 
     <PasswordCard @changed="load" />
 
+    <!-- Resource use. The defaults are chosen so the machine stays usable during a run. -->
+    <v-card v-if="settings" class="pa-5 mb-4">
+      <h2 class="text-h6 mb-4">{{ t('settings.resourcesTitle') }}</h2>
+
+      <v-slider
+        :model-value="settings.cpuBudgetPercent"
+        :min="10"
+        :max="100"
+        :step="10"
+        thumb-label
+        :label="t('settings.cpuBudget')"
+        :hint="t('settings.cpuBudgetHint')"
+        persistent-hint
+        class="mb-6"
+        @end="save({ cpuBudgetPercent: Number($event) })"
+      />
+
+      <v-slider
+        :model-value="settings.maxConcurrentDocuments"
+        :min="1"
+        :max="8"
+        :step="1"
+        thumb-label
+        :label="t('settings.concurrency')"
+        :hint="t('settings.concurrencyHint')"
+        persistent-hint
+        @end="save({ maxConcurrentDocuments: Number($event) })"
+      />
+    </v-card>
+
     <!-- Appearance & data -->
     <v-card v-if="settings" class="pa-5">
       <h2 class="text-h6 mb-4">{{ t('settings.appearance') }}</h2>

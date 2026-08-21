@@ -82,6 +82,14 @@ class OcrEngine(Protocol):
 
     name: str
 
+    def is_loaded(self) -> bool:
+        """Whether the weights are already resident.
+
+        Lets the caller announce a load only when one is actually about to happen, rather
+        than claiming "loading models" before every document.
+        """
+        ...
+
     def load(self) -> None:
         """Load model weights. Called once, before the first job, and may take minutes."""
         ...

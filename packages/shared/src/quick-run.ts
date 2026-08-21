@@ -80,7 +80,16 @@ export const quickOptionsSchema = z.object({
   formats: z.array(outputFormatSchema).min(1).default(['markdown', 'json']),
   profile: engineProfileSchema.default('fast'),
   language: z.string().min(2).max(16).default('en'),
-  tableRecognition: z.boolean().default(true),
+  /**
+   * Off by default here, unlike a pipeline.
+   *
+   * Table recognition is not one model but five -- a table classifier, two structure models
+   * and two cell detectors -- all resolved and made resident when the engine is constructed.
+   * On a 16 GB laptop that is the difference between a process that fits in memory and one
+   * that swaps. A pipeline processing thousands of invoices earns that cost back; someone
+   * running three files once usually has not asked for it.
+   */
+  tableRecognition: z.boolean().default(false),
   formulaRecognition: z.boolean().default(false),
 });
 

@@ -119,13 +119,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   const pipelineRepository = new PipelineRepository(db);
   const jobs = new JobRepository(db);
 
+  // One value, two consumers: the installer runs it, and preflight reports when it is absent.
+  const uvBinary = options.uvBinary ?? defaultUvBinary();
+
   const runtime = new RuntimeService({
     db,
     events,
     logger,
     venvDir: paths.venvDir,
+    uvBinary,
     installer: new RuntimeInstaller({
-      uvBinary: options.uvBinary ?? defaultUvBinary(),
+      uvBinary,
       venvDir: paths.venvDir,
       modelCacheDir: paths.modelCacheDir,
       sidecarProjectDir: options.sidecarDir ?? defaultSidecarDir(),

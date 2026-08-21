@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { statfs } from 'node:fs/promises';
-import { parse } from 'node:path';
+import { dirname, parse, resolve } from 'node:path';
 
 /**
  * Free-space check for the runtime install.
@@ -68,6 +68,34 @@ export async function measureDiskSpace(path: string): Promise<DiskSpace | null> 
     // An unmeasurable filesystem must not block the install — better to try and fail with
     // pip's own error than to refuse on a network share we simply cannot stat.
     return null;
+  }
+}
+
+/**
+ * Free space on the filesystem that *will* hold `path`, even when `path` does not exist yet.
+ *
+ * `statfs` fails on a missing path, and the directory whose space matters most — the venv —
+ * does not exist until the first install has run. So the plain measurement returned null
+ * exactly when the answer was most useful, and preflight reported "could not measure free
+ * space" on a machine with 30 GB free and nothing installed.
+ *
+ * Walking up to the nearest existing ancestor measures the same filesystem, which is the
+ * number we actually wanted.
+ */
+export async function measureNearestDiskSpace(path: string): Promise<DiskSpace | null> {
+  let current = resolve(path);
+
+  // Terminates on the filesystem root, where dirname stops changing the string.
+  for (;;) {
+    const space = await measureDiskSpace(current);
+    if (space !== null) {
+      return space;
+    }
+    const parent = dirname(current);
+    if (parent === current) {
+      return null;
+    }
+    current = parent;
   }
 }
 

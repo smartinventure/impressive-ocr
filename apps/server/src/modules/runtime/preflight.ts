@@ -5,7 +5,13 @@ import {
   type PreflightCheck,
   type PreflightReport,
 } from '@impressive-ocr/shared';
-import { REQUIRED_INSTALL_BYTES, formatGib, measureDiskSpace, type DiskSpace } from './disk-space';
+import { exists } from '../../infra/fs/file-ops';
+import {
+  REQUIRED_INSTALL_BYTES,
+  formatGib,
+  measureNearestDiskSpace,
+  type DiskSpace,
+} from './disk-space';
 import { detectCpuFeatures, type CpuFeatures } from './cpu-features';
 import { describeCurrentPlatform, type PlatformReport } from './platform-support';
 import { probeVcRuntime, VC_REDIST_DOWNLOAD_URL, type VcRuntimeReport } from './vc-runtime';
@@ -30,11 +36,21 @@ export interface PreflightInputs {
   arch: string;
   features: CpuFeatures;
   vcRuntime: VcRuntimeReport;
+  /** Whether the bundled `uv` binary is present, and where it was looked for. */
+  installer: InstallerReport;
   /** Null when the filesystem cannot be measured, which must not block an install. */
   disk: DiskSpace | null;
   requiredBytes: number;
   now: Date;
 }
+
+export interface InstallerReport {
+  present: boolean;
+  path: string;
+}
+
+/** Where a developer gets the binary; a packaged build ships it. */
+const FETCH_UV_COMMAND = 'node deploy/fetch-uv.mjs';
 
 /**
  * Build the report from already-gathered facts.
@@ -47,6 +63,7 @@ export function buildPreflightReport(inputs: PreflightInputs): PreflightReport {
     describePlatformCheck(inputs),
     ...describeAvxCheck(inputs),
     ...describeVcRuntimeCheck(inputs),
+    describeInstallerCheck(inputs),
     describeDiskCheck(inputs),
   ];
 
@@ -58,15 +75,25 @@ export function buildPreflightReport(inputs: PreflightInputs): PreflightReport {
   };
 }
 
+export interface PreflightRequest {
+  /** The filesystem whose free space matters — where the runtime and models will land. */
+  dataDirectory: string;
+  /** Path to the bundled `uv` binary. */
+  uvBinary: string;
+}
+
 /** Gather the facts and build the report. */
 export async function runPreflight(
-  dataDirectory: string,
+  request: PreflightRequest,
   requiredBytes: number = REQUIRED_INSTALL_BYTES,
 ): Promise<PreflightReport> {
-  const [features, vcRuntime, disk] = await Promise.all([
+  const [features, vcRuntime, disk, uvPresent] = await Promise.all([
     detectCpuFeatures(),
     probeVcRuntime(),
-    measureDiskSpace(dataDirectory),
+    // Nearest existing ancestor: before the first install the venv directory is not there
+    // yet, and measuring it directly reports "unmeasurable" on a perfectly healthy disk.
+    measureNearestDiskSpace(request.dataDirectory),
+    exists(request.uvBinary),
   ]);
 
   return buildPreflightReport({
@@ -75,6 +102,7 @@ export async function runPreflight(
     arch: process.arch,
     features,
     vcRuntime,
+    installer: { present: uvPresent, path: request.uvBinary },
     disk,
     requiredBytes,
     now: new Date(),
@@ -198,6 +226,46 @@ function describeVcRuntimeCheck(inputs: PreflightInputs): PreflightCheck[] {
       },
     },
   ];
+}
+
+/**
+ * The bundled `uv` binary, which installs Python and the wheels.
+ *
+ * `vendor/uv/` is gitignored because it is a 44 MB binary, so a fresh clone genuinely does
+ * not have it and the OCR runtime cannot install without it. Left undetected this surfaces as
+ * a spawn failure at the moment the user presses Install — the least helpful possible time.
+ *
+ * Fixable rather than blocking: it is one command away in a checkout, and in a packaged build
+ * its absence is a packaging fault worth reporting rather than a machine that cannot run.
+ */
+function describeInstallerCheck(inputs: PreflightInputs): PreflightCheck {
+  if (inputs.installer.present) {
+    return {
+      id: 'ocr-installer',
+      severity: 'ok',
+      title: 'OCR runtime installer',
+      detail: 'The uv binary that installs Python and PaddleOCR is present.',
+      remedy: null,
+    };
+  }
+
+  return {
+    id: 'ocr-installer',
+    severity: 'fixable',
+    title: 'OCR runtime installer',
+    detail:
+      `The uv binary is missing from ${inputs.installer.path}. It downloads Python and ` +
+      'PaddleOCR, so the OCR runtime cannot be installed without it. Everything else in ' +
+      'the application works.',
+    remedy: {
+      summary: 'Fetch the uv binary (about 44 MB)',
+      downloadUrl: null,
+      steps: [
+        `In a checkout, run: ${FETCH_UV_COMMAND}`,
+        'The dev launcher (dev/dev.ps1 or dev/dev.sh) does this for you on Start.',
+      ],
+    },
+  };
 }
 
 function describeDiskCheck(inputs: PreflightInputs): PreflightCheck {

@@ -17,6 +17,7 @@ const HEALTHY: PreflightInputs = {
   arch: 'x64',
   features: { avx: 'yes', avx2: 'yes' },
   vcRuntime: { status: 'present', missing: [] },
+  installer: { present: true, path: 'C:\\repo\\vendor\\uv\\uv.exe' },
   disk: { freeBytes: 80 * 1024 ** 3, totalBytes: 500 * 1024 ** 3 },
   requiredBytes: 2_600_000_000,
   now: new Date('2026-08-21T12:00:00.000Z'),
@@ -144,6 +145,22 @@ describe('buildPreflightReport', () => {
 
     expect(report.canInstall).toBe(true);
     expect(find(report, 'cpu-avx').severity).toBe('ok');
+  });
+
+  it('reports a missing uv binary as fixable, since a fresh clone has none', () => {
+    // vendor/uv/ is gitignored because it is a 44 MB binary. Undetected, this surfaces as a
+    // spawn failure at the moment the user presses Install.
+    const report = buildPreflightReport({
+      ...HEALTHY,
+      installer: { present: false, path: 'C:\\repo\\vendor\\uv\\uv.exe' },
+    });
+
+    const check = find(report, 'ocr-installer');
+    expect(check.severity).toBe('fixable');
+    expect(check.detail).toContain('vendor');
+    expect(check.remedy?.steps.join(' ')).toContain('fetch-uv.mjs');
+    // The rest of the application works without it, so this must not block.
+    expect(report.canInstall).toBe(true);
   });
 
   it('treats too little disk space as fixable, not fatal', () => {

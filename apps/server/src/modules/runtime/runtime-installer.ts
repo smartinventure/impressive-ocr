@@ -206,7 +206,10 @@ export class RuntimeInstaller {
    * another window and refusing would be presumptuous.
    */
   private async assertPreflightPasses(): Promise<void> {
-    const report = await runPreflight(this.options.venvDir);
+    const report = await runPreflight({
+      dataDirectory: this.options.venvDir,
+      uvBinary: this.options.uvBinary,
+    });
 
     for (const check of report.checks) {
       if (check.severity !== 'ok') {

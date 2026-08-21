@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   InsufficientDiskSpaceError,
@@ -7,6 +8,7 @@ import {
   assertEnoughSpaceForInstall,
   formatGib,
   measureDiskSpace,
+  measureNearestDiskSpace,
 } from './disk-space';
 
 /**
@@ -14,6 +16,30 @@ import {
  * machinery, the partially-written venv was left behind, and nothing in the output pointed at
  * the actual cause.
  */
+/**
+ * Found by calling the live preflight endpoint on a machine with 30 GB free and no runtime
+ * installed: it reported "could not measure free space". `statfs` fails on a path that does
+ * not exist, and the venv directory does not exist until the first install has run -- so the
+ * check no-opped in precisely the situation it was written for.
+ */
+describe('measureNearestDiskSpace', () => {
+  it('measures a path that does not exist yet, via its nearest real ancestor', async () => {
+    const missing = join(tmpdir(), 'impressive-ocr-not-created', 'runtime', 'venv');
+
+    const space = await measureNearestDiskSpace(missing);
+
+    expect(space).not.toBeNull();
+    expect(space?.totalBytes).toBeGreaterThan(0);
+  });
+
+  it('agrees with a direct measurement when the path does exist', async () => {
+    const direct = await measureDiskSpace(tmpdir());
+    const nearest = await measureNearestDiskSpace(tmpdir());
+
+    expect(nearest?.totalBytes).toBe(direct?.totalBytes);
+  });
+});
+
 describe('measureDiskSpace', () => {
   it('reports free and total bytes for a real path', async () => {
     const space = await measureDiskSpace(tmpdir());

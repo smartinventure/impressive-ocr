@@ -41,6 +41,8 @@ export interface RuntimeServiceOptions {
   events: EventBus;
   logger: Logger;
   venvDir: string;
+  /** Reported by preflight: without it the OCR runtime cannot be installed at all. */
+  uvBinary: string;
 }
 
 /** Fast enough to look live, slow enough that a progress bar cannot flood SQLite. */
@@ -141,7 +143,10 @@ export class RuntimeService {
    * install the Visual C++ runtime, or free up a drive, and want to see it clear.
    */
   async preflight(): Promise<PreflightReport> {
-    return runPreflight(this.options.venvDir);
+    return runPreflight({
+      dataDirectory: this.options.venvDir,
+      uvBinary: this.options.uvBinary,
+    });
   }
 
   async probe(): Promise<HardwareCapabilities> {

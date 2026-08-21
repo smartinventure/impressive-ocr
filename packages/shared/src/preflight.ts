@@ -27,6 +27,8 @@ export const preflightCheckIdSchema = z.enum([
   'cpu-avx',
   /** The Microsoft Visual C++ runtime that PaddlePaddle's own DLLs link against. */
   'vc-runtime',
+  /** The bundled `uv` binary, without which the OCR runtime cannot be installed at all. */
+  'ocr-installer',
   /** Room for the interpreter, the wheels and the model weights. */
   'disk-space',
 ]);

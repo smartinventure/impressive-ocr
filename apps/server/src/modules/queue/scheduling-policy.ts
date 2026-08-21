@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import type {
-  EngineProfile,
-  HardwareCapabilities,
-  Pipeline,
-  ResolvedDevice,
+import {
+  formatVramGib,
+  MIN_VRAM_GIB_FOR_VL,
+  type EngineProfile,
+  type HardwareCapabilities,
+  type Pipeline,
+  type ResolvedDevice,
 } from '@impressive-ocr/shared';
 
 /**
@@ -34,10 +36,17 @@ export function resolveDevice(
 ): DeviceResolution {
   const { profile, device } = pipeline.options.engine;
 
-  if (device === 'gpu' && hardware.canUseGpu) {
-    return { device: 'gpu', profile, fallbackReason: null };
-  }
-  if (device === 'auto' && hardware.canUseGpu) {
+  if ((device === 'gpu' || device === 'auto') && hardware.canUseGpu) {
+    // A card can be perfectly good for the Fast pipeline and still too small for the 0.9B
+    // VLM. That downgrades the profile, not the device: running Fast on the GPU is what the
+    // user wanted second-best, and dropping to the CPU as well would be a needless penalty.
+    if (profile === 'accurate' && !hardware.availableProfiles.includes('accurate')) {
+      return {
+        device: 'gpu',
+        profile: 'fast',
+        fallbackReason: `${describeVlShortfall(hardware)} The Fast profile was used on the GPU instead.`,
+      };
+    }
     return { device: 'gpu', profile, fallbackReason: null };
   }
 
@@ -63,6 +72,13 @@ export function resolveDevice(
     profile: 'fast',
     fallbackReason: parts.length > 0 ? parts.join(' ') : null,
   };
+}
+
+function describeVlShortfall(hardware: HardwareCapabilities): string {
+  const gpu = hardware.gpu;
+  return gpu === null
+    ? `The Accurate profile needs a ${MIN_VRAM_GIB_FOR_VL} GB card or larger.`
+    : `The Accurate profile needs a ${MIN_VRAM_GIB_FOR_VL} GB card or larger; ${gpu.name} has ${formatVramGib(gpu.vramBytes)}.`;
 }
 
 function describeUnavailableGpu(hardware: HardwareCapabilities): string {

@@ -93,19 +93,27 @@ describe('health and system', () => {
     expect(await get('/api/health')).toEqual({ status: 200, body: { status: 'ok' } });
   });
 
-  it('reports hardware with an explanation when no GPU qualifies', async () => {
+  it('reports hardware, and never leaves a GPU fallback unexplained', async () => {
     const { status, body } = await get('/api/system/hardware');
     const hardware = body as {
       canUseGpu: boolean;
       availableProfiles: string[];
+      gpu: { vramBytes: number } | null;
       explanation: string | null;
     };
 
     expect(status).toBe(200);
-    // This machine has no NVIDIA GPU, so the fallback must be explained rather than silent.
-    expect(hardware.canUseGpu).toBe(false);
-    expect(hardware.availableProfiles).toEqual(['fast']);
-    expect(hardware.explanation).toBeTruthy();
+    // This asserts the rule rather than the machine: it was written where there was no NVIDIA
+    // GPU and CI still has none, but it also runs on developer machines that do have one, and
+    // an assertion of `canUseGpu === false` was really an assertion about the hardware.
+    expect(hardware.availableProfiles).toContain('fast');
+
+    if (hardware.canUseGpu) {
+      expect(hardware.gpu).not.toBeNull();
+    } else {
+      expect(hardware.availableProfiles).toEqual(['fast']);
+      expect(hardware.explanation).toBeTruthy();
+    }
   });
 
   it('starts with the runtime not installed', async () => {

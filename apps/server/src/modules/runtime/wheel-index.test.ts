@@ -38,6 +38,21 @@ describe('selectWheel', () => {
     expect(selection.indexUrl).toBeUndefined();
   });
 
+  it('picks the GPU wheel for a card too small for the VLM but fine for the Fast pipeline', () => {
+    // This is the case that used to install the CPU-only wheel and leave the card idle for
+    // every job, on the grounds that one profile of two would not have fitted.
+    const selection = selectWheel(
+      hardware({
+        gpu: { ...gpu(), name: 'NVIDIA T400', vramBytes: 4096 * 1024 * 1024 },
+        canUseGpu: true,
+        gpuUnavailableReason: null,
+      }),
+    );
+
+    expect(selection.flavor).toBe('gpu');
+    expect(selection.packageName).toBe('paddlepaddle-gpu');
+  });
+
   it('picks a GPU wheel from PaddlePaddle own index for a qualifying card', () => {
     const selection = selectWheel(
       hardware({ gpu: gpu(), canUseGpu: true, gpuUnavailableReason: null }),

@@ -3,8 +3,11 @@ import { execFile } from 'node:child_process';
 import { cpus, totalmem } from 'node:os';
 import { promisify } from 'node:util';
 import {
+  formatVramGib,
   MIN_COMPUTE_CAPABILITY,
-  MIN_VRAM_BYTES_FOR_VL,
+  MIN_VRAM_BYTES_FOR_GPU,
+  MIN_VRAM_GIB_FOR_GPU,
+  supportsAccurateProfile,
   type GpuInfo,
   type GpuUnavailableReason,
   type HardwareCapabilities,
@@ -65,7 +68,9 @@ export async function probeGpu(): Promise<GpuProbeResult> {
   if (best.computeCapability < MIN_COMPUTE_CAPABILITY) {
     return { gpu: best, reason: 'compute-capability-too-low' };
   }
-  if (best.vramBytes < MIN_VRAM_BYTES_FOR_VL) {
+  // The floor for using the GPU at all, not for the Accurate profile: a card that cannot host
+  // PaddleOCR-VL still runs the Fast pipeline on the GPU, and still wants the GPU wheel.
+  if (best.vramBytes < MIN_VRAM_BYTES_FOR_GPU) {
     return { gpu: best, reason: 'insufficient-vram' };
   }
   return { gpu: best, reason: null };
@@ -117,9 +122,9 @@ export async function probeHardware(): Promise<HardwareCapabilities> {
     gpu,
     gpuUnavailableReason: reason,
     canUseGpu,
-    // The accurate profile is a 0.9B VLM: usable on a qualifying GPU, unusably slow on CPU,
-    // so it is offered only when the GPU actually qualifies.
-    availableProfiles: canUseGpu ? ['accurate', 'fast'] : ['fast'],
+    // The accurate profile is a 0.9B VLM: unusably slow on a CPU and too large for a small
+    // card, so it needs the higher VRAM floor on top of a working GPU.
+    availableProfiles: canUseGpu && supportsAccurateProfile(gpu) ? ['accurate', 'fast'] : ['fast'],
     probedAt: new Date().toISOString(),
   };
 }
@@ -134,16 +139,12 @@ export function describeGpuReason(reason: GpuUnavailableReason, gpu: GpuInfo | n
     case 'compute-capability-too-low':
       return `${gpu?.name ?? 'The GPU'} has compute capability ${gpu?.computeCapability ?? '?'}; PaddleOCR needs at least ${MIN_COMPUTE_CAPABILITY}.`;
     case 'insufficient-vram':
-      return `${gpu?.name ?? 'The GPU'} has ${formatGib(gpu?.vramBytes ?? 0)} of VRAM; the Accurate profile needs at least ${formatGib(MIN_VRAM_BYTES_FOR_VL)}.`;
+      return `${gpu?.name ?? 'The GPU'} has ${formatVramGib(gpu?.vramBytes ?? 0)} of VRAM; GPU processing needs a ${MIN_VRAM_GIB_FOR_GPU} GB card or larger.`;
     case 'probe-failed':
       return 'nvidia-smi did not respond. The driver may need a restart.';
     case 'unsupported-platform':
       return 'CUDA is not available on this platform; processing runs on the CPU.';
   }
-}
-
-function formatGib(bytes: number): string {
-  return `${(bytes / 1024 ** 3).toFixed(1)} GB`;
 }
 
 function normalizePlatform(platform: NodeJS.Platform): 'win32' | 'darwin' | 'linux' {

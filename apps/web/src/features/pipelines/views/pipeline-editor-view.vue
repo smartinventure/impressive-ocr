@@ -5,6 +5,8 @@ import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
   draftPipelineOptions,
+  formatVramGib,
+  MIN_VRAM_GIB_FOR_VL,
   pipelineOptionsSchema,
   type OutputFormat,
   type PipelineOptions,
@@ -69,6 +71,22 @@ const MODULES = [
 const availableProfiles = computed(() => store.system?.hardware.availableProfiles ?? ['fast']);
 
 const accurateUnavailable = computed(() => !availableProfiles.value.includes('accurate'));
+
+/**
+ * A working GPU that is merely too small for the VLM is a different message from no GPU at
+ * all: those jobs still run on the GPU, and telling that user the machine "does not have a
+ * compatible GPU" would be plainly wrong.
+ */
+const accurateUnavailableMessage = computed(() => {
+  const hardware = store.system?.hardware;
+  if (!hardware?.canUseGpu || hardware.gpu === null) {
+    return t('editor.accurateUnavailable');
+  }
+  return t('editor.accurateNeedsVram', {
+    required: MIN_VRAM_GIB_FOR_VL,
+    vram: formatVramGib(hardware.gpu.vramBytes),
+  });
+});
 
 function toggleFormat(format: OutputFormat): void {
   const current = options.value.output.formats;
@@ -213,7 +231,7 @@ onMounted(async () => {
           </v-expansion-panel-title>
           <v-expansion-panel-text>
             <v-alert v-if="accurateUnavailable" type="info" density="compact" class="mb-4">
-              {{ t('editor.accurateUnavailable') }}
+              {{ accurateUnavailableMessage }}
             </v-alert>
 
             <v-select

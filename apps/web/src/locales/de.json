@@ -123,6 +123,7 @@
     "fastHint": "Läuft auf der CPU. Gut für alltägliche Dokumente.",
     "accurateHint": "Benötigt eine GPU. Am besten bei komplexen Tabellen und schwierigen Scans.",
     "accurateUnavailable": "Das Profil „Genau“ benötigt eine kompatible GPU, die auf diesem Rechner nicht vorhanden ist. Aufträge laufen mit dem Profil „Schnell“ auf der CPU.",
+    "accurateNeedsVram": "Das Profil „Genau“ benötigt eine Grafikkarte mit mindestens {required} GB; diese GPU hat {vram}. Aufträge laufen mit dem Profil „Schnell“ auf der GPU.",
     "device": "Gerät",
     "dpi": "Scan-Auflösung",
     "dpiHint": "Höhere Werte sind langsamer und helfen vor allem bei kleiner Schrift.",

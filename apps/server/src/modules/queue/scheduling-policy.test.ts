@@ -68,7 +68,39 @@ const gpuAvailable = hardware({
   availableProfiles: ['accurate', 'fast'],
 });
 
+/** A card that runs the Fast pipeline on the GPU perfectly well, but cannot host the VLM. */
+const smallGpu = hardware({
+  canUseGpu: true,
+  gpuUnavailableReason: null,
+  gpu: {
+    name: 'NVIDIA T400',
+    vramBytes: 4096 * 1024 * 1024,
+    computeCapability: 7.5,
+    driverVersion: '550.54',
+  },
+  availableProfiles: ['fast'],
+});
+
 describe('resolveDevice', () => {
+  it('downgrades the profile but keeps the GPU when the card is too small for the VLM', () => {
+    // Dropping to the CPU as well would be a second, unnecessary penalty: Fast on this card
+    // is exactly what the user wanted second-best.
+    const result = resolveDevice(withEngine('accurate', 'auto'), smallGpu);
+
+    expect(result.device).toBe('gpu');
+    expect(result.profile).toBe('fast');
+    expect(result.fallbackReason).toContain('NVIDIA T400');
+    expect(result.fallbackReason).toContain('4.0 GB');
+  });
+
+  it('runs the Fast profile on a small GPU with no complaint at all', () => {
+    expect(resolveDevice(withEngine('fast', 'auto'), smallGpu)).toEqual({
+      device: 'gpu',
+      profile: 'fast',
+      fallbackReason: null,
+    });
+  });
+
   it('runs the Accurate profile on a qualifying GPU', () => {
     expect(resolveDevice(withEngine('accurate', 'auto'), gpuAvailable)).toEqual({
       device: 'gpu',

@@ -123,6 +123,7 @@
     "fastHint": "Runs on CPU. Good for everyday documents.",
     "accurateHint": "Needs a GPU. Best on complex tables and messy scans.",
     "accurateUnavailable": "The Accurate profile needs a compatible GPU, which this machine does not have. Jobs will run on the CPU using the Fast profile.",
+    "accurateNeedsVram": "The Accurate profile needs a {required} GB card or larger; this GPU has {vram}. Jobs will run on the GPU using the Fast profile.",
     "device": "Device",
     "dpi": "Scan resolution",
     "dpiHint": "Higher is slower and mostly helps with small print.",

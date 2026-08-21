@@ -1,0 +1,38 @@
+# Line-ending policy.
+#
+# The repository stores LF for every text file, and checks LF back out on every
+# platform, so a Windows clone does not fail `pnpm format:check` (Prettier is
+# configured with `endOfLine: "lf"`) and `dev/dev.sh` stays runnable on Linux
+# and macOS. Do not rely on a machine-local `core.autocrlf` setting instead —
+# that fixes one clone, not the repository.
+
+* text=auto eol=lf
+
+# Windows script hosts keep CRLF (see the matching rule in .editorconfig).
+*.ps1  text eol=crlf
+*.psm1 text eol=crlf
+*.psd1 text eol=crlf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+
+# Shell scripts must be LF even when authored on Windows.
+*.sh text eol=lf
+
+# Binary: never normalize, never diff as text.
+*.png       binary
+*.ico       binary
+*.icns      binary
+*.pdf       binary
+*.ttf       binary
+*.otf       binary
+*.woff      binary
+*.woff2     binary
+*.zip       binary
+*.gz        binary
+*.7z        binary
+*.exe       binary
+*.dll       binary
+.thumbnail  binary
+
+# Generated — keep it out of diffs and reviews.
+pnpm-lock.yaml -diff linguist-generated

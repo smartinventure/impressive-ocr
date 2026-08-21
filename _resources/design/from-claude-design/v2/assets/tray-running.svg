@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" role="img" aria-label="Running">
-  <rect width="16" height="16" rx="3.5" fill="#1D4ED8"></rect>
-  <g fill="#ffffff">
-    <rect x="3.5" y="4.5" width="9" height="1.8"></rect>
-    <rect x="3.5" y="7.1" width="9" height="1.8"></rect>
-    <rect x="3.5" y="9.7" width="5.4" height="1.8"></rect>
-    <rect x="10.2" y="9.7" width="2.3" height="1.8"></rect>
-  </g>
-</svg>

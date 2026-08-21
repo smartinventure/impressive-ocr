@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { z } from 'zod';
+import { describeCurrentPlatform } from '../../modules/runtime/platform-support';
 import type { AppServices } from '../../app-services';
 import type { AppFastify } from '../fastify-types';
 
@@ -24,6 +25,9 @@ export function registerDashboardRoutes(app: AppFastify, services: AppServices):
       resources: services.resources.sample(),
       hardware: services.runtime.getHardware(),
       runtime: { state: status.state, device: status.paddleFlavor },
+      // Emulated ARM is not a bug in this application, but every symptom of it looks like
+      // one. Saying so up front is cheaper than the support conversation.
+      platform: describeCurrentPlatform(),
       throughput: services.jobs.throughputSince(since),
       // Configured pipelines only; a Quick run's hidden pipeline is not something to list.
       pipelines: services.pipelines.list().map((pipeline) => ({

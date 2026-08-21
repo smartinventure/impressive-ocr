@@ -12,7 +12,7 @@ import time
 from collections.abc import Generator, Iterator
 from pathlib import Path
 
-from ..core.errors import SidecarError
+from ..core.errors import CorruptDocumentError, SidecarError
 from ..core.logging import get_logger
 from ..core.protocol import (
     AcceptedMessage,
@@ -24,10 +24,11 @@ from ..core.protocol import (
     PageMessage,
     SidecarMessage,
 )
-from ..engines.base import DocumentResult, OcrEngine
+from ..engines.base import DocumentResult, OcrEngine, PageResult
 from ..writers.base import OutputWriter, WriteContext
 from ..writers.registry import UnsupportedFormatError, create_writers
 from . import document
+from .existing_text import extract_page as extract_existing_page
 from .text_layer_probe import TextLayerProbe, pages_to_skip, probe_pdf
 
 _logger = get_logger()
@@ -120,9 +121,35 @@ def _run(request: JobRequest, engine: OcrEngine, started: float) -> Iterator[Sid
 
     pages = []
     page_started = time.monotonic()
-    for page in engine.recognize(source, request.engine, skip_pages=skip_pages):
+
+    # Pages the strategy decided not to OCR still have to contribute their text.
+    #
+    # Skipping used to mean dropping: nothing read the text layer the probe had just judged
+    # good enough, so a mixed PDF -- a digital document with scans appended, the exact case
+    # `hybrid` exists for -- came out missing every page that was already fine. The log even
+    # claimed to be "reusing" it.
+    reused: dict[int, PageResult] = {}
+    if skip_pages and info.kind == "pdf":
+        for number in sorted(skip_pages):
+            if page_cap and number > page_cap:
+                continue
+            try:
+                recovered = extract_existing_page(source, number, request.engine.raster_dpi)
+            except CorruptDocumentError:
+                # Unreadable after all: let the engine OCR it rather than losing the page.
+                continue
+            recovered.used_existing_text_layer = True
+            reused[number] = recovered
+
+    for page in engine.recognize(source, request.engine, skip_pages=frozenset(reused)):
         if page_cap and page.page_number > page_cap:
             break
+
+        # Emit any recovered pages that come before this one, so the output stays in reading
+        # order however the two sources interleave.
+        for number in sorted(number for number in reused if number < page.page_number):
+            pages.append(reused.pop(number))
+
         pages.append(page)
         now = time.monotonic()
         yield PageMessage(
@@ -134,6 +161,11 @@ def _run(request: JobRequest, engine: OcrEngine, started: float) -> Iterator[Sid
         )
         page_started = now
 
+    # Anything recovered after the last OCR'd page, or when every page was skipped.
+    for number in sorted(reused):
+        pages.append(reused.pop(number))
+
+    pages.sort(key=lambda item: item.page_number)
     result = DocumentResult(pages=pages, page_count=page_cap or len(pages))
     yield from _write_outputs(request, result, writers)
 

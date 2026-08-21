@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { Job, JobEvent, JobState } from '@impressive-ocr/shared';
-import { jobsApi } from '../../../api/endpoints';
+import type { Job, JobEvent, JobListItem, JobState } from '@impressive-ocr/shared';
+import { jobsApi, quickApi } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 import StatusChip from '../../../components/status-chip.vue';
 import type { StatusKey } from '../../../plugins/theme';
@@ -38,8 +38,27 @@ const filtered = computed(() => {
   });
 });
 
-function pipelineName(job: Job): string {
-  return store.pipelineById(job.pipelineId)?.name ?? '—';
+/**
+ * Quick runs are backed by a throwaway pipeline named after the moment it was created, which
+ * is meaningless in a list. They get the mode's own name instead.
+ */
+function pipelineLabel(job: JobListItem): string {
+  return job.pipelineKind === 'quick' ? t('nav.quick') : job.pipelineName;
+}
+
+/**
+ * Whether this job's results can still be fetched.
+ *
+ * Only Quick runs: a watched pipeline already wrote its output to a folder the user chose and
+ * can open. Results survive 24 hours, which is what makes offering this worthwhile rather
+ * than a button that usually 404s.
+ */
+function canDownload(job: JobListItem): boolean {
+  return job.pipelineKind === 'quick' && job.state === 'succeeded';
+}
+
+function downloadUrl(job: JobListItem): string {
+  return quickApi.downloadUrl(job.pipelineId);
 }
 
 function formatSize(bytes: number): string {
@@ -104,17 +123,29 @@ async function retry(job: Job): Promise<void> {
             <th>{{ t('jobs.pages') }}</th>
             <th>{{ t('jobs.device') }}</th>
             <th>{{ t('jobs.state') }}</th>
+            <th class="text-right">{{ t('jobs.results') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-if="filtered.length === 0">
-            <td colspan="6" class="text-center text-medium-emphasis py-8">
+            <td colspan="7" class="text-center text-medium-emphasis py-8">
               {{ t('jobs.empty') }}
             </td>
           </tr>
           <tr v-for="job in filtered" :key="job.id" class="jobs__row" @click="openJob(job)">
             <td class="ocr-mono">{{ job.fileName }}</td>
-            <td>{{ pipelineName(job) }}</td>
+            <td>
+              <v-chip
+                v-if="job.pipelineKind === 'quick'"
+                size="x-small"
+                color="primary"
+                variant="tonal"
+                label
+              >
+                {{ t('nav.quick') }}
+              </v-chip>
+              <span v-else>{{ pipelineLabel(job) }}</span>
+            </td>
             <td class="ocr-mono">{{ formatSize(job.sizeBytes) }}</td>
             <td class="ocr-mono">{{ progress(job) }}</td>
             <td>
@@ -124,6 +155,20 @@ async function retry(job: Job): Promise<void> {
               <span v-else>—</span>
             </td>
             <td><StatusChip :status="STATE_TO_CHIP[job.state]" dense /></td>
+            <td class="text-right">
+              <!-- Stops the row's own click handler opening the detail drawer behind the
+                   download the user actually asked for. -->
+              <v-btn
+                v-if="canDownload(job)"
+                icon="download"
+                size="x-small"
+                variant="text"
+                :href="downloadUrl(job)"
+                download
+                :title="t('jobs.downloadResults')"
+                @click.stop
+              />
+            </td>
           </tr>
         </tbody>
       </v-table>

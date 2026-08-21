@@ -205,7 +205,9 @@
     "empty": "Noch keine Aufträge.",
     "outputs": "Ausgabedateien",
     "noOutputs": "Es wurden keine Dateien geschrieben.",
-    "timeline": "Verlauf"
+    "timeline": "Verlauf",
+    "results": "Ergebnisse",
+    "downloadResults": "Ergebnisse herunterladen"
   },
   "system": {
     "runtime": "OCR-Laufzeitumgebung",

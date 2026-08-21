@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { z } from 'zod';
+import { pipelineKindSchema } from './quick-run';
 import { byteSizeSchema, idSchema, isoTimestampSchema, pageCountSchema } from './common';
 import { outputFormatSchema, resolvedDeviceSchema } from './pipeline-options';
 
@@ -77,6 +78,20 @@ export const jobEventSchema = z.object({
 });
 
 export type JobEvent = z.infer<typeof jobEventSchema>;
+
+/**
+ * A job with its pipeline named, for the jobs table.
+ *
+ * Denormalized on the server rather than resolved in the browser: the client's pipeline list
+ * deliberately excludes Quick Mode's hidden pipelines, so looking the name up there produced
+ * a dash for exactly the runs a user most wants to find again.
+ */
+export const jobListItemSchema = jobSchema.extend({
+  pipelineName: z.string(),
+  pipelineKind: pipelineKindSchema,
+});
+
+export type JobListItem = z.infer<typeof jobListItemSchema>;
 
 export const jobQuerySchema = z.object({
   pipelineId: idSchema.optional(),

@@ -205,7 +205,9 @@
     "empty": "No jobs yet.",
     "outputs": "Output files",
     "noOutputs": "No files were written.",
-    "timeline": "Timeline"
+    "timeline": "Timeline",
+    "results": "Results",
+    "downloadResults": "Download results"
   },
   "system": {
     "runtime": "OCR runtime",

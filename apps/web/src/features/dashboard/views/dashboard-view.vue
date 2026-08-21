@@ -67,6 +67,18 @@ onBeforeUnmount(() => {
 
     <v-alert v-if="error" type="error" density="compact" class="mb-4">{{ error }}</v-alert>
 
+    <!-- Stated plainly, because every symptom of an emulated platform looks like a bug in
+         this application rather than a machine that cannot run the workload. -->
+    <v-alert
+      v-if="snapshot && snapshot.platform.support !== 'native'"
+      type="warning"
+      variant="tonal"
+      density="compact"
+      class="mb-4"
+    >
+      {{ snapshot.platform.reason }}
+    </v-alert>
+
     <!-- Machine -->
     <div class="dashboard__grid mb-4">
       <v-card class="pa-4">

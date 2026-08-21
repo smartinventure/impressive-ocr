@@ -4,6 +4,7 @@ import { computed, ref, shallowRef } from 'vue';
 import type {
   AppSettings,
   Job,
+  JobListItem,
   PipelineWithStatus,
   RuntimeStatus,
   SystemStatus,
@@ -27,7 +28,7 @@ import {
  */
 export const useLiveStore = defineStore('live', () => {
   const pipelines = ref<PipelineWithStatus[]>([]);
-  const jobs = ref<Job[]>([]);
+  const jobs = ref<JobListItem[]>([]);
   const system = ref<SystemStatus | null>(null);
   const runtime = ref<RuntimeStatus | null>(null);
   const settings = ref<AppSettings | null>(null);
@@ -48,7 +49,7 @@ export const useLiveStore = defineStore('live', () => {
     return pipelines.value.find((pipeline) => pipeline.id === id);
   }
 
-  function jobsForPipeline(pipelineId: string): Job[] {
+  function jobsForPipeline(pipelineId: string): JobListItem[] {
     return jobs.value.filter((job) => job.pipelineId === pipelineId);
   }
 
@@ -157,25 +158,34 @@ export const useLiveStore = defineStore('live', () => {
     }
   }
 
+  /**
+   * Apply a live job update.
+   *
+   * The event carries a plain `Job`; the pipeline name and kind are added by the list
+   * endpoint and are not in the stream. Merging rather than replacing keeps them, so a Quick
+   * run does not lose its label the first time it reports progress.
+   */
   function upsertJob(job: Job): void {
     const index = jobs.value.findIndex((item) => item.id === job.id);
     if (index === -1) {
-      // Newest first, matching the jobs table's order.
-      jobs.value = [job, ...jobs.value].slice(0, 500);
+      // Unknown to us: label it from the pipeline list where we can, and let the next full
+      // refresh fill in anything hidden from that list.
+      const known = pipelines.value.find((pipeline) => pipeline.id === job.pipelineId);
+      const item: JobListItem = {
+        ...job,
+        pipelineName: known?.name ?? '',
+        pipelineKind: known === undefined ? 'quick' : 'watched',
+      };
+      jobs.value = [item, ...jobs.value].slice(0, 500);
     } else {
-      jobs.value[index] = job;
+      const existing = jobs.value[index]!;
+      jobs.value[index] = {
+        ...job,
+        pipelineName: existing.pipelineName,
+        pipelineKind: existing.pipelineKind,
+      };
     }
   }
-
-  /**
-   * Whether any folder has been authorized.
-   *
-   * The allowlist is the app's security boundary and starts empty, so until the user adds a
-   * folder there is nowhere a pipeline could legally read from or write to. The server
-   * already refuses to create one; this lets the UI say so before the user fills in a long
-   * form and loses it to a validation error.
-   */
-  const hasAuthorizedFolder = computed(() => (settings.value?.folderAllowlist.length ?? 0) > 0);
 
   return {
     pipelines,
@@ -183,7 +193,6 @@ export const useLiveStore = defineStore('live', () => {
     system,
     runtime,
     settings,
-    hasAuthorizedFolder,
     connection,
     loading,
     loadError,

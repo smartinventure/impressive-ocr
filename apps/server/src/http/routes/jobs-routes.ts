@@ -19,7 +19,18 @@ export function registerJobRoutes(app: AppFastify, services: AppServices): void 
       limit: query.limit,
       offset: query.offset,
     });
-    return { items, total, limit: query.limit, offset: query.offset };
+    // Named here rather than in the browser: the client's pipeline list excludes Quick
+    // Mode's hidden pipelines, so it cannot resolve those names itself.
+    const enriched = items.map((job) => {
+      const pipeline = services.pipelines.get(job.pipelineId);
+      return {
+        ...job,
+        pipelineName: pipeline?.name ?? 'Unknown',
+        pipelineKind: pipeline?.kind ?? 'watched',
+      };
+    });
+
+    return { items: enriched, total, limit: query.limit, offset: query.offset };
   });
 
   app.get('/api/jobs/:id', (request) => {

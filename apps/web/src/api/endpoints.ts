@@ -11,6 +11,7 @@ import type {
   HardwareCapabilities,
   Job,
   JobEvent,
+  JobListItem,
   JobState,
   PipelineWithStatus,
   RuntimeStatus,
@@ -28,7 +29,7 @@ import { api, uploadFiles } from './client';
  */
 
 export interface PagedJobs {
-  items: Job[];
+  items: JobListItem[];
   total: number;
   limit: number;
   offset: number;
@@ -220,6 +221,7 @@ export interface DashboardSnapshot {
   };
   hardware: HardwareCapabilities;
   runtime: { state: string; device: string | null };
+  platform: { support: 'native' | 'emulated' | 'unsupported'; reason: string };
   throughput: { succeeded: number; failed: number; quarantined: number; pages: number };
   pipelines: {
     id: string;

@@ -10,3 +10,6 @@ pnpm-lock.yaml
 
 # Reference material and design output — kept verbatim so it can be diffed against upstream.
 _resources/
+
+# Editor and agent scratch state, not repository content.
+.claude/

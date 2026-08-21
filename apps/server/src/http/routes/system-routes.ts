@@ -4,6 +4,7 @@ import { z } from 'zod';
 import {
   APP_VERSION,
   folderRoleSchema,
+  releaseSidecarsRequestSchema,
   updateSettingsRequestSchema,
   type SystemStatus,
 } from '@impressive-ocr/shared';
@@ -42,6 +43,17 @@ export function registerSystemRoutes(app: AppFastify, services: AppServices): vo
   });
 
   app.post('/api/system/hardware/probe', async () => services.runtime.probe());
+
+  /**
+   * Give the models' memory back without stopping the application.
+   *
+   * A warm worker holds several gigabytes for as long as the app runs, which is the wrong
+   * trade the moment the user wants their GPU for something else.
+   */
+  app.post('/api/system/sidecars/release', async (request) => {
+    const body = releaseSidecarsRequestSchema.parse(request.body ?? {});
+    return services.pool.releaseWorkers({ force: body.force });
+  });
 
   app.get('/api/system/runtime', () => services.runtime.getStatus());
 

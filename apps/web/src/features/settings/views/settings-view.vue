@@ -204,7 +204,21 @@ onMounted(load);
         :label="t('settings.concurrency')"
         :hint="t('settings.concurrencyHint')"
         persistent-hint
+        class="mb-6"
         @end="save({ maxConcurrentDocuments: Number($event) })"
+      />
+
+      <!-- Minutes, not a slider: the useful values span 1 to a working day, which no slider
+           resolves sensibly, and 0 has to be typeable because it means "never". -->
+      <v-text-field
+        :model-value="settings.sidecarIdleMinutes"
+        type="number"
+        :min="0"
+        :max="1440"
+        :label="t('settings.sidecarIdle')"
+        :hint="t('settings.sidecarIdleHint')"
+        persistent-hint
+        @update:model-value="save({ sidecarIdleMinutes: Number($event) })"
       />
     </v-card>
 

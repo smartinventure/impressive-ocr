@@ -2,6 +2,7 @@
 import { z } from 'zod';
 import { absolutePathSchema } from './common';
 import {
+  devicePreferenceSchema,
   engineProfileSchema,
   outputFormatSchema,
   textLayerStrategySchema,
@@ -79,6 +80,14 @@ export const quickOptionsSchema = z.object({
   textLayerStrategy: textLayerStrategySchema.default('hybrid'),
   formats: z.array(outputFormatSchema).min(1).default(['markdown', 'json']),
   profile: engineProfileSchema.default('fast'),
+  /**
+   * Which device to run on, exposed here as well as on a pipeline.
+   *
+   * Quick Mode is where someone compares the two: forcing the CPU for one run and the GPU for
+   * the next, on the same file, is the only honest way to find out what the GPU is worth on
+   * their own documents. `auto` keeps the scheduler's choice.
+   */
+  device: devicePreferenceSchema.default('auto'),
   language: z.string().min(2).max(16).default('en'),
   /**
    * Off by default here, unlike a pipeline.

@@ -235,7 +235,14 @@
     "gpu": "Grafik",
     "driver": "Treiber",
     "noGpu": "Keine kompatible GPU erkannt",
-    "reprobe": "Erneut prüfen"
+    "reprobe": "Erneut prüfen",
+    "release": "Prozesse freigeben",
+    "releaseHint": "Beendet die OCR-Prozesse und gibt den Speicher ihrer Modelle frei. Das nächste Dokument lädt sie erneut, was einen Moment dauert.",
+    "released": "{count} Prozess(e) freigegeben.",
+    "releaseSkipped": "{count} läuft weiter, weil gerade ein Dokument verarbeitet wird.",
+    "releaseBusyTitle": "Es wird gerade ein Dokument verarbeitet",
+    "releaseBusyBody": "{count} Prozess ist mitten in einem Dokument. Eine Freigabe verwirft diese Arbeit; der Auftrag kehrt in die Warteschlange zurück und beginnt wieder bei der ersten Seite.",
+    "releaseAnyway": "Trotzdem freigeben"
   },
   "runtimeState": {
     "not-installed": "Nicht installiert",
@@ -280,7 +287,9 @@
     "cpuBudget": "Anteil des Prozessors, den OCR nutzen darf",
     "cpuBudgetHint": "Weniger Threads bedeuten weniger Arbeitsspeicher und weniger CPU. Verringern Sie diesen Wert, wenn der Rechner während der OCR nicht mehr reagiert.",
     "concurrency": "Gleichzeitig verarbeitete Dokumente",
-    "concurrencyHint": "Jedes hält eine eigene Kopie der OCR-Modelle im Speicher — etwa 2–4 GB. Nur erhöhen, wenn genügend RAM vorhanden ist."
+    "concurrencyHint": "Jedes hält eine eigene Kopie der OCR-Modelle im Speicher — etwa 2–4 GB. Nur erhöhen, wenn genügend RAM vorhanden ist.",
+    "sidecarIdle": "Ungenutzte OCR-Prozesse freigeben nach (Minuten)",
+    "sidecarIdleHint": "Ein Prozess hält seine Modelle geladen, damit das nächste Dokument sofort startet — das kostet mehrere GB Speicher, auf der GPU VRAM, das anderen Anwendungen fehlt. 0 behält sie, bis die App geschlossen wird."
   },
   "auth": {
     "signInTitle": "Anmelden",
@@ -353,7 +362,13 @@
     "strategyHybrid": "Nur Seiten ohne Text per OCR verarbeiten (empfohlen)",
     "strategySkip": "Dokument ganz überspringen",
     "strategyAlways": "Trotzdem alles per OCR verarbeiten",
-    "tableCost": "Lädt 5 zusätzliche Modelle und benötigt spürbar mehr Arbeitsspeicher."
+    "tableCost": "Lädt 5 zusätzliche Modelle und benötigt spürbar mehr Arbeitsspeicher.",
+    "deviceLabel": "Gerät",
+    "deviceAuto": "Automatisch",
+    "deviceGpu": "GPU",
+    "deviceCpu": "CPU",
+    "deviceHint": "Erzwingen Sie eines von beiden, um sie an eigenen Dokumenten zu vergleichen.",
+    "deviceHintNoGpu": "Keine nutzbare GPU auf diesem Rechner, es läuft alles auf der CPU."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

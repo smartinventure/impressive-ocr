@@ -44,6 +44,17 @@ export const appSettingsSchema = z.object({
    * for PP-StructureV3. On a 16 GB laptop two is already most of the machine.
    */
   maxConcurrentDocuments: z.number().int().min(1).max(16).default(1),
+  /**
+   * Minutes an idle OCR worker keeps its models loaded before it is released. 0 keeps it
+   * until the application stops.
+   *
+   * A warm worker is the difference between a second document starting instantly and paying
+   * the model load again — forty seconds on a warm GPU box, minutes on a cold CPU one. It is
+   * also 3.2 GB of VRAM held while nothing is happening, measured on an 8 GB card, which is
+   * most of what a game or a video editor would want. Neither answer is right for everyone,
+   * so it is a setting; 0 preserves the behaviour this shipped with.
+   */
+  sidecarIdleMinutes: z.number().int().min(0).max(1440).default(0),
   /** Days of job history to retain; 0 disables pruning. */
   historyRetentionDays: z.number().int().min(0).max(3650).default(90),
   locale: z.enum(['en', 'de']).default('en'),

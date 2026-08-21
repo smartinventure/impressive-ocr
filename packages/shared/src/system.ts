@@ -110,6 +110,28 @@ export const runtimeInstallPlanSchema = z.object({
 
 export type RuntimeInstallPlan = z.infer<typeof runtimeInstallPlanSchema>;
 
+/** What releasing the warm OCR workers actually did. */
+export const sidecarReleaseResultSchema = z.object({
+  /** Workers stopped, and the models they held freed. */
+  stopped: z.number().int().min(0),
+  /**
+   * Workers left running because they were mid-document and `force` was not set.
+   *
+   * Reported rather than hidden: "nothing happened" and "everything was already idle" look
+   * identical otherwise, and only one of them means you should try again.
+   */
+  busy: z.number().int().min(0),
+});
+
+export type SidecarReleaseResult = z.infer<typeof sidecarReleaseResultSchema>;
+
+export const releaseSidecarsRequestSchema = z.object({
+  /** Stop a worker even mid-document. The job is requeued and retried from the start. */
+  force: z.boolean().default(false),
+});
+
+export type ReleaseSidecarsRequest = z.infer<typeof releaseSidecarsRequestSchema>;
+
 export const runtimeStateSchema = z.enum([
   'not-installed',
   'installing',

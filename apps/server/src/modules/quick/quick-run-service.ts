@@ -209,6 +209,7 @@ function buildOptions(quick: QuickOptions, outputPath: string): PipelineOptions 
     engine: {
       ...defaults.engine,
       profile: quick.profile,
+      device: quick.device,
       language: quick.language,
       modules: {
         ...defaults.engine.modules,

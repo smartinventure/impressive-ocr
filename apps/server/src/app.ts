@@ -144,6 +144,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     // A function, not a value: changing the budget in Settings then applies to the next
     // sidecar rather than needing a restart.
     cpuBudgetPercent: () => settingsService.get().cpuBudgetPercent,
+    idleMinutes: () => settingsService.get().sidecarIdleMinutes,
     logger,
   });
 

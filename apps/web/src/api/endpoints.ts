@@ -16,6 +16,7 @@ import type {
   PipelineWithStatus,
   RuntimeInstallPlan,
   RuntimeStatus,
+  SidecarReleaseResult,
   SystemStatus,
   UpdatePipelineRequest,
   UpdateSettingsRequest,
@@ -101,6 +102,9 @@ export const systemApi = {
   runtimePlan: () => api.get<RuntimeInstallPlan>('/system/runtime/plan'),
   installRuntime: () => api.post<RuntimeStatus>('/system/runtime/install'),
   cancelInstall: () => api.post<{ cancelled: boolean }>('/system/runtime/cancel'),
+  /** Stop the warm OCR workers and give their model memory back. */
+  releaseSidecars: (force: boolean) =>
+    api.post<SidecarReleaseResult>('/system/sidecars/release', { force }),
   pauseAll: () => api.post<{ globallyPaused: boolean }>('/system/pause'),
   resumeAll: () => api.post<{ globallyPaused: boolean }>('/system/resume'),
 };

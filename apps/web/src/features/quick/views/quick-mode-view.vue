@@ -1,5 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { OutputFormat } from '@impressive-ocr/shared';
 import { useLiveStore } from '../../../stores/live-store';
@@ -20,6 +21,9 @@ const store = useLiveStore();
 const quick = useQuickRun();
 
 /** The formats worth offering without a pipeline. The editor exposes the rest. */
+/** Offering GPU on a machine that cannot use one would only produce a silent fallback. */
+const gpuAvailable = computed(() => store.system?.hardware.canUseGpu ?? false);
+
 const FORMATS: { value: OutputFormat; labelKey: string }[] = [
   { value: 'markdown', labelKey: 'format.markdown' },
   { value: 'json', labelKey: 'format.json' },
@@ -102,6 +106,24 @@ function toggleFormat(format: OutputFormat): void {
             {{ t(format.labelKey) }}
           </v-chip>
         </div>
+
+        <!-- Forcing one device or the other is how you find out what the GPU is worth on your
+             own documents; `auto` leaves the choice to the scheduler. -->
+        <v-select
+          v-model="quick.options.value.device"
+          :items="[
+            { value: 'auto', title: t('quick.deviceAuto') },
+            { value: 'gpu', title: t('quick.deviceGpu'), props: { disabled: !gpuAvailable } },
+            { value: 'cpu', title: t('quick.deviceCpu') },
+          ]"
+          :label="t('quick.deviceLabel')"
+          :hint="gpuAvailable ? t('quick.deviceHint') : t('quick.deviceHintNoGpu')"
+          persistent-hint
+          density="comfortable"
+          variant="outlined"
+          class="mb-4"
+          :disabled="quick.busy.value"
+        />
 
         <v-select
           v-model="quick.options.value.textLayerStrategy"

@@ -140,30 +140,42 @@ class StructureEngine:
             yield to_page_result(result, page_number=index, width=width, height=height)
 
 
-def use_mkldnn(machine: str, binary_platform: str) -> bool:
+def use_mkldnn(machine: str, binary_platform: str, system: str = "") -> bool:
     """Whether oneDNN (MKL-DNN) acceleration is safe on this machine.
 
-    PaddleX turns it on by default for CPU inference, and on real x86 hardware it is a large
-    win. Under **x64 emulation on an ARM64 host** — a Snapdragon X Windows laptop running the
-    x86-64 build — it is not merely slow: inference dies inside
-    ``onednn_instruction.cc`` with
+    PaddleX turns it on by default for CPU inference, and where it works it is a large win.
+    Where it does not, inference dies inside ``onednn_instruction.cc`` with
 
-        NotImplementedError: (Unimplemented) ConvertPirAttribute2RuntimeAttribute
-        not support [pir::ArrayAttribute<pir::DoubleAttribute>]
+        (Unimplemented) ConvertPirAttribute2RuntimeAttribute not support
+        [pir::ArrayAttribute<pir::DoubleAttribute>]
 
-    and in the full document pipeline it takes the process down with no traceback at all.
+    and in the full document pipeline it can take the process down with no traceback at all.
 
-    Detection compares the *host* architecture against the architecture the interpreter was
-    built for. `platform.machine()` reports the host (ARM64 even under emulation), while
-    `sysconfig.get_platform()` reports the binary (win-amd64) — a mismatch means emulation.
+    This was first hit under **x64 emulation on an ARM64 host** and recorded as an emulation
+    problem. It is not. The identical failure was then measured on a **native x86-64 Windows
+    machine** — an i7-11700F, PaddlePaddle 3.3.1, CPU profile, no emulation anywhere — where
+    the emulation check said oneDNN was safe and every CPU job was quarantined as a corrupt
+    document. It is a PaddlePaddle/PIR defect on Windows, and emulation merely made it louder.
+
+    So oneDNN is off for **all** Windows CPU inference until a Paddle release fixes it, and
+    stays off under emulation on any host. Linux and macOS keep it: neither has shown the
+    fault, and turning it off there would cost real speed for a problem they do not have.
+
+    Emulation detection compares the *host* architecture against the architecture the
+    interpreter was built for. ``platform.machine()`` reports the host (ARM64 even under
+    emulation), while ``sysconfig.get_platform()`` reports the binary (win-amd64).
     """
+    # Exact match on the system name, not a substring: "Darwin" contains "win".
+    if system.lower() == "windows" or binary_platform.lower().startswith("win"):
+        return False
+
     host_is_arm = "arm" in machine.lower() or "aarch64" in machine.lower()
     binary_is_x86 = "amd64" in binary_platform.lower() or "x86_64" in binary_platform.lower()
     return not (host_is_arm and binary_is_x86)
 
 
 def _mkldnn_enabled() -> bool:
-    return use_mkldnn(platform.machine(), sysconfig.get_platform())
+    return use_mkldnn(platform.machine(), sysconfig.get_platform(), platform.system())
 
 
 def build_module_kwargs(modules: EngineModules) -> dict[str, Any]:

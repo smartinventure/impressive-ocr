@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { RuntimeInstallPlan } from '@impressive-ocr/shared';
+import type { RuntimeInstallPlan, SidecarReleaseResult } from '@impressive-ocr/shared';
 import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 
@@ -50,6 +50,42 @@ async function askToInstall(): Promise<void> {
 async function confirmInstall(): Promise<void> {
   confirmOpen.value = false;
   await systemApi.installRuntime();
+}
+
+/**
+ * Releasing the workers.
+ *
+ * A warm worker holds its models for as long as the app runs — several gigabytes of VRAM on
+ * the GPU. Releasing costs the next document its model load, so it is a deliberate act with a
+ * button rather than something that happens quietly.
+ */
+const releasing = ref(false);
+const releaseResult = ref<SidecarReleaseResult | null>(null);
+const forceDialogOpen = ref(false);
+
+const workers = computed(() => store.system?.sidecars ?? []);
+const busyWorkers = computed(() => workers.value.filter((worker) => worker.state === 'busy'));
+const hasWorkers = computed(() => workers.value.length > 0);
+
+async function release(force: boolean): Promise<void> {
+  releasing.value = true;
+  releaseResult.value = null;
+  try {
+    releaseResult.value = await systemApi.releaseSidecars(force);
+  } finally {
+    releasing.value = false;
+    forceDialogOpen.value = false;
+  }
+}
+
+function askToRelease(): void {
+  // Mid-document is the case worth stopping for: forcing costs the work already done, and
+  // the job restarts from the first page.
+  if (busyWorkers.value.length > 0) {
+    forceDialogOpen.value = true;
+    return;
+  }
+  void release(false);
 }
 
 async function reprobe(): Promise<void> {
@@ -159,7 +195,31 @@ onMounted(async () => {
 
     <!-- Workers -->
     <v-card class="pa-5">
-      <h2 class="text-h6 mb-3">{{ t('system.workers') }}</h2>
+      <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-3">
+        <h2 class="text-h6">{{ t('system.workers') }}</h2>
+        <v-btn
+          v-if="hasWorkers"
+          size="small"
+          variant="outlined"
+          prepend-icon="memory"
+          :loading="releasing"
+          @click="askToRelease"
+        >
+          {{ t('system.release') }}
+        </v-btn>
+      </div>
+
+      <p v-if="hasWorkers" class="text-body-2 text-medium-emphasis mb-3">
+        {{ t('system.releaseHint') }}
+      </p>
+
+      <v-alert v-if="releaseResult" type="success" variant="tonal" density="compact" class="mb-3">
+        {{ t('system.released', { count: releaseResult.stopped }) }}
+        <template v-if="releaseResult.busy > 0">
+          {{ t('system.releaseSkipped', { count: releaseResult.busy }) }}
+        </template>
+      </v-alert>
+
       <p v-if="(store.system?.sidecars.length ?? 0) === 0" class="text-body-2 text-medium-emphasis">
         {{ t('system.noWorkers') }}
       </p>
@@ -182,6 +242,23 @@ onMounted(async () => {
         </tbody>
       </v-table>
     </v-card>
+    <!-- Releasing while a document is being processed throws that work away, so it is asked
+         about rather than assumed. -->
+    <v-dialog v-model="forceDialogOpen" max-width="480">
+      <v-card class="pa-5">
+        <h2 class="text-h6 mb-2">{{ t('system.releaseBusyTitle') }}</h2>
+        <p class="text-body-2 mb-4">
+          {{ t('system.releaseBusyBody', { count: busyWorkers.length }) }}
+        </p>
+        <div class="d-flex justify-end ga-2">
+          <v-btn variant="text" @click="forceDialogOpen = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn color="error" :loading="releasing" @click="release(true)">
+            {{ t('system.releaseAnyway') }}
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
+
     <!-- Pre-install confirmation. Nothing is downloaded before this is accepted. -->
     <v-dialog v-model="confirmOpen" max-width="560">
       <v-card v-if="plan" class="pa-5">

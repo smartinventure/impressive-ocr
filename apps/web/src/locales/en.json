@@ -235,7 +235,14 @@
     "gpu": "Graphics",
     "driver": "driver",
     "noGpu": "No compatible GPU detected",
-    "reprobe": "Check again"
+    "reprobe": "Check again",
+    "release": "Release the workers",
+    "releaseHint": "Stops the OCR workers and frees the memory their models hold. The next document reloads them, which takes a moment.",
+    "released": "Released {count} worker(s).",
+    "releaseSkipped": "{count} was left running because it is processing a document.",
+    "releaseBusyTitle": "A document is being processed",
+    "releaseBusyBody": "{count} worker is in the middle of a document. Releasing now throws that work away; the job returns to the queue and starts again from the first page.",
+    "releaseAnyway": "Release anyway"
   },
   "runtimeState": {
     "not-installed": "Not installed",
@@ -280,7 +287,9 @@
     "cpuBudget": "Share of the processor OCR may use",
     "cpuBudgetHint": "Fewer threads means less memory as well as less CPU. Lower this if the machine becomes unresponsive while OCR runs.",
     "concurrency": "Documents processed at once",
-    "concurrencyHint": "Each one holds its own copy of the OCR models in memory — roughly 2-4 GB. Raise it only if you have RAM to spare."
+    "concurrencyHint": "Each one holds its own copy of the OCR models in memory — roughly 2-4 GB. Raise it only if you have RAM to spare.",
+    "sidecarIdle": "Release idle OCR workers after (minutes)",
+    "sidecarIdleHint": "A worker keeps its models loaded so the next document starts instantly, which costs several GB of memory — on the GPU, VRAM another application cannot then use. 0 keeps them until the app closes."
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -353,7 +362,13 @@
     "strategyHybrid": "OCR only the pages without text (recommended)",
     "strategySkip": "Skip the document entirely",
     "strategyAlways": "OCR everything anyway",
-    "tableCost": "Loads 5 extra models and uses noticeably more memory."
+    "tableCost": "Loads 5 extra models and uses noticeably more memory.",
+    "deviceLabel": "Device",
+    "deviceAuto": "Automatic",
+    "deviceGpu": "GPU",
+    "deviceCpu": "CPU",
+    "deviceHint": "Force one or the other to compare them on your own documents.",
+    "deviceHintNoGpu": "No usable GPU on this machine, so everything runs on the CPU."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

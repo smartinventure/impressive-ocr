@@ -23,7 +23,17 @@ export interface SidecarPoolOptions {
   logLevel: string;
   /** Share of the machine's cores OCR may use; read fresh so a settings change applies. */
   cpuBudgetPercent: () => number;
+  /** Minutes an idle worker may keep its models; 0 keeps them until shutdown. Read fresh. */
+  idleMinutes: () => number;
   logger: Logger;
+}
+
+/** How often idle workers are checked. Minutes-scale timeouts do not need finer than this. */
+const IDLE_SWEEP_INTERVAL_MS = 30_000;
+
+export interface SidecarRelease {
+  stopped: number;
+  busy: number;
 }
 
 interface Worker {
@@ -35,6 +45,8 @@ interface Worker {
   restarts: number;
   startedAt: Date;
   busy: boolean;
+  /** When this worker last finished a job. Null while it has never run one. */
+  idleSince: Date | null;
 }
 
 export class SidecarPool {
@@ -42,8 +54,14 @@ export class SidecarPool {
   /** Guards against two concurrent claims both starting the same worker. */
   private readonly starting = new Map<string, Promise<Worker>>();
   private stopped = false;
+  private readonly idleSweep: NodeJS.Timeout;
 
-  constructor(private readonly options: SidecarPoolOptions) {}
+  constructor(private readonly options: SidecarPoolOptions) {
+    this.idleSweep = setInterval(() => this.sweepIdle(), IDLE_SWEEP_INTERVAL_MS);
+    // Never hold the process open for a sweep: a headless server that has finished should
+    // exit, not linger because a timer is pending.
+    this.idleSweep.unref();
+  }
 
   /** Get a ready client for the pair, starting or restarting the worker if necessary. */
   async acquire(profile: EngineProfile, device: ResolvedDevice): Promise<SidecarClient> {
@@ -56,6 +74,67 @@ export class SidecarPool {
     const worker = this.workers.get(keyFor(profile, device));
     if (worker !== undefined) {
       worker.busy = false;
+      worker.idleSince = new Date();
+    }
+  }
+
+  /**
+   * Stop the warm workers and give their memory back.
+   *
+   * A resident worker holds its models — measured at 3.2 GB of VRAM for PP-StructureV3 on the
+   * GPU — for as long as the application runs. That is the right trade while someone is
+   * working and the wrong one when they want the card for something else.
+   *
+   * Without `force`, a worker that is mid-document is left alone and counted: killing it
+   * would throw away work that is often most of a minute in, and the caller can decide
+   * whether that matters.
+   */
+  async releaseWorkers({ force = false }: { force?: boolean } = {}): Promise<SidecarRelease> {
+    const workers = [...this.workers.values()];
+    const toStop = workers.filter((worker) => force || !worker.busy);
+    const busy = workers.length - toStop.length;
+
+    await Promise.all(
+      toStop.map(async (worker) => {
+        this.options.logger.info(
+          { key: worker.key, busy: worker.busy, forced: force },
+          'Releasing sidecar worker',
+        );
+        await worker.process.stop();
+        this.workers.delete(worker.key);
+      }),
+    );
+
+    return { stopped: toStop.length, busy };
+  }
+
+  /**
+   * Release workers that have been idle longer than the configured number of minutes.
+   *
+   * Polled rather than scheduled per worker: one timer for the pool is easier to reason about
+   * than a timer per worker that has to be cancelled and recreated around every job, and the
+   * granularity of a sweep is irrelevant against a timeout measured in minutes.
+   */
+  private sweepIdle(): void {
+    const minutes = this.options.idleMinutes();
+    if (minutes <= 0) {
+      return;
+    }
+    const cutoff = Date.now() - minutes * 60_000;
+
+    for (const worker of [...this.workers.values()]) {
+      if (worker.busy || worker.idleSince === null || worker.idleSince.getTime() > cutoff) {
+        continue;
+      }
+      this.options.logger.info(
+        { key: worker.key, idleMinutes: minutes },
+        'Releasing an idle sidecar worker',
+      );
+      // Fire and forget: the sweep must not block, and a stop that fails leaves the worker in
+      // the map to be retried on the next pass.
+      void worker.process.stop().then(() => {
+        this.workers.delete(worker.key);
+      });
     }
   }
 
@@ -123,6 +202,7 @@ export class SidecarPool {
       restarts: previousRestarts + (previousRestarts > 0 ? 1 : 0),
       startedAt: new Date(),
       busy: false,
+      idleSince: new Date(),
     };
   }
 
@@ -152,6 +232,7 @@ export class SidecarPool {
 
   async stopAll(): Promise<void> {
     this.stopped = true;
+    clearInterval(this.idleSweep);
     await Promise.all([...this.workers.values()].map((worker) => worker.process.stop()));
     this.workers.clear();
   }

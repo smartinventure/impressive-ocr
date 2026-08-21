@@ -6,11 +6,11 @@ from __future__ import annotations
 from ..core.protocol import OutputFormat
 from .base import OutputWriter
 from .paddle_native import PaddleNativeWriter
+from .searchable_pdf import SearchablePdfWriter
 from .text_writer import TextWriter
 
-#: Formats this build can emit. `searchable-pdf` is intentionally absent until its writer
-#: lands (milestone 2); the capabilities endpoint reports this list so the backend can grey
-#: the option out in the UI rather than accepting a job it cannot finish.
+#: Formats this build can emit. The capabilities endpoint reports this list so the backend can
+#: grey an option out in the UI rather than accepting a job it cannot finish.
 SUPPORTED_FORMATS: tuple[OutputFormat, ...] = (
     "markdown",
     "json",
@@ -18,6 +18,7 @@ SUPPORTED_FORMATS: tuple[OutputFormat, ...] = (
     "docx",
     "xlsx",
     "html",
+    "searchable-pdf",
     "visualization",
 )
 
@@ -34,6 +35,8 @@ def create_writer(output_format: OutputFormat, *, txt_encoding: str = "utf-8") -
     """Build the writer for one format."""
     if output_format == "txt":
         return TextWriter(encoding=txt_encoding)
+    if output_format == "searchable-pdf":
+        return SearchablePdfWriter()
     if output_format in _PADDLE_NATIVE:
         return PaddleNativeWriter(output_format)
     raise UnsupportedFormatError(

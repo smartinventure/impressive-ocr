@@ -4,6 +4,7 @@ import { computed, ref, shallowRef } from 'vue';
 import type {
   AppSettings,
   Job,
+  JobEvent,
   JobListItem,
   PipelineWithStatus,
   RuntimeStatus,
@@ -33,6 +34,16 @@ export const useLiveStore = defineStore('live', () => {
   const runtime = ref<RuntimeStatus | null>(null);
   const settings = ref<AppSettings | null>(null);
   const connection = ref<ConnectionState>('connecting');
+
+  /**
+   * The latest line per job, and every warning or error a job produced.
+   *
+   * Bounded by design: one "latest" entry per job, and problems only. A job that writes four
+   * formats emits a handful of lines; keeping the whole timeline for every job in a long
+   * session is what a detail drawer fetch is for.
+   */
+  const latestJobEvent = ref<Record<string, JobEvent>>({});
+  const jobProblems = ref<Record<string, JobEvent[]>>({});
   const loading = ref(true);
   const loadError = ref<string | null>(null);
 
@@ -135,9 +146,14 @@ export const useLiveStore = defineStore('live', () => {
             break;
 
           case 'job.event':
+            // The full timeline is loaded on demand by the detail drawer, but the latest line
+            // per job is what turns a progress bar that sits at zero into a step with a name —
+            // and it is the only place a "could not write docx" ever surfaced.
+            rememberJobEvent(event.event);
+            break;
+
           case 'heartbeat':
-            // Job timelines are loaded on demand by the detail drawer; the heartbeat only
-            // exists to keep the connection open.
+            // Only exists to keep the connection open.
             break;
         }
       },
@@ -147,6 +163,15 @@ export const useLiveStore = defineStore('live', () => {
   function stop(): void {
     stream.value?.close();
     stream.value = null;
+  }
+
+  function rememberJobEvent(event: JobEvent): void {
+    latestJobEvent.value = { ...latestJobEvent.value, [event.jobId]: event };
+    if (event.level === 'info') {
+      return;
+    }
+    const existing = jobProblems.value[event.jobId] ?? [];
+    jobProblems.value = { ...jobProblems.value, [event.jobId]: [...existing, event] };
   }
 
   function upsertPipeline(pipeline: PipelineWithStatus): void {
@@ -194,6 +219,8 @@ export const useLiveStore = defineStore('live', () => {
     runtime,
     settings,
     connection,
+    latestJobEvent,
+    jobProblems,
     loading,
     loadError,
     runtimeReady,

@@ -26,6 +26,7 @@ const FORMATS: { value: OutputFormat; labelKey: string }[] = [
   { value: 'txt', labelKey: 'format.txt' },
   { value: 'docx', labelKey: 'format.docx' },
   { value: 'xlsx', labelKey: 'format.xlsx' },
+  { value: 'searchable-pdf', labelKey: 'format.searchablePdf' },
 ];
 
 function toggleFormat(format: OutputFormat): void {
@@ -184,7 +185,7 @@ function toggleFormat(format: OutputFormat): void {
       />
 
       <!-- Page-level movement, so a single long scan does not look stuck. -->
-      <p v-if="quick.currentDocument.value" class="text-body-2 text-medium-emphasis mb-3">
+      <p v-if="quick.currentDocument.value" class="text-body-2 text-medium-emphasis mb-1">
         {{ quick.currentDocument.value.name }}
         <template v-if="quick.currentDocument.value.pageCount">
           &middot;
@@ -195,6 +196,25 @@ function toggleFormat(format: OutputFormat): void {
             })
           }}
         </template>
+      </p>
+
+      <!-- What the worker is doing right now. Loading the models is most of the first
+           document's wall clock and moves no counter, so without this the card shows
+           "0 of 1" and nothing else for the better part of a minute. -->
+      <p
+        v-if="quick.isRunning.value || quick.statusMessage.value"
+        class="quick__status text-body-2 mb-3"
+      >
+        <v-progress-circular
+          v-if="quick.isRunning.value"
+          indeterminate
+          size="12"
+          width="2"
+          class="mr-2"
+        />
+        <!-- The worker loads its models before it accepts the job, so the first seconds
+             belong to no job and produce no events. Saying so beats an empty line. -->
+        {{ quick.statusMessage.value ?? t('quick.startingWorker') }}
       </p>
 
       <div class="d-flex ga-3 flex-wrap mb-4">
@@ -229,6 +249,21 @@ function toggleFormat(format: OutputFormat): void {
         {{ quick.failureMessage.value }}
       </v-alert>
 
+      <!-- A format that could not be written does not fail the job, so without this a run
+           that produced no Word document looks identical to one that did. -->
+      <v-alert
+        v-if="quick.problems.value.length > 0"
+        type="warning"
+        variant="tonal"
+        density="compact"
+        class="mb-4"
+      >
+        <p class="mb-1">{{ t('quick.partialTitle') }}</p>
+        <ul class="quick__problems">
+          <li v-for="problem in quick.problems.value" :key="problem.id">{{ problem.message }}</li>
+        </ul>
+      </v-alert>
+
       <v-alert
         v-if="quick.isFinished.value && quick.run.value.outputPath !== null"
         type="success"
@@ -261,7 +296,9 @@ function toggleFormat(format: OutputFormat): void {
           {{ t('quick.download') }}
         </v-btn>
 
-        <v-btn v-if="quick.isFinished.value" variant="text" @click="quick.reset">
+        <!-- Outlined, to match the source toggle above: a bare text button reads as a hint
+             rather than the thing you press to start over. -->
+        <v-btn v-if="quick.isFinished.value" variant="outlined" @click="quick.reset">
           {{ t('quick.newRun') }}
         </v-btn>
       </div>
@@ -270,7 +307,11 @@ function toggleFormat(format: OutputFormat): void {
            pasted somewhere, which is what "I will fetch it later" actually needs. -->
       <div v-if="quick.canDownload.value" class="quick__link mt-4">
         <span class="text-caption text-medium-emphasis">{{ t('quick.downloadLater') }}</span>
-        <code class="quick__url">{{ quick.absoluteDownloadUrl.value }}</code>
+        <!-- An anchor, not a <code> block: it is a URL, and the obvious thing to do with one
+             is click it. Still selectable, so copying it out for later works as before. -->
+        <a class="quick__url" :href="quick.absoluteDownloadUrl.value" download>
+          {{ quick.absoluteDownloadUrl.value }}
+        </a>
         <span class="text-caption text-medium-emphasis">{{ t('quick.downloadExpires') }}</span>
       </div>
     </v-card>
@@ -301,6 +342,23 @@ function toggleFormat(format: OutputFormat): void {
   padding: 6px 8px;
   border-radius: 6px;
   background: rgba(var(--v-theme-on-surface), 0.06);
+  color: rgb(var(--v-theme-primary));
+  text-decoration: underline;
+}
+
+.quick__url:hover {
+  background: rgba(var(--v-theme-primary), 0.12);
+}
+
+.quick__status {
+  display: flex;
+  align-items: center;
+  color: rgb(var(--v-theme-primary));
+}
+
+.quick__problems {
+  margin: 0;
+  padding-left: 18px;
 }
 
 .quick__formats {

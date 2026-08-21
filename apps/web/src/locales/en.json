@@ -191,7 +191,7 @@
     "xlsxHint": "tables only",
     "html": "HTML",
     "searchablePdf": "Searchable PDF",
-    "comingSoon": "coming soon"
+    "searchablePdfHint": "The original scan, with the recognised text laid invisibly on top so it can be selected and searched."
   },
   "detail": {
     "pause": "Pause",
@@ -344,6 +344,8 @@
     "device": "Ran on {device}",
     "pageProgress": "page {done} of {total}",
     "pagesTotal": "{done}/{total} pages",
+    "startingWorker": "Starting the OCR worker and loading its models…",
+    "partialTitle": "Finished, but not everything could be written:",
     "downloadLater": "Or open this link later:",
     "downloadExpires": "Available for 24 hours after the run finishes.",
     "strategy": "Pages that already contain text",

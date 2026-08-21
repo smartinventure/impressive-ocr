@@ -58,15 +58,16 @@ class TestCapabilities:
         assert body["device"] == "cpu"
         assert body["protocolVersion"] == PROTOCOL_VERSION
 
-    def test_omits_searchable_pdf_until_its_writer_exists(
+    def test_advertises_every_format_it_can_actually_write(
         self, client: TestClient, auth: dict[str, str]
     ) -> None:
-        # The backend greys the option out based on this list, so an unimplemented format
-        # must never appear in it.
+        # The backend greys options out based on this list, so it must name exactly what this
+        # build can produce -- no more, and no less either: searchable-pdf was withheld here
+        # long after PyMuPDF could have written it.
         formats = client.get("/capabilities", headers=auth).json()["supportedFormats"]
 
         assert "markdown" in formats
-        assert "searchable-pdf" not in formats
+        assert "searchable-pdf" in formats
 
     def test_reports_paddle_as_not_installed_before_the_runtime_bootstrap(
         self, client: TestClient, auth: dict[str, str]

@@ -191,7 +191,7 @@
     "xlsxHint": "nur Tabellen",
     "html": "HTML",
     "searchablePdf": "Durchsuchbares PDF",
-    "comingSoon": "in Kürze"
+    "searchablePdfHint": "Der Original-Scan, mit dem erkannten Text unsichtbar darübergelegt, sodass er markiert und durchsucht werden kann."
   },
   "detail": {
     "pause": "Pausieren",
@@ -344,6 +344,8 @@
     "device": "Ausgeführt auf {device}",
     "pageProgress": "Seite {done} von {total}",
     "pagesTotal": "{done}/{total} Seiten",
+    "startingWorker": "Der OCR-Worker startet und lädt seine Modelle …",
+    "partialTitle": "Fertig, aber nicht alles konnte geschrieben werden:",
     "downloadLater": "Oder diesen Link später öffnen:",
     "downloadExpires": "24 Stunden nach Abschluss des Laufs verfügbar.",
     "strategy": "Seiten, die bereits Text enthalten",

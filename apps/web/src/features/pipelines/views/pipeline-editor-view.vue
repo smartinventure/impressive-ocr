@@ -54,7 +54,11 @@ const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
   { value: 'docx', labelKey: 'format.docx' },
   { value: 'xlsx', labelKey: 'format.xlsx', hintKey: 'format.xlsxHint' },
   { value: 'html', labelKey: 'format.html' },
-  { value: 'searchable-pdf', labelKey: 'format.searchablePdf', hintKey: 'format.comingSoon' },
+  {
+    value: 'searchable-pdf',
+    labelKey: 'format.searchablePdf',
+    hintKey: 'format.searchablePdfHint',
+  },
 ];
 
 /** Module toggles, with the speed cost stated inline — these turn 20 minutes into 3 hours. */
@@ -322,7 +326,6 @@ onMounted(async () => {
                 :key="format.value"
                 :variant="options.output.formats.includes(format.value) ? 'flat' : 'outlined'"
                 :color="options.output.formats.includes(format.value) ? 'primary' : undefined"
-                :disabled="format.hintKey === 'format.comingSoon'"
                 filter
                 :model-value="options.output.formats.includes(format.value)"
                 @click="toggleFormat(format.value)"

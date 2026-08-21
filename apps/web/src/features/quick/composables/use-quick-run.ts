@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { quickOptionsSchema, type QuickOptions, type QuickRun } from '@impressive-ocr/shared';
 import { ApiRequestError } from '../../../api/client';
 import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
+import { useLiveStore } from '../../../stores/live-store';
 import { quickApi, type QuickRunProgress } from '../../../api/endpoints';
 
 /**
@@ -53,6 +54,9 @@ export function useQuickRun() {
   const outputPath = ref('');
   const options = ref<QuickOptions>(quickOptionsSchema.parse({}));
 
+  // The live stream carries per-job events; polling carries the run's shape. Both are needed:
+  // the poll never sees a message the sidecar emitted between two ticks.
+  const store = useLiveStore();
   const desktop = useDesktopBridge();
   if (desktop.isDesktop.value) {
     // The native dialog returns real paths, so the desktop never uploads to itself.
@@ -125,6 +129,31 @@ export function useQuickRun() {
     const done = jobs.reduce((total, job) => total + (job.pagesDone ?? 0), 0);
     const known = jobs.reduce((total, job) => total + (job.pageCount ?? 0), 0);
     return { done, total: known };
+  });
+
+  /**
+   * The sidecar's own latest line for whatever is running.
+   *
+   * Model loading is most of the wall clock on the first document — forty seconds on a warm
+   * GPU box — and none of it moves the page counter, because the pages have not started yet.
+   * Without this the card says "0 of 1" and nothing else for the whole of it.
+   */
+  const statusMessage = computed(() => {
+    const running = (progress.value?.jobs ?? []).find((job) => job.state === 'running');
+    if (running === undefined) return null;
+    return store.latestJobEvent[running.id]?.message ?? null;
+  });
+
+  /**
+   * Warnings and errors from the run's jobs.
+   *
+   * A format that could not be written does *not* fail the job — the Markdown and JSON that
+   * succeeded are still worth having — so without surfacing these, asking for Word and
+   * receiving no Word looks exactly like success.
+   */
+  const problems = computed(() => {
+    const jobs = progress.value?.jobs ?? [];
+    return jobs.flatMap((job) => store.jobProblems[job.id] ?? []);
   });
 
   /** The document being worked on right now, if any. */
@@ -281,6 +310,8 @@ export function useQuickRun() {
     succeeded,
     failed,
     failureMessage,
+    statusMessage,
+    problems,
     device,
     pageProgress,
     currentDocument,

@@ -21,6 +21,10 @@ for scripting:
 ./dev/dev.sh doctor         # what is missing, and the command that installs it
 ```
 
+Execution policy (Powershell):
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+
+
 Start waits until the API actually answers before reporting success, and tells you
 whether the OCR runtime still needs installing. Stop kills the process **tree** —
 `pnpm dev` spawns `vite` and `tsx`, and killing only the parent leaves both holding

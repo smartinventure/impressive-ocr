@@ -121,14 +121,16 @@ describe('archiveFileName', () => {
     expect(name).toBe('invoice-2411.zip');
   });
 
-  it('says how many others are in there when a run covered several documents', () => {
+  it('uses the first document name even when a run covered several', () => {
+    // Deliberately just the first name: anything appended to it is a string a real document
+    // could also be called, and two runs would then produce the same download name.
     const name = archiveFileName([
       { path: '/out/a.md', documentName: 'a.pdf' },
       { path: '/out/b.md', documentName: 'b.pdf' },
       { path: '/out/c.md', documentName: 'c.pdf' },
     ]);
 
-    expect(name).toBe('a-and-2-more.zip');
+    expect(name).toBe('a.zip');
   });
 
   it('strips what a filename may not contain', () => {

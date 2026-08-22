@@ -103,28 +103,22 @@ function sanitizeSegment(value: string): string {
 }
 
 /**
- * What the downloaded file is called.
+ * What the downloaded file is called: the first document's name, with `.zip`.
  *
- * Named after the first document rather than a constant: someone who runs Quick Mode three
- * times in an afternoon ends up with `impressive-ocr-results.zip`, `(1)` and `(2)` in their
- * downloads folder, and no way to tell which was the invoice. A count is appended when there
- * is more than one document, because the first name alone would misrepresent the contents.
+ * Named after the document rather than a constant, because otherwise three runs in an
+ * afternoon give you `impressive-ocr-results.zip`, `(1)` and `(2)`, with no way to tell which
+ * one was the invoice. The name is the first document's whatever the run contained — a
+ * document count in the name would itself be a name a real document could have.
  */
 export function archiveFileName(entries: readonly ArchiveEntry[]): string {
-  const documents = [...new Set(entries.map((entry) => entry.documentName))];
-  const first = documents[0];
+  const first = entries[0]?.documentName;
   if (first === undefined) {
     return 'impressive-ocr-results.zip';
   }
 
-  const stem = sanitizeSegment(
-    first.replace(new RegExp(`${escapeForRegExp(extname(first))}$`), ''),
-  );
-  return documents.length > 1 ? `${stem}-and-${documents.length - 1}-more.zip` : `${stem}.zip`;
-}
-
-function escapeForRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const extension = extname(first);
+  const stem = sanitizeSegment(first.slice(0, first.length - extension.length));
+  return `${stem}.zip`;
 }
 
 /** Keep names unique, because a ZIP with two identical entries extracts unpredictably. */

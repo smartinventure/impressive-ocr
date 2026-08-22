@@ -96,7 +96,7 @@ class StructureEngine:
         if total <= 1 and source.suffix.lower() != ".pdf":
             # A single image is already pixels at whatever resolution it was scanned; asking
             # PyMuPDF to render it again would only add a copy.
-            yield from self._recognize_whole(source, predict_kwargs, skip_pages)
+            yield from self._recognize_image(source, predict_kwargs, skip_pages)
             return
 
         wanted = page_numbers(total, skip_pages, options.max_pages_per_document)
@@ -120,13 +120,17 @@ class StructureEngine:
                 # next one starts — and can stop between pages when the job is cancelled.
                 yield to_page_result(result, page_number=number, width=width, height=height)
 
-    def _recognize_whole(
+    def _recognize_image(
         self,
         source: Path,
         predict_kwargs: dict[str, Any],
         skip_pages: frozenset[int],
     ) -> Iterator[PageResult]:
         """Image input, which is already pixels and needs no rendering.
+
+        Not a "mixed PDF" path and never was: whether a PDF's pages already carry text is
+        decided far earlier, by the text-layer strategy, which passes the pages to skip in
+        ``skip_pages``. This method only ever sees a PNG or a JPEG.
 
         Deliberately *not* used for single-page PDFs any more. Handing a PDF to Paddle lets it
         rasterise at a resolution of its own choosing, and measured on a 200 DPI A4 scan that

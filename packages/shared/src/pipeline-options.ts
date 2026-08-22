@@ -51,10 +51,6 @@ export type DevicePreference = z.infer<typeof devicePreferenceSchema>;
 export const resolvedDeviceSchema = z.enum(['gpu', 'cpu']);
 export type ResolvedDevice = z.infer<typeof resolvedDeviceSchema>;
 
-/** PP-OCRv6 size tiers. Ignored by the `accurate` profile, which has a single model. */
-export const modelTierSchema = z.enum(['tiny', 'small', 'medium']);
-export type ModelTier = z.infer<typeof modelTierSchema>;
-
 /**
  * Per-module toggles. These are the real speed dial — formula and chart recognition are
  * expensive and off by default; table recognition is on because it is why most users are here.
@@ -76,7 +72,6 @@ export const engineOptionsSchema = z.object({
   device: devicePreferenceSchema.default('auto'),
   /** `auto` lets the model detect the script; otherwise a PaddleOCR language code, e.g. `de`. */
   language: z.string().min(2).max(16).default('auto'),
-  modelTier: modelTierSchema.default('medium'),
   /** Rasterization DPI for PDF pages. Higher is slower and usually only helps small print. */
   rasterDpi: z.union([z.literal(150), z.literal(200), z.literal(300), z.literal(400)]).default(200),
   /** 0 means "no limit". Guards against a 5,000-page scan blocking the queue. */

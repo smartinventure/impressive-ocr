@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { fromBuffer, type Entry, type ZipFile } from 'yauzl';
-import { buildResultArchive, type ArchiveEntry } from './result-archive';
+import { archiveFileName, buildResultArchive, type ArchiveEntry } from './result-archive';
 
 let root: string;
 
@@ -107,5 +107,37 @@ describe('buildResultArchive', () => {
     const [name] = await entriesOf(archive.stream);
     expect(name).not.toContain('..');
     expect(name?.startsWith('/')).toBe(false);
+  });
+});
+
+describe('archiveFileName', () => {
+  it('names the download after the document, so three runs are tellable apart', () => {
+    // Every run used to download as impressive-ocr-results.zip, then (1), then (2).
+    const name = archiveFileName([
+      { path: '/out/invoice-2411.md', documentName: 'invoice-2411.pdf' },
+      { path: '/out/invoice-2411.docx', documentName: 'invoice-2411.pdf' },
+    ]);
+
+    expect(name).toBe('invoice-2411.zip');
+  });
+
+  it('says how many others are in there when a run covered several documents', () => {
+    const name = archiveFileName([
+      { path: '/out/a.md', documentName: 'a.pdf' },
+      { path: '/out/b.md', documentName: 'b.pdf' },
+      { path: '/out/c.md', documentName: 'c.pdf' },
+    ]);
+
+    expect(name).toBe('a-and-2-more.zip');
+  });
+
+  it('strips what a filename may not contain', () => {
+    const name = archiveFileName([{ path: '/out/x.md', documentName: 'in/voi:ce "2024".pdf' }]);
+
+    expect(name).toBe('in-voice 2024.zip');
+  });
+
+  it('falls back when there is nothing to name it after', () => {
+    expect(archiveFileName([])).toBe('impressive-ocr-results.zip');
   });
 });

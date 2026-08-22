@@ -102,6 +102,31 @@ function sanitizeSegment(value: string): string {
   return cleaned.length > 0 ? cleaned : 'output';
 }
 
+/**
+ * What the downloaded file is called.
+ *
+ * Named after the first document rather than a constant: someone who runs Quick Mode three
+ * times in an afternoon ends up with `impressive-ocr-results.zip`, `(1)` and `(2)` in their
+ * downloads folder, and no way to tell which was the invoice. A count is appended when there
+ * is more than one document, because the first name alone would misrepresent the contents.
+ */
+export function archiveFileName(entries: readonly ArchiveEntry[]): string {
+  const documents = [...new Set(entries.map((entry) => entry.documentName))];
+  const first = documents[0];
+  if (first === undefined) {
+    return 'impressive-ocr-results.zip';
+  }
+
+  const stem = sanitizeSegment(
+    first.replace(new RegExp(`${escapeForRegExp(extname(first))}$`), ''),
+  );
+  return documents.length > 1 ? `${stem}-and-${documents.length - 1}-more.zip` : `${stem}.zip`;
+}
+
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /** Keep names unique, because a ZIP with two identical entries extracts unpredictably. */
 function uniqueName(name: string, used: Set<string>): string {
   if (!used.has(name)) {

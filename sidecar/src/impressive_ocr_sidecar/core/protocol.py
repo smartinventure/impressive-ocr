@@ -47,7 +47,6 @@ class EngineOptions(BaseModel):
     profile: Literal["accurate", "fast"] = "fast"
     device: Literal["auto", "gpu", "cpu"] = "auto"
     language: str = "auto"
-    model_tier: Literal["tiny", "small", "medium"] = Field(default="medium", alias="modelTier")
     raster_dpi: int = Field(default=200, alias="rasterDpi")
     max_pages_per_document: int = Field(default=0, alias="maxPagesPerDocument")
     modules: EngineModules = Field(default_factory=EngineModules)

@@ -10,7 +10,7 @@ import {
 } from '@impressive-ocr/shared';
 import { createId } from '../../infra/ids';
 import { QuickRunError } from '../../modules/quick/quick-run-service';
-import { buildResultArchive } from '../../modules/quick/result-archive';
+import { archiveFileName, buildResultArchive } from '../../modules/quick/result-archive';
 import type { AppServices } from '../../app-services';
 import type { AppFastify } from '../fastify-types';
 import { HttpError } from '../errors';
@@ -161,7 +161,7 @@ export function registerQuickRoutes(app: AppFastify, services: AppServices): voi
     return (
       reply
         .header('content-type', 'application/zip')
-        .header('content-disposition', 'attachment; filename="impressive-ocr-results.zip"')
+        .header('content-disposition', `attachment; filename="${archiveFileName(outputs)}"`)
         // No length header: the archive is streamed, and buffering it to measure would defeat
         // the point on a large run.
         .send(archive.stream)

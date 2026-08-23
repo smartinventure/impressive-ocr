@@ -68,7 +68,11 @@ win:
   target:
     - target: nsis
       arch: [x64]
-  icon: build/icons/icon.png
+  # A real .ico, not the PNG. Windows wants the authored multi-size icon (16 through 256), and
+  # NSIS in particular refuses anything else outright: handed a PNG, makensis fails with
+  # "invalid icon file" while building the uninstaller, long after the app itself has packaged
+  # fine. The mac and linux entries below stay PNG-based, which is what those targets want.
+  icon: build/icons/icon.ico
   # Code signing is deliberately absent here.
   #
   # Azure Trusted Signing is injected by the release workflow as `-c.win.azureSignOptions.*`
@@ -87,8 +91,8 @@ nsis:
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: Impressive OCR
-  installerIcon: build/icons/icon.png
-  uninstallerIcon: build/icons/icon.png
+  installerIcon: build/icons/icon.ico
+  uninstallerIcon: build/icons/icon.ico
   license: ../../LICENSE
   # Leaves the user's pipelines, database and downloaded models in place on uninstall unless
   # they ask otherwise — silently deleting gigabytes of models and a job history would be a

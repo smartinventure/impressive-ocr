@@ -40,7 +40,19 @@ __pycache__/
 *.log
 
 # Bundled binaries fetched at build time. Run `node deploy/fetch-uv.mjs` after cloning.
-vendor/uv/
+# One directory per architecture — see the comment in deploy/fetch-uv.mjs.
+vendor/uv-*/
+
+# Internal notes and working material — not part of what the project distributes.
+#
+# Anchored with a leading slash, like the runtime directories above and for the same reason:
+# unanchored, `docs/` would also swallow a `docs/` folder inside any package. These two are
+# specifically the ones at the repository root.
+#
+# Nothing here is required by the AGPL — the licence covers the source that produces the
+# binary, not the working notes beside it.
+/docs/
+/_resources/
 
 # Editors / OS
 .vscode/*

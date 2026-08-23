@@ -1,0 +1,136 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+name: Verify Windows signing
+
+# Manual only. This exists so the signing setup can be proved before a release depends on it.
+#
+# The release workflow deliberately treats missing credentials as "build unsigned and warn",
+# so that forks and pull requests still work. The cost of that choice is that a
+# misconfiguration there does not fail — it publishes an unsigned installer under the
+# permanent `latest` links. This job inverts the rule: signing is the only thing it does, so
+# anything short of a valid signature is an error.
+#
+# Nothing is tagged, released or pushed. The installer is kept as a short-lived artifact so it
+# can be inspected by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: '22'
+  PNPM_VERSION: '9.15.4'
+
+jobs:
+  sign:
+    name: Build and sign a Windows installer
+    runs-on: windows-latest
+    env:
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+    steps:
+      - name: The credentials must be present
+        # Checked first, before twenty minutes of building. An empty value here is the most
+        # common setup mistake: saved on the Variables tab instead of Secrets, saved as an
+        # environment secret, or the name misspelt. All three look identical from in here.
+        shell: bash
+        run: |
+          set -eu
+          missing=""
+          [ -n "${AZURE_TENANT_ID:-}" ]     || missing="$missing AZURE_TENANT_ID(secret)"
+          [ -n "${AZURE_CLIENT_ID:-}" ]     || missing="$missing AZURE_CLIENT_ID(secret)"
+          [ -n "${AZURE_CLIENT_SECRET:-}" ] || missing="$missing AZURE_CLIENT_SECRET(secret)"
+          [ -n "${{ vars.AZURE_SIGNING_ENDPOINT }}" ]     || missing="$missing AZURE_SIGNING_ENDPOINT(variable)"
+          [ -n "${{ vars.AZURE_CODE_SIGNING_ACCOUNT }}" ] || missing="$missing AZURE_CODE_SIGNING_ACCOUNT(variable)"
+          [ -n "${{ vars.AZURE_CERT_PROFILE }}" ]         || missing="$missing AZURE_CERT_PROFILE(variable)"
+          [ -n "${{ vars.AZURE_PUBLISHER_NAME }}" ]       || missing="$missing AZURE_PUBLISHER_NAME(variable)"
+          if [ -n "$missing" ]; then
+            echo "::error::Not configured:$missing"
+            exit 1
+          fi
+          echo "endpoint : ${{ vars.AZURE_SIGNING_ENDPOINT }}"
+          echo "account  : ${{ vars.AZURE_CODE_SIGNING_ACCOUNT }}"
+          echo "profile  : ${{ vars.AZURE_CERT_PROFILE }}"
+          echo "publisher: ${{ vars.AZURE_PUBLISHER_NAME }}"
+
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the web UI
+        run: pnpm --filter @impressive-ocr/web build
+
+      - name: Fetch the bundled uv binary
+        run: node deploy/fetch-uv.mjs --target win --arch x64
+
+      - name: Package and sign
+        # Identical to the release workflow's signed path, so a pass here means that path
+        # works too.
+        shell: bash
+        run: |
+          pnpm --filter @impressive-ocr/desktop package --win \
+            -c.win.azureSignOptions.endpoint="${{ vars.AZURE_SIGNING_ENDPOINT }}" \
+            -c.win.azureSignOptions.codeSigningAccountName="${{ vars.AZURE_CODE_SIGNING_ACCOUNT }}" \
+            -c.win.azureSignOptions.certificateProfileName="${{ vars.AZURE_CERT_PROFILE }}" \
+            -c.win.azureSignOptions.publisherName="${{ vars.AZURE_PUBLISHER_NAME }}"
+
+      - name: The installer must carry a valid, timestamped signature
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+
+          $exe = Get-ChildItem dist/release -Filter *.exe -Recurse |
+            Where-Object { $_.Name -notlike '*elevate*' } |
+            Select-Object -First 1
+          if (-not $exe) { throw 'No installer was produced.' }
+          Write-Host "Checking $($exe.Name)"
+
+          $sig = Get-AuthenticodeSignature $exe.FullName
+          Write-Host "Status : $($sig.Status)"
+          Write-Host "Subject: $($sig.SignerCertificate.Subject)"
+
+          if ($sig.Status -ne 'Valid') {
+            throw "Signature status is '$($sig.Status)', expected 'Valid'."
+          }
+
+          # Trusted Signing certificates are deliberately short-lived - days, not years - and
+          # rotate automatically. Only the RFC 3161 timestamp keeps an installer trusted past
+          # that window, so an untimestamped signature is a release that expires almost
+          # immediately. Worth failing on, because nothing else would notice.
+          if (-not $sig.TimeStamperCertificate) {
+            throw 'The signature carries no timestamp; it would stop validating within days.'
+          }
+          Write-Host "Timestamped by: $($sig.TimeStamperCertificate.Subject)"
+
+          # The common name is compared rather than the whole DN: .NET and the Azure portal do
+          # not always render the other components identically, and a false failure here would
+          # be worse than the narrower check. electron-updater does the full comparison at
+          # update time, which is where it actually matters.
+          function Get-Cn([string]$dn) {
+            if ($dn -match 'CN=([^,]+)') { return $Matches[1].Trim() }
+            return $dn.Trim()
+          }
+          $signed   = Get-Cn $sig.SignerCertificate.Subject
+          $expected = Get-Cn '${{ vars.AZURE_PUBLISHER_NAME }}'
+          if ($signed -ne $expected) {
+            throw "Signed as '$signed' but AZURE_PUBLISHER_NAME says '$expected'. Updates would be rejected on users' machines."
+          }
+
+          Write-Host "OK - signed as '$signed', timestamped, status Valid."
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-installer-for-inspection
+          path: dist/release/*.exe
+          if-no-files-found: error
+          # Short: this is a test build, not something anyone should install from.
+          retention-days: 3

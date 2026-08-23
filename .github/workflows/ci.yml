@@ -147,3 +147,69 @@ jobs:
           push: false
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  desktop:
+    name: Electron app packages
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the web UI
+        run: pnpm --filter @impressive-ocr/web build
+
+      - name: Fetch the bundled uv binary
+        run: node deploy/fetch-uv.mjs --target linux --arch x64
+
+      - name: Package (unpacked)
+        # `--dir` stops before building an installer, which is the slow half and the half that
+        # differs per platform. What it does still exercise is everything that has actually
+        # broken here: the esbuild bundle, the asar, the native rebuild of better-sqlite3
+        # against Electron's ABI, and whether extraResources resolve at all.
+        run: pnpm --filter @impressive-ocr/desktop package --dir
+
+      - name: The app must contain everything it needs at runtime
+        # Packaging succeeds happily with an extraResources entry pointing at nothing, and the
+        # result is an app that installs and then fails on first launch looking for its SPA or
+        # its migrations. Each of these is a path in electron-builder.yml that a refactor can
+        # silently invalidate - vendor/uv-<arch> already moved once.
+        run: |
+          set -eu
+          root="$(find dist/release -maxdepth 1 -name '*-unpacked' -type d | head -1)"
+          [ -n "$root" ] || { echo "::error::No unpacked app was produced."; exit 1; }
+          echo "Checking $root"
+
+          missing=""
+          for item in             resources/web/index.html             resources/migrations             resources/sidecar/pyproject.toml             resources/app.asar
+          do
+            if [ -e "$root/$item" ]; then
+              echo "  ok      $item"
+            else
+              echo "  MISSING $item"
+              missing="$missing $item"
+            fi
+          done
+
+          # Named explicitly rather than as `resources/uv/uv`, because Git Bash resolves a
+          # bare name to its .exe and would report a file that is not there. Only Linux runs
+          # this job today, but a silent pass is the wrong thing to leave lying around.
+          if [ -e "$root/resources/uv/uv" ] || [ -e "$root/resources/uv/uv.exe" ]; then
+            echo "  ok      resources/uv/uv[.exe]"
+          else
+            echo "  MISSING resources/uv/uv[.exe]"
+            missing="$missing resources/uv/uv"
+          fi
+
+          if [ -n "$missing" ]; then
+            echo "::error::The packaged app is missing:$missing"
+            exit 1
+          fi

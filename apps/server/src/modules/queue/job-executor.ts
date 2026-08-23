@@ -66,6 +66,7 @@ export class JobExecutor {
         engine: pipeline.options.engine,
         textLayerStrategy: pipeline.options.textLayerStrategy,
         formats: pipeline.options.output.formats,
+        txtEncoding: pipeline.options.output.txtEncoding,
       };
 
       const produced = await this.stream(job, pipeline, request, resolution.profile, signal);

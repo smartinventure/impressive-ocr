@@ -275,7 +275,7 @@ show_environment() {
 
   head_ '  IMPRESSIVE_OCR_UV_BINARY'
   echo   "    now      ${IMPRESSIVE_OCR_UV_BINARY:-(unset)}"
-  dim_   '    default  <repo>/vendor/uv/uv[.exe]'
+  dim_   '    default  <repo>/vendor/uv-<arch>/uv[.exe]'
   dim_   '    uv builds the Python runtime. vendor/ is gitignored and fetched at build'
   dim_   '    time, so a fresh clone must supply it before the runtime can install.'
   echo

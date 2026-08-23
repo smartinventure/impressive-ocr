@@ -166,7 +166,13 @@
     "activeFrom": "From",
     "activeUntil": "Until",
     "optionsRecovered": "Some settings could not be read and were reset to their defaults. Check them before saving.",
-    "loadFailed": "This pipeline could not be loaded."
+    "loadFailed": "This pipeline could not be loaded.",
+    "encoding": "Plain-text encoding",
+    "encodingUtf8": "UTF-8",
+    "encodingUtf8Bom": "UTF-8 with BOM (for Excel)",
+    "encodingLatin1": "Latin-1 (ISO 8859-1)",
+    "encodingHint": "Affects the .txt file only. Choose BOM if Excel garbles umlauts; Latin-1 only for legacy systems, as characters outside it cannot be written.",
+    "sectionExpert": "Expert settings"
   },
   "moduleTone": {
     "slow": "slower",
@@ -191,7 +197,9 @@
     "xlsxHint": "tables only",
     "html": "HTML",
     "searchablePdf": "Searchable PDF",
-    "searchablePdfHint": "The original scan, with the recognised text laid invisibly on top so it can be selected and searched."
+    "searchablePdfHint": "The original scan, with the recognised text laid invisibly on top so it can be selected and searched.",
+    "visualization": "Overlay image",
+    "visualizationHint": "a PNG per page showing what was detected"
   },
   "detail": {
     "pause": "Pause",
@@ -402,5 +410,37 @@
     "done": "Done",
     "paused": "Paused",
     "loadFailed": "The dashboard could not be loaded."
+  },
+  "expert": {
+    "intro": "Leave a field empty to use PaddleOCR’s own default. These are rarely needed — change one at a time and re-run a known document.",
+    "unset": "default ({value})",
+    "reset": "Reset all to defaults",
+    "recScore": "Minimum text confidence",
+    "recScoreHint": "Discard recognised text below this score. PaddleOCR keeps everything by default, so raising this removes noise from messy scans.",
+    "detBox": "Text box confidence",
+    "detBoxHint": "How sure the detector must be to keep a box. Lower it for faint or low-contrast scans.",
+    "detThresh": "Detection threshold",
+    "detThreshHint": "Pixel threshold on the detection map. Lower finds fainter strokes.",
+    "unclip": "Box expansion",
+    "unclipHint": "How far boxes grow around detected text. Too small clips characters; too large merges neighbouring words.",
+    "sideLen": "Detection resolution",
+    "sideLenHint": "Pixels on the shorter side the detector works at. Raise it for small print — pointless unless the scan DPI is high enough to match.",
+    "layoutThreshold": "Layout confidence",
+    "layoutThresholdHint": "How sure the layout model must be to accept a region. Lower finds more blocks, including spurious ones.",
+    "ignoreLabels": "Leave out of Markdown",
+    "ignoreLabelsHint": "Block types to drop from the Markdown output, such as running headers, footers and page numbers. Other formats are unaffected."
+  },
+  "update": {
+    "title": "Application updates",
+    "current": "Version {version}",
+    "checking": "Checking for updates…",
+    "available": "Version {version} is available.",
+    "downloading": "Downloading the update…",
+    "upToDate": "Version {version} is the latest.",
+    "failed": "The update check failed.",
+    "check": "Check now",
+    "download": "Download",
+    "install": "Restart and install",
+    "releaseNotes": "Release notes"
   }
 }

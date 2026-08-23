@@ -79,5 +79,33 @@ export function useDesktopBridge() {
     async showInFolder(path: string): Promise<void> {
       await bridge.value?.showInFolder(path);
     },
+
+    /** The running version, or null in a browser where there is no packaged app. */
+    async getVersion(): Promise<string | null> {
+      return bridge.value === null ? null : bridge.value.getVersion();
+    },
+
+    /**
+     * Updates, which exist only in the desktop app.
+     *
+     * The headless server deliberately has no equivalent: it is managed by a package manager
+     * or baked into an image, where an app that overwrites itself is actively wrong.
+     */
+    async checkForUpdate(): Promise<UpdateStatus | null> {
+      return bridge.value === null ? null : bridge.value.checkForUpdate();
+    },
+
+    async downloadUpdate(): Promise<void> {
+      await bridge.value?.downloadUpdate();
+    },
+
+    async installUpdate(): Promise<void> {
+      await bridge.value?.installUpdate();
+    },
+
+    /** Returns an unsubscribe function; a no-op in a browser, so callers need no branch. */
+    onUpdateStatus(listener: (status: UpdateStatus) => void): () => void {
+      return bridge.value?.onUpdateStatus(listener) ?? (() => undefined);
+    },
   };
 }

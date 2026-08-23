@@ -16,13 +16,35 @@ from typing import Any
 
 from ..core.errors import CorruptDocumentError, EngineLoadError
 from ..core.logging import get_logger
-from ..core.protocol import EngineModules, EngineOptions
+from ..core.protocol import AdvancedEngineOptions, EngineModules, EngineOptions
 from ..pipeline.document import inspect as inspect_document
 from ..pipeline.rasterize import page_numbers, rendered_page
 from .base import PageResult
 from .result_adapter import to_page_result
 
 _logger = get_logger()
+
+
+#: Detection and recognition models, pinned rather than left to PaddleOCR's defaults.
+#:
+#: PP-StructureV3 defaults to PP-OCRv5_server_det/_rec. Measured against PP-OCRv6_medium on
+#: the two sample documents, same pixels, 200 DPI:
+#:
+#:   English scan   lost word boundaries 14 -> 2, words recovered 306 -> 379
+#:   German scan    umlauts and eszett recognised 33 -> 50 occurrences. v5 was reading
+#:                  "gross" for "groß" and "bestatigen" for "bestätigen" -- not near misses
+#:                  but wrong words, on every page of German text.
+#:   Speed          GPU 16.3s -> 6.0s, CPU 194.8s -> 117.2s per page
+#:
+#: CPU and GPU produced byte-identical text in that comparison, so this is not a GPU-only
+#: win. v6_medium is also the smaller model (76 MB against 84 MB) and its character set is a
+#: superset of v5_server's, so nothing that recognised before stops recognising.
+#:
+#: Pinned, not merely chosen, because leaving them unset means the models silently change
+#: under an existing install on any PaddleOCR upgrade -- which is how this codebase came to
+#: claim PP-OCRv6 in a docstring while actually running v5.
+_TEXT_DETECTION_MODEL = "PP-OCRv6_medium_det"
+_TEXT_RECOGNITION_MODEL = "PP-OCRv6_medium_rec"
 
 
 class StructureEngine:
@@ -62,6 +84,8 @@ class StructureEngine:
             self._pipeline = PPStructureV3(
                 device=self._device,
                 enable_mkldnn=_mkldnn_enabled(),
+                text_detection_model_name=_TEXT_DETECTION_MODEL,
+                text_recognition_model_name=_TEXT_RECOGNITION_MODEL,
                 **build_module_kwargs(self._modules),
             )
         except ImportError as error:
@@ -71,7 +95,13 @@ class StructureEngine:
 
         _logger.info(
             "PP-StructureV3 loaded",
-            extra={"device": self._device, "paddleocrVersion": self._version},
+            extra={
+                "device": self._device,
+                "paddleocrVersion": self._version,
+                # Logged because it is the first thing to check when recognition quality
+                # changes between releases.
+                "textRecognitionModel": _TEXT_RECOGNITION_MODEL,
+            },
         )
 
     def version(self) -> str:
@@ -88,9 +118,12 @@ class StructureEngine:
             self.load()
         assert self._pipeline is not None
 
-        # Module toggles only. `page_num` belongs to the whole-document path, which this no
-        # longer uses.
-        predict_kwargs = build_module_kwargs(options.modules)
+        # Module toggles plus any expert overrides. `page_num` belongs to the whole-document
+        # path, which this no longer uses.
+        predict_kwargs = {
+            **build_module_kwargs(options.modules),
+            **build_advanced_kwargs(options.advanced),
+        }
 
         total = _page_count(source)
         if total <= 1 and source.suffix.lower() != ".pdf":
@@ -211,9 +244,27 @@ def build_module_kwargs(modules: EngineModules) -> dict[str, Any]:
     }
 
 
+def build_advanced_kwargs(advanced: AdvancedEngineOptions) -> dict[str, Any]:
+    """The expert overrides the pipeline actually set, and nothing else.
+
+    ``exclude_none`` is the entire point. Sending ``text_rec_score_thresh=None`` happens to
+    mean the same as omitting it in PaddleOCR today, but a pipeline that leaves a knob alone
+    should not depend on that staying true — nor should it pin a value we merely assumed was
+    the default.
+
+    A free function so the mapping is unit-testable without PaddleOCR installed: a typo here
+    would silently stop an expert setting from having any effect at all, which is precisely
+    the class of bug this panel invites.
+    """
+    return advanced.model_dump(exclude_none=True)
+
+
 def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
     """Keyword arguments for one ``predict()`` call."""
-    kwargs = build_module_kwargs(options.modules)
+    kwargs = {
+        **build_module_kwargs(options.modules),
+        **build_advanced_kwargs(options.advanced),
+    }
     if options.max_pages_per_document > 0:
         kwargs["page_num"] = options.max_pages_per_document
     return kwargs

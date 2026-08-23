@@ -62,6 +62,42 @@ jobs:
       - name: Build the web UI
         run: pnpm --filter @impressive-ocr/web build
 
+      - name: Package the headless server
+        # The release workflow is the only other place this runs, and there it runs for the
+        # first time on a tag — where a broken packaging script means a failed release rather
+        # than a failed pull request. `uv` is fetched because the payload embeds it.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          node deploy/fetch-uv.mjs --target server --arch x64
+          node deploy/package-server.mjs --arch x64
+
+      - name: The packaged server must actually start
+        # Packaging can succeed while producing something that cannot run: a missing
+        # migration directory, an unresolvable native module, a launcher pointing at the
+        # wrong path. None of that shows up until someone unpacks it.
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -eu
+          mkdir -p /tmp/smoke && tar -xzf dist/release/*.tar.gz -C /tmp/smoke
+          root="$(find /tmp/smoke -maxdepth 1 -mindepth 1 -type d)"
+
+          IMPRESSIVE_OCR_DATA_DIR=/tmp/smoke-data "$root/bin/impressive-ocr-server" &
+          server=$!
+          trap 'kill "$server" 2>/dev/null || true' EXIT
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8084/api/health > /tmp/health.json; then
+              echo "Health: $(cat /tmp/health.json)"
+              curl -fsS -o /dev/null http://127.0.0.1:8084/
+              echo "The SPA is served."
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "::error::The packaged server never became healthy."
+          exit 1
+
   sidecar:
     name: Python sidecar
     runs-on: ubuntu-latest
@@ -91,3 +127,23 @@ jobs:
       - name: Test
         working-directory: sidecar
         run: pytest -q
+
+  docker:
+    name: Container image builds
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build (no push)
+        # Not pushed and not tagged for release - this only has to prove the Dockerfile still
+        # builds. Pushing happens in release.yml, on a tag.
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: linux/amd64
+          push: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

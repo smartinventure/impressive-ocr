@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import type { RuntimeInstallPlan, SidecarReleaseResult } from '@impressive-ocr/shared';
 import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
+import UpdateCard from '../components/update-card.vue';
 
 /**
  * System status, and the place the OCR runtime gets installed.
@@ -101,6 +102,9 @@ onMounted(async () => {
 <template>
   <div class="system">
     <h1 class="system__title">{{ t('nav.status') }}</h1>
+
+    <!-- Desktop only; renders nothing in a browser or on the headless server. -->
+    <update-card />
 
     <!-- Runtime -->
     <v-card class="pa-5 mb-4">

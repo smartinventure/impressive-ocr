@@ -1,7 +1,9 @@
 # deploy/
 
-Release tooling. See [`docs/releasing.md`](../docs/releasing.md) for the build matrix, the
-`latest` download URLs and the update mechanism.
+Release tooling.
+
+Cutting a release, the build matrix, code signing and the `latest` download links are
+described in the maintainers' notes, which are kept outside the published tree.
 
 ## Cutting a release
 
@@ -60,6 +62,25 @@ feed, so it could never see itself as up to date. Always go through these script
 |---|---|
 | `release.ps1` / `release.sh` | Cut a release: bump, check, commit, tag, push |
 | `set-version.mjs` | Writes one version into every file that carries it |
-| `fetch-uv.mjs` | Downloads the pinned `uv` binary for the target platform |
-| `package-server.mjs` | Builds the headless server tarball (no Electron) |
-| `make-stable-aliases.mjs` | Adds unversioned copies for the `latest` download URLs |
+| `fetch-uv.mjs` | Downloads the pinned `uv` binary into `vendor/uv-<arch>/` |
+| `package-server.mjs` | Builds the headless payload — a tarball, or `--stage-only` for the image |
+| `make-stable-aliases.mjs` | Flattens the build artifacts and adds the `latest` copies |
+| `check-tracked-sources.mjs` | Fails if a source file is excluded by `.gitignore` |
+| `docker/Dockerfile` | The headless server image |
+| `docker/docker-compose.yml` | A worked example for operators |
+
+## Building the pieces by hand
+
+Every CI step is one of these scripts, run the same way:
+
+```sh
+pnpm --filter @impressive-ocr/web build
+
+node deploy/fetch-uv.mjs --target server --arch x64
+node deploy/package-server.mjs --arch x64          # dist/release/*.tar.gz
+
+docker build -f deploy/docker/Dockerfile -t impressive-ocr .
+```
+
+Build release archives on Linux — packaging on Windows cannot record the POSIX executable bit,
+so the launcher inside the tarball comes out unrunnable. The script warns when it notices.

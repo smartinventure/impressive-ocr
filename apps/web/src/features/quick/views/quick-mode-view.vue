@@ -33,6 +33,12 @@ const FORMATS: { value: OutputFormat; labelKey: string }[] = [
   { value: 'searchable-pdf', labelKey: 'format.searchablePdf' },
 ];
 
+/** The sole selected format, if only one is left. Its chip is disabled rather than inert. */
+function isLastSelectedFormat(format: OutputFormat): boolean {
+  const current = quick.options.value.formats;
+  return current.length === 1 && current[0] === format;
+}
+
 function toggleFormat(format: OutputFormat): void {
   const current = quick.options.value.formats;
   // Never let the last one go: a run producing nothing is not a state worth allowing.
@@ -99,7 +105,7 @@ function toggleFormat(format: OutputFormat): void {
             :key="format.value"
             :color="quick.options.value.formats.includes(format.value) ? 'primary' : undefined"
             :variant="quick.options.value.formats.includes(format.value) ? 'flat' : 'outlined'"
-            :disabled="quick.busy.value"
+            :disabled="quick.busy.value || isLastSelectedFormat(format.value)"
             label
             @click="toggleFormat(format.value)"
           >

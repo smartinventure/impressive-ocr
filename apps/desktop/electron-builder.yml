@@ -22,7 +22,9 @@ extraResources:
     to: web
   # `uv` installs Python and PaddleOCR on first run. Outside the asar because an executable
   # inside an asar archive cannot be spawned.
-  - from: ../../vendor/uv
+  # ${arch} is expanded per build, which is what lets one macOS run produce an arm64 and an
+  # x64 app that each carry the right binary. Lands at `uv/` inside the app either way.
+  - from: ../../vendor/uv-${arch}
     to: uv
   - from: build/icons
     to: icons
@@ -48,8 +50,13 @@ asarUnpack:
   - '**/*.node'
 
 # Versioned names, which is what electron-updater writes into latest.yml. The stable aliases
-# the website links to are added afterwards by deploy/make-stable-aliases.mjs.
-artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+# the website links to are added afterwards by deploy/make-stable-aliases.mjs, which simply
+# removes the version segment — so the two names must differ by nothing else.
+#
+# Spelled out rather than ${productName}, because that contains a space and this string
+# becomes a download URL. "Impressive%20OCR-1.0.0-win-x64.exe" is a link nobody wants to put
+# on a website or paste into a terminal.
+artifactName: Impressive-OCR-${version}-${os}-${arch}.${ext}
 
 publish:
   provider: github
@@ -62,9 +69,16 @@ win:
     - target: nsis
       arch: [x64]
   icon: build/icons/icon.png
+  # Code signing is deliberately absent here.
+  #
+  # Azure Trusted Signing is injected by the release workflow as `-c.win.azureSignOptions.*`
+  # (electron-builder deep-merges CLI config over this file). Declaring it statically would
+  # make every local `pnpm package` and every fork's build attempt to reach an Azure endpoint
+  # it has no credentials for, and fail — instead of quietly producing an unsigned build,
+  # which is exactly what a developer wants.
   # ARM64 is deliberately absent: PaddlePaddle publishes no win-arm64 wheels, so a native
   # build would install and then fail at the runtime bootstrap. Windows on ARM runs the x64
-  # build under Prism emulation instead. See docs/releasing.md.
+  # build under Prism emulation instead, which is slower but correct.
 
 nsis:
   oneClick: false
@@ -85,6 +99,11 @@ nsis:
 mac:
   target:
     - target: dmg
+      arch: [arm64, x64]
+    # The zip is not a second download for users — it is what electron-updater installs from.
+    # Its macOS updater cannot read a .dmg, so a release with only the dmg builds cleanly,
+    # publishes cleanly, and then silently never updates anyone.
+    - target: zip
       arch: [arm64, x64]
   icon: build/icons/icon.png
   category: public.app-category.productivity

@@ -15,6 +15,7 @@ import { ApiRequestError } from '../../../api/client';
 import { pipelinesApi } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 import FolderPickerField from '../../../components/folder-picker-field.vue';
+import ExpertSettingsPanel from '../components/expert-settings-panel.vue';
 
 /**
  * The pipeline editor — around thirty settings across eight groups.
@@ -59,6 +60,11 @@ const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
     labelKey: 'format.searchablePdf',
     hintKey: 'format.searchablePdfHint',
   },
+  {
+    value: 'visualization',
+    labelKey: 'format.visualization',
+    hintKey: 'format.visualizationHint',
+  },
 ];
 
 /** Module toggles, with the speed cost stated inline — these turn 20 minutes into 3 hours. */
@@ -92,11 +98,30 @@ const accurateUnavailableMessage = computed(() => {
   });
 });
 
+/**
+ * The one selected format, when there is only one.
+ *
+ * Its chip is disabled rather than merely inert: a click that silently does nothing reads as
+ * a broken control, while a disabled chip says "this is the last one" without a sentence of
+ * explanation.
+ */
+function isLastSelectedFormat(format: OutputFormat): boolean {
+  const current = options.value.output.formats;
+  return current.length === 1 && current[0] === format;
+}
+
 function toggleFormat(format: OutputFormat): void {
   const current = options.value.output.formats;
-  options.value.output.formats = current.includes(format)
-    ? current.filter((item) => item !== format)
-    : [...current, format];
+  if (!current.includes(format)) {
+    options.value.output.formats = [...current, format];
+    return;
+  }
+  // Guarded as well as disabled. `formats` is `.min(1)` in the schema, so emptying it would
+  // fail validation only on save — after the user had filled in the whole form.
+  if (current.length === 1) {
+    return;
+  }
+  options.value.output.formats = current.filter((item) => item !== format);
 }
 
 async function save(): Promise<void> {
@@ -321,13 +346,19 @@ onMounted(async () => {
 
             <div class="editor__modules-title">{{ t('editor.formats') }}</div>
             <div class="editor__formats">
+              <!-- No `model-value` here, deliberately. On VChip that prop is the chip's own
+                   visibility: `isActive.value && createVNode(...)`, so binding it to "is this
+                   format selected" made every *unselected* format render nothing. Only the two
+                   defaults were ever visible, and because a hidden chip cannot be clicked, a
+                   format could be removed from a pipeline but never added back. Selection is
+                   shown by variant and colour instead, as Quick Mode already does. -->
               <v-chip
                 v-for="format in FORMATS"
                 :key="format.value"
                 :variant="options.output.formats.includes(format.value) ? 'flat' : 'outlined'"
                 :color="options.output.formats.includes(format.value) ? 'primary' : undefined"
-                filter
-                :model-value="options.output.formats.includes(format.value)"
+                :disabled="isLastSelectedFormat(format.value)"
+                label
                 @click="toggleFormat(format.value)"
               >
                 {{ t(format.labelKey) }}
@@ -353,6 +384,22 @@ onMounted(async () => {
                 { value: 'skip', title: t('editor.collisionSkip') },
               ]"
               :label="t('editor.collision')"
+              class="mt-4"
+            />
+
+            <!-- Only meaningful when a .txt is actually being written; no other writer reads
+                 it. Shown unconditionally it would be a setting that silently does nothing. -->
+            <v-select
+              v-if="options.output.formats.includes('txt')"
+              v-model="options.output.txtEncoding"
+              :items="[
+                { value: 'utf-8', title: t('editor.encodingUtf8') },
+                { value: 'utf-8-bom', title: t('editor.encodingUtf8Bom') },
+                { value: 'latin-1', title: t('editor.encodingLatin1') },
+              ]"
+              :label="t('editor.encoding')"
+              :hint="t('editor.encodingHint')"
+              persistent-hint
               class="mt-4"
             />
           </v-expansion-panel-text>
@@ -451,6 +498,19 @@ onMounted(async () => {
                 type="time"
               />
             </div>
+          </v-expansion-panel-text>
+        </v-expansion-panel>
+
+        <!-- Last, and closed unless someone deliberately opens it. Every field here is a
+             footgun: a nudged threshold produces a quality complaint weeks later with no
+             obvious cause, so it is kept away from the settings people are meant to touch. -->
+        <v-expansion-panel value="expert">
+          <v-expansion-panel-title>
+            <v-icon icon="tune" size="20" class="mr-3" />
+            {{ t('editor.sectionExpert') }}
+          </v-expansion-panel-title>
+          <v-expansion-panel-text>
+            <expert-settings-panel v-model="options.engine.advanced" />
           </v-expansion-panel-text>
         </v-expansion-panel>
       </v-expansion-panels>

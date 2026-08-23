@@ -62,10 +62,20 @@ node_install_hint() {
   esac
 }
 
+# The vendor directory is per-architecture, because one macOS build produces both an arm64
+# and an x64 app and each needs its own binary. Mirrors deploy/fetch-uv.mjs.
+uv_arch() {
+  case "$(uname -m)" in
+    arm64 | aarch64) printf 'arm64' ;;
+    *) printf 'x64' ;;
+  esac
+}
+
 uv_path() {
   local uv="${IMPRESSIVE_OCR_UV_BINARY:-}"
   if [ -z "$uv" ]; then
-    if is_windows; then uv="$REPO_ROOT/vendor/uv/uv.exe"; else uv="$REPO_ROOT/vendor/uv/uv"; fi
+    local dir="$REPO_ROOT/vendor/uv-$(uv_arch)"
+    if is_windows; then uv="$dir/uv.exe"; else uv="$dir/uv"; fi
   fi
   printf '%s' "$uv"
 }

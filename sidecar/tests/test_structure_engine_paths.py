@@ -102,3 +102,19 @@ def test_an_image_is_passed_through_untouched(image: Path) -> None:
     list(engine.recognize(image, EngineOptions(rasterDpi=300)))
 
     assert pipeline.seen == [str(image)]
+
+
+class TestPinnedModels:
+    """The recognition model must stay pinned.
+
+    Left unset, PP-StructureV3 picks its own default — PP-OCRv5_server_rec, which mangles
+    German diacritics ("groB" for "groß", "bestatigen" for "bestätigen") and loses word
+    boundaries on English. That is exactly what this codebase shipped while its docstring
+    claimed PP-OCRv6, because nothing pinned the choice and nothing checked it.
+    """
+
+    def test_the_models_are_the_measured_v6_pair(self) -> None:
+        from impressive_ocr_sidecar.engines import structure_engine
+
+        assert structure_engine._TEXT_RECOGNITION_MODEL == "PP-OCRv6_medium_rec"
+        assert structure_engine._TEXT_DETECTION_MODEL == "PP-OCRv6_medium_det"

@@ -26,7 +26,7 @@ describe('request validation across the shared-package boundary', () => {
 
     expect(parsed.enabled).toBe(true);
     expect(parsed.options.engine.profile).toBe('fast');
-    expect(parsed.options.output.formats).toEqual(['markdown', 'json']);
+    expect(parsed.options.output.formats).toEqual(['markdown']);
     expect(parsed.options.textLayerStrategy).toBe('hybrid');
   });
 

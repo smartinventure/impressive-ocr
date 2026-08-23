@@ -79,7 +79,7 @@ def _run(request: JobRequest, engine: OcrEngine, started: float) -> Iterator[Sid
     # Build writers before any inference: an unsupported format should cost milliseconds,
     # not a full document's processing time.
     try:
-        writers = create_writers(request.formats)
+        writers = create_writers(request.formats, txt_encoding=request.txt_encoding)
     except UnsupportedFormatError as error:
         raise SidecarError(str(error)) from error
 

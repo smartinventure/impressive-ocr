@@ -19,18 +19,23 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
+  contents: read
 
 env:
   NODE_VERSION: '22'
   PYTHON_VERSION: '3.12'
+  PNPM_VERSION: '9.15.4'
 
 jobs:
+  # -------------------------------------------------------------------------------------
+  # Everything that can fail cheaply, before four platform builds spend twenty minutes each.
+  # -------------------------------------------------------------------------------------
   verify:
     name: Verify
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,29 +43,41 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.15.4
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - run: pnpm install --frozen-lockfile
 
-      - name: Resolve the version
+      - name: Resolve and check the version
         id: version
-        run: echo "version=$(node deploy/set-version.mjs --current)" >> "$GITHUB_OUTPUT"
-
-      - name: The tag must match the version in the tree
         run: |
+          set -eu
           TAG="${{ github.event.inputs.tag || github.ref_name }}"
-          VERSION="${{ steps.version.outputs.version }}"
+          VERSION="$(node deploy/set-version.mjs --current)"
+
           # A tag that disagrees with package.json ships an app whose updater compares the
-          # wrong number — it would never see itself as up to date.
+          # wrong number against the release feed — it could never see itself as up to date.
           if [ "$TAG" != "v$VERSION" ]; then
             echo "::error::Tag $TAG does not match version $VERSION. Use deploy/release.ps1 or release.sh."
             exit 1
           fi
 
+          # Releases start at 1.0.0. The tag pattern alone would happily accept v0.9.0, and a
+          # 0.x release would sort below every real one in the updater's comparison.
+          if [ "${VERSION%%.*}" -lt 1 ]; then
+            echo "::error::Version $VERSION is below 1.0.0; releases start at 1.0.0."
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG (version $VERSION)"
+
       - run: pnpm lint
+      - name: Check no source is excluded by .gitignore
+        run: pnpm check:sources
       - run: pnpm -r typecheck
       - run: pnpm -r test
 
@@ -74,22 +91,49 @@ jobs:
           mypy src
           pytest -q
 
+  # -------------------------------------------------------------------------------------
+  # One job per update feed.
+  #
+  # This is why macOS is a single job rather than one per architecture: electron-builder
+  # writes `latest-mac.yml` once per invocation, listing only that invocation's files. Two
+  # jobs would produce two files with the same name and different contents, and whichever
+  # uploaded last would decide which Macs can ever update.
+  # -------------------------------------------------------------------------------------
   build:
     name: ${{ matrix.label }}
     needs: verify
     runs-on: ${{ matrix.os }}
+    env:
+      # Read by the `if:` on the signing steps below. Secrets cannot be referenced from an
+      # `if:` directly, so they are lifted into the env context here.
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
     strategy:
       fail-fast: false
       matrix:
         include:
           # Windows ships x64 only. PaddlePaddle publishes no win-arm64 wheels, so a native
           # ARM64 build would install and then fail at the runtime bootstrap — a worse
-          # outcome than running under Prism emulation. See docs/releasing.md.
-          - { os: windows-latest, label: 'Windows x64', target: win, arch: x64 }
-          - { os: macos-latest, label: 'macOS arm64', target: mac, arch: arm64 }
-          - { os: macos-13, label: 'macOS x64', target: mac, arch: x64 }
-          - { os: ubuntu-latest, label: 'Linux x64', target: linux, arch: x64 }
-          - { os: ubuntu-latest, label: 'Server (headless)', target: server, arch: x64 }
+          # outcome than running under Prism emulation: PaddlePaddle installs its win_amd64
+          # wheel and Windows on ARM runs it, which is slow but correct.
+          - os: windows-latest
+            label: Windows x64
+            target: win
+            uv: 'win:x64'
+          # Both architectures from one run, so one latest-mac.yml covers both.
+          - os: macos-latest
+            label: macOS arm64 + x64
+            target: mac
+            uv: 'mac:arm64 mac:x64'
+          - os: ubuntu-latest
+            label: Linux x64 desktop
+            target: linux
+            uv: 'linux:x64'
+          - os: ubuntu-latest
+            label: Server x64 (headless)
+            target: server
+            uv: 'server:x64'
 
     steps:
       - uses: actions/checkout@v4
@@ -98,7 +142,7 @@ jobs:
 
       - uses: pnpm/action-setup@v4
         with:
-          version: 9.15.4
+          version: ${{ env.PNPM_VERSION }}
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
@@ -108,64 +152,196 @@ jobs:
       - name: Build the web UI
         run: pnpm --filter @impressive-ocr/web build
 
-      - name: Fetch the bundled uv binary
-        run: node deploy/fetch-uv.mjs --target ${{ matrix.target }} --arch ${{ matrix.arch }}
+      - name: Fetch the bundled uv binaries
+        # bash on every runner, Windows included, so this loop is written once. macOS needs
+        # two: `vendor/uv-${arch}` is resolved per build, so each app gets its own binary.
+        shell: bash
+        run: |
+          set -eu
+          for spec in ${{ matrix.uv }}; do
+            node deploy/fetch-uv.mjs --target "${spec%%:*}" --arch "${spec##*:}"
+          done
 
-      - name: Package the desktop app
-        if: matrix.target != 'server'
-        # Signing credentials are absent on forks and in dry runs; electron-builder then
-        # produces unsigned artifacts rather than failing the whole matrix.
+      - name: Package the Windows app (Azure Trusted Signing)
+        if: matrix.target == 'win' && env.AZURE_CLIENT_ID != ''
+        # electron-builder installs the TrustedSigning PowerShell module and calls
+        # Invoke-TrustedSigning; the three AZURE_* variables above are what its
+        # EnvironmentCredential reads. Passed on the command line rather than written into
+        # electron-builder.yml so that a local build, or a fork without these secrets, stays
+        # unsigned instead of failing against an endpoint it cannot reach.
+        shell: bash
+        run: |
+          pnpm --filter @impressive-ocr/desktop package --win \
+            -c.win.azureSignOptions.endpoint="${{ vars.AZURE_SIGNING_ENDPOINT }}" \
+            -c.win.azureSignOptions.codeSigningAccountName="${{ vars.AZURE_CODE_SIGNING_ACCOUNT }}" \
+            -c.win.azureSignOptions.certificateProfileName="${{ vars.AZURE_CERT_PROFILE }}" \
+            -c.win.azureSignOptions.publisherName="${{ vars.AZURE_PUBLISHER_NAME }}"
+
+      - name: Package the Windows app (unsigned)
+        if: matrix.target == 'win' && env.AZURE_CLIENT_ID == ''
+        # Reached on forks and before the certificate is configured. The installer works; it
+        # just triggers SmartScreen. Better than failing the whole release.
+        shell: bash
+        run: |
+          echo "::warning::AZURE_CLIENT_ID is not set - producing an UNSIGNED Windows build."
+          pnpm --filter @impressive-ocr/desktop package --win
+
+      - name: Package the macOS apps
+        if: matrix.target == 'mac'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.WINDOWS_CERT_BASE64 }}
-          CSC_KEY_PASSWORD: ${{ secrets.WINDOWS_CERT_PASSWORD }}
+          # Notarisation. Absent on forks, where electron-builder produces an unsigned build
+          # rather than failing.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: pnpm --filter @impressive-ocr/desktop package --${{ matrix.arch }}
+          CSC_LINK: ${{ secrets.APPLE_CERT_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+        run: pnpm --filter @impressive-ocr/desktop package --mac
+
+      - name: Package the Linux app
+        if: matrix.target == 'linux'
+        run: pnpm --filter @impressive-ocr/desktop package --linux
 
       - name: Package the headless server
         if: matrix.target == 'server'
-        run: node deploy/package-server.mjs --arch ${{ matrix.arch }}
+        run: node deploy/package-server.mjs --arch x64
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target }}-${{ matrix.arch }}
+          name: ${{ matrix.target }}
+          # Named explicitly rather than `dist/release/**`: electron-builder also leaves
+          # `win-unpacked/`, `mac/` and `linux-unpacked/` there, which are gigabytes of
+          # intermediate output that must never reach a release.
           path: |
-            dist/release/**
+            dist/release/*.exe
+            dist/release/*.exe.blockmap
+            dist/release/*.dmg
+            dist/release/*.dmg.blockmap
+            dist/release/*.zip
+            dist/release/*.AppImage
+            dist/release/*.deb
+            dist/release/*.tar.gz
+            dist/release/latest*.yml
           if-no-files-found: error
           retention-days: 7
 
-  publish:
-    name: Publish the release
-    needs: [verify, build]
+  # -------------------------------------------------------------------------------------
+  # Container image for the headless server.
+  # -------------------------------------------------------------------------------------
+  docker:
+    name: Container image
+    needs: verify
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.tag || github.ref }}
 
-      - uses: actions/download-artifact@v4
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
         with:
-          path: artifacts
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # The built-in token. GHCR needs no separate credential, which is most of why the
+          # image lives here rather than on Docker Hub.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          # `value=` is given explicitly because a workflow_dispatch run is not on a tag ref,
+          # and the semver patterns would otherwise have nothing to read.
+          tags: |
+            type=semver,pattern={{version}},value=${{ needs.verify.outputs.tag }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ needs.verify.outputs.tag }}
+            type=semver,pattern={{major}},value=${{ needs.verify.outputs.tag }}
+            type=raw,value=latest
+          labels: |
+            org.opencontainers.image.version=${{ needs.verify.outputs.version }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          # amd64 only. PaddlePaddle's linux-arm64 wheel coverage is the same problem the
+          # Windows note above describes: the image would build and then fail at inference,
+          # which is worse than not publishing it.
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # -------------------------------------------------------------------------------------
+  # Publish last, once every artifact exists.
+  #
+  # Deliberately depends on the container job too: a release whose notes advertise an image
+  # that failed to build is worse than a release that arrives a few minutes later.
+  # -------------------------------------------------------------------------------------
+  publish:
+    name: Publish the release
+    needs: [verify, build, docker]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Add stable-named copies for the website
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Flatten, and add the stable names the website links to
         # `releases/latest/download/<name>` only resolves for a filename that never changes,
         # but electron-updater needs versioned names in latest.yml. So both are published:
-        # versioned for the updater, stable aliases for the download links.
-        run: node deploy/make-stable-aliases.mjs artifacts
+        # versioned for the updater, stable aliases for the download links. The script also
+        # fails on any two artifacts wanting the same asset name.
+        run: node deploy/make-stable-aliases.mjs artifacts --out upload
 
       - name: Publish
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ needs.verify.outputs.tag }}
           name: Impressive OCR ${{ needs.verify.outputs.version }}
           draft: false
           prerelease: false
           generate_release_notes: true
           fail_on_unmatched_files: true
-          files: artifacts/**/*
+          files: upload/*
+          body: |
+            ## Downloads
+
+            These links always point at the newest release, so they can be published on a
+            website without editing them for each version.
+
+            | Platform | Download |
+            |---|---|
+            | Windows x64 | [Installer](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-win-x64.exe) |
+            | macOS (Apple Silicon) | [Disk image](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-mac-arm64.dmg) |
+            | macOS (Intel) | [Disk image](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-mac-x64.dmg) |
+            | Linux x64 | [AppImage](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-linux-x64.AppImage) · [deb](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-linux-amd64.deb) |
+            | Server (headless) | [tar.gz](https://github.com/${{ github.repository }}/releases/latest/download/impressive-ocr-server-linux-x64.tar.gz) |
+
+            ### Container
+
+            ```sh
+            docker pull ghcr.io/${{ github.repository }}:${{ needs.verify.outputs.version }}
+            docker pull ghcr.io/${{ github.repository }}:latest
+            ```
+
+            The versioned files above are what the in-app updater uses; the unversioned ones
+            are copies of the same builds.

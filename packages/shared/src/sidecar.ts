@@ -5,6 +5,7 @@ import {
   engineOptionsSchema,
   engineProfileSchema,
   outputFormatSchema,
+  outputOptionsSchema,
   resolvedDeviceSchema,
   textLayerStrategySchema,
 } from './pipeline-options';
@@ -37,6 +38,8 @@ export const sidecarJobRequestSchema = z.object({
   engine: engineOptionsSchema,
   textLayerStrategy: textLayerStrategySchema,
   formats: z.array(outputFormatSchema).min(1),
+  /** Only the `txt` writer reads this; every other format ignores it. */
+  txtEncoding: outputOptionsSchema.shape.txtEncoding,
 });
 
 export type SidecarJobRequest = z.infer<typeof sidecarJobRequestSchema>;

@@ -74,7 +74,7 @@ will confuse it.
 | -------------------------- | ---------------------------------- | -------------------------------------- |
 | `IMPRESSIVE_OCR_DATA_DIR`  | `%LOCALAPPDATA%\ImpressiveOCR`     | database, logs, and the entire runtime |
 | `IMPRESSIVE_OCR_PORT`      | `8084`                             | API port (1024–65535)                  |
-| `IMPRESSIVE_OCR_UV_BINARY` | `<repo>/vendor/uv/uv[.exe]`        | the `uv` that builds the Python runtime |
+| `IMPRESSIVE_OCR_UV_BINARY` | `<repo>/vendor/uv-<arch>/uv[.exe]` | the `uv` that builds the Python runtime |
 
 **These scripts override the data dir default** to a sibling of the repository, so
 it lands on the same drive as your checkout. The application's own default is under

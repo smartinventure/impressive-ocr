@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# The image build copies the repository in one layer, so everything the build does not read
+# is pure transfer cost — and a few of these would actively break it by shadowing what the
+# build produces itself.
+
+# Installed inside the image. A host tree copied in would carry this machine's platform
+# binaries, which is how you get a glibc build running on musl.
+node_modules/
+**/node_modules/
+
+# Built inside the image. Copying a stale host build in would let a container ship an SPA
+# nobody has looked at since.
+dist/
+**/dist/
+out/
+**/out/
+*.tsbuildinfo
+
+# Fetched inside the image, for the image's own architecture.
+#
+# The whole directory, not `vendor/uv-x64/`: a developer's tree holds the binary for *their*
+# platform, and letting it into the context means fetch-uv.mjs finds it already present and
+# skips the download — quietly baking a Windows or macOS executable into a Linux image.
+vendor/
+
+# Python working state — never valid outside the machine that produced it.
+.venv/
+**/.venv/
+**/__pycache__/
+**/*.py[cod]
+.pytest_cache/
+**/.pytest_cache/
+.ruff_cache/
+**/.ruff_cache/
+.mypy_cache/
+**/.mypy_cache/
+*.egg-info/
+**/*.egg-info/
+
+# History is not read by any build step, and it is usually the largest thing here.
+.git/
+.github/
+
+# Local runtime data. User documents and databases must never enter an image layer.
+/runtime/
+/data/
+/logs/
+*.db
+*.db-shm
+*.db-wal
+*.log
+.env
+.env.local
+.env.*.local
+
+# Reference material and developer scratch space, not inputs to the server build.
+_resources/
+dev/
+docs/
+.claude/
+
+# apps/desktop is deliberately NOT excluded, obvious though it looks: it is a workspace
+# member, and `pnpm install --frozen-lockfile` fails outright if an importer named in the
+# lockfile has no manifest on disk. Its Electron binary download is skipped in the builder
+# stage instead (ELECTRON_SKIP_BINARY_DOWNLOAD), which is the part that actually costs time.
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+coverage/
+**/coverage/
+playwright-report/
+test-results/

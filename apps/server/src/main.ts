@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { bindAddressSchema, type BindAddress } from '@impressive-ocr/shared';
 import { createApp } from './app';
 
 /**
@@ -14,6 +15,15 @@ async function main(): Promise<void> {
     dataDir: process.env.IMPRESSIVE_OCR_DATA_DIR,
     uvBinary: process.env.IMPRESSIVE_OCR_UV_BINARY,
     port: parsePort(process.env.IMPRESSIVE_OCR_PORT),
+    bindAddress: parseBindAddress(process.env.IMPRESSIVE_OCR_BIND_ADDRESS),
+    // A packaged build — the release tarball, or the container image — does not reproduce
+    // the workspace layout, so the defaults derived from the repository root would point at
+    // directories that do not exist. The launcher (`bin/impressive-ocr-server`, or the
+    // image's ENV) sets these to the real locations. Left unset, the repo-relative defaults
+    // still apply, which is what a developer running `pnpm dev:server` wants.
+    webRoot: process.env.IMPRESSIVE_OCR_WEB_ROOT,
+    migrationsDir: process.env.IMPRESSIVE_OCR_MIGRATIONS_DIR,
+    sidecarDir: process.env.IMPRESSIVE_OCR_SIDECAR_DIR,
   });
 
   const url = await app.listen();
@@ -47,6 +57,25 @@ async function main(): Promise<void> {
   process.on('unhandledRejection', (reason) => {
     app.logger.error({ err: reason }, 'Unhandled promise rejection');
   });
+}
+
+/**
+ * Containers have no alternative: inside its own network namespace a server bound to
+ * loopback is unreachable even from the host, so the image sets this to `0.0.0.0` and the
+ * operator controls exposure with the port mapping.
+ *
+ * Validated against the same schema the settings API uses, so an arbitrary interface cannot
+ * be smuggled in through the environment.
+ */
+function parseBindAddress(value: string | undefined): BindAddress | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const parsed = bindAddressSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new Error(`IMPRESSIVE_OCR_BIND_ADDRESS must be 127.0.0.1 or 0.0.0.0, got "${value}"`);
+  }
+  return parsed.data;
 }
 
 /** Service managers and container runtimes conventionally pass the port through the environment. */

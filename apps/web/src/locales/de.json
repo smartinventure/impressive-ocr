@@ -166,7 +166,13 @@
     "activeFrom": "Von",
     "activeUntil": "Bis",
     "optionsRecovered": "Einige Einstellungen konnten nicht gelesen werden und wurden auf die Standardwerte zurückgesetzt. Bitte vor dem Speichern prüfen.",
-    "loadFailed": "Diese Pipeline konnte nicht geladen werden."
+    "loadFailed": "Diese Pipeline konnte nicht geladen werden.",
+    "encoding": "Textdatei-Kodierung",
+    "encodingUtf8": "UTF-8",
+    "encodingUtf8Bom": "UTF-8 mit BOM (für Excel)",
+    "encodingLatin1": "Latin-1 (ISO 8859-1)",
+    "encodingHint": "Betrifft nur die .txt-Datei. BOM wählen, wenn Excel Umlaute verstümmelt; Latin-1 nur für Altsysteme, da Zeichen außerhalb davon nicht schreibbar sind.",
+    "sectionExpert": "Experteneinstellungen"
   },
   "moduleTone": {
     "slow": "langsamer",
@@ -191,7 +197,9 @@
     "xlsxHint": "nur Tabellen",
     "html": "HTML",
     "searchablePdf": "Durchsuchbares PDF",
-    "searchablePdfHint": "Der Original-Scan, mit dem erkannten Text unsichtbar darübergelegt, sodass er markiert und durchsucht werden kann."
+    "searchablePdfHint": "Der Original-Scan, mit dem erkannten Text unsichtbar darübergelegt, sodass er markiert und durchsucht werden kann.",
+    "visualization": "Overlay-Bild",
+    "visualizationHint": "ein PNG pro Seite mit den erkannten Bereichen"
   },
   "detail": {
     "pause": "Pausieren",
@@ -402,5 +410,37 @@
     "done": "Fertig",
     "paused": "Pausiert",
     "loadFailed": "Das Dashboard konnte nicht geladen werden."
+  },
+  "expert": {
+    "intro": "Leeres Feld bedeutet: PaddleOCRs eigener Standardwert. Diese Einstellungen werden selten gebraucht — immer nur eine ändern und ein bekanntes Dokument erneut verarbeiten.",
+    "unset": "Standard ({value})",
+    "reset": "Alle zurücksetzen",
+    "recScore": "Mindest-Textkonfidenz",
+    "recScoreHint": "Erkannten Text unterhalb dieses Werts verwerfen. PaddleOCR behält standardmäßig alles; ein höherer Wert entfernt Rauschen aus schlechten Scans.",
+    "detBox": "Konfidenz für Textboxen",
+    "detBoxHint": "Wie sicher die Erkennung sein muss, um eine Box zu behalten. Niedriger bei blassen oder kontrastarmen Scans.",
+    "detThresh": "Erkennungsschwelle",
+    "detThreshHint": "Pixelschwelle auf der Erkennungskarte. Niedriger findet feinere Striche.",
+    "unclip": "Box-Erweiterung",
+    "unclipHint": "Wie weit Boxen um den erkannten Text wachsen. Zu klein schneidet Zeichen ab, zu groß verschmilzt benachbarte Wörter.",
+    "sideLen": "Erkennungsauflösung",
+    "sideLenHint": "Pixel auf der kürzeren Seite, mit der die Erkennung arbeitet. Höher bei Kleingedrucktem — sinnlos, wenn die Scan-DPI nicht mithält.",
+    "layoutThreshold": "Layout-Konfidenz",
+    "layoutThresholdHint": "Wie sicher das Layout-Modell sein muss, um einen Bereich zu akzeptieren. Niedriger findet mehr Blöcke, auch falsche.",
+    "ignoreLabels": "Aus Markdown weglassen",
+    "ignoreLabelsHint": "Blocktypen, die nicht in die Markdown-Ausgabe kommen, etwa Kopf- und Fußzeilen oder Seitenzahlen. Andere Formate bleiben unverändert."
+  },
+  "update": {
+    "title": "Programm-Updates",
+    "current": "Version {version}",
+    "checking": "Suche nach Updates…",
+    "available": "Version {version} ist verfügbar.",
+    "downloading": "Update wird heruntergeladen…",
+    "upToDate": "Version {version} ist aktuell.",
+    "failed": "Die Update-Prüfung ist fehlgeschlagen.",
+    "check": "Jetzt prüfen",
+    "download": "Herunterladen",
+    "install": "Neu starten und installieren",
+    "releaseNotes": "Versionshinweise"
   }
 }

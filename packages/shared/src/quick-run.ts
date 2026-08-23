@@ -78,7 +78,8 @@ export const quickOptionsSchema = z.object({
    * which is what you want when the embedded layer is itself bad OCR from another tool.
    */
   textLayerStrategy: textLayerStrategySchema.default('hybrid'),
-  formats: z.array(outputFormatSchema).min(1).default(['markdown', 'json']),
+  /** One format minimum, Markdown by default — same rule as a pipeline. */
+  formats: z.array(outputFormatSchema).min(1).default(['markdown']),
   profile: engineProfileSchema.default('fast'),
   /**
    * Which device to run on, exposed here as well as on a pipeline.
@@ -88,7 +89,6 @@ export const quickOptionsSchema = z.object({
    * their own documents. `auto` keeps the scheduler's choice.
    */
   device: devicePreferenceSchema.default('auto'),
-  language: z.string().min(2).max(16).default('en'),
   /**
    * Off by default here, unlike a pipeline.
    *

@@ -85,5 +85,5 @@ function parsePort(value: string | undefined): number | undefined {
  */
 function resolveUvBinary(): string {
   const binary = process.platform === 'win32' ? 'uv.exe' : 'uv';
-  return join(resolveResource('uv', join('vendor', 'uv')), binary);
+  return join(resolveResource('uv', join('vendor', `uv-${process.arch}`)), binary);
 }

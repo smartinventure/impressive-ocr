@@ -67,16 +67,83 @@ export const engineModulesSchema = z.object({
 
 export type EngineModules = z.infer<typeof engineModulesSchema>;
 
+/**
+ * Expert knobs passed straight through to PaddleOCR's `predict()`.
+ *
+ * Every field is **optional on purpose**, and an unset field is omitted from the call
+ * entirely rather than sent as its current default. Two reasons, both learned the hard way
+ * elsewhere in this file: a pipeline saved today must not pin a default that a future
+ * PaddleOCR improves, and a value we merely *believe* is the default would silently override
+ * the real one if we ever guessed wrong.
+ *
+ * Deliberately limited to parameters PaddleOCR accepts at predict time. Anything set in the
+ * pipeline constructor — model names, precision, TensorRT — cannot vary per pipeline: the
+ * sidecar pool keys workers by profile and device alone, so two pipelines wanting different
+ * models would silently share whichever worker started first.
+ */
+export const advancedEngineOptionsSchema = z.object({
+  /**
+   * Resolution the text detector runs at (PaddleOCR default 736, `limit_type: min`).
+   *
+   * The lever for small print — and the one that interacts with `rasterDpi`, since rendering
+   * at 300 DPI buys nothing if the detector then downsamples to 736.
+   */
+  textDetLimitSideLen: z.number().int().min(320).max(4096).optional(),
+  /** Confidence to keep a detected text box (default 0.6). Lower catches faint scans. */
+  textDetBoxThresh: z.number().min(0).max(1).optional(),
+  /** Binarization threshold on the detection map (default 0.3). */
+  textDetThresh: z.number().min(0).max(1).optional(),
+  /**
+   * How far detected boxes are expanded (default 1.5).
+   *
+   * Too tight clips characters; too loose merges neighbouring words into one string.
+   */
+  textDetUnclipRatio: z.number().min(0.5).max(5).optional(),
+  /**
+   * Drop recognised text below this confidence (PaddleOCR default 0.0 — nothing is dropped).
+   *
+   * The cheapest quality win on a messy scan: at the default, every misread smudge is
+   * faithfully written into the output.
+   */
+  textRecScoreThresh: z.number().min(0).max(1).optional(),
+  /** Confidence for layout regions. Lower finds more blocks, including spurious ones. */
+  layoutThreshold: z.number().min(0).max(1).optional(),
+  /**
+   * Block labels to leave out of the Markdown, e.g. `header`, `footer`, `number`.
+   *
+   * Running headers and page numbers interleaved with body text are the usual complaint when
+   * the Markdown is fed to something downstream.
+   */
+  markdownIgnoreLabels: z.array(z.string().min(1).max(64)).max(32).optional(),
+});
+
+export type AdvancedEngineOptions = z.infer<typeof advancedEngineOptionsSchema>;
+
+/**
+ * There is deliberately **no language setting**.
+ *
+ * The `fast` profile pins PP-OCRv6_medium, whose character set spans Latin, its accents and
+ * CJK in one model — so a document mixing German and English is recognised correctly in a
+ * single pass with nothing to configure.
+ *
+ * Adding one back would make things worse, not better. PaddleOCR ignores `lang` outright once
+ * model names are pinned, and honouring it would mean *unpinning* them so it could swap in a
+ * language-specific model such as `latin_PP-OCRv5_mobile_rec` — a smaller, older recogniser
+ * than the one we measured, and one that forces a single language onto mixed documents.
+ *
+ * A `language` field did exist here and in the sidecar protocol. It was never passed to
+ * PaddleOCR by either engine, so it had no effect at all; it was removed rather than wired.
+ */
 export const engineOptionsSchema = z.object({
   profile: engineProfileSchema.default('fast'),
   device: devicePreferenceSchema.default('auto'),
-  /** `auto` lets the model detect the script; otherwise a PaddleOCR language code, e.g. `de`. */
-  language: z.string().min(2).max(16).default('auto'),
   /** Rasterization DPI for PDF pages. Higher is slower and usually only helps small print. */
   rasterDpi: z.union([z.literal(150), z.literal(200), z.literal(300), z.literal(400)]).default(200),
   /** 0 means "no limit". Guards against a 5,000-page scan blocking the queue. */
   maxPagesPerDocument: pageCountSchema.default(0),
   modules: engineModulesSchema.default({}),
+  /** Expert overrides. Empty by default, and an empty object changes nothing. */
+  advanced: advancedEngineOptionsSchema.default({}),
 });
 
 export type EngineOptions = z.infer<typeof engineOptionsSchema>;
@@ -109,7 +176,16 @@ export type CollisionPolicy = z.infer<typeof collisionPolicySchema>;
 
 export const outputOptionsSchema = z.object({
   outputPath: absolutePathSchema,
-  formats: z.array(outputFormatSchema).min(1).default(['markdown', 'json']),
+  /**
+   * At least one, always. `.min(1)` is not decoration: every writer downstream is driven
+   * by this list, so an empty one produces a job that runs the OCR in full and then writes
+   * nothing at all — a success with no output, which is the most confusing possible result.
+   *
+   * Markdown alone by default. It is the format that keeps layout, headings and tables in
+   * something a person can read directly, and adding JSON on top meant every pipeline
+   * silently wrote a second file most users never opened.
+   */
+  formats: z.array(outputFormatSchema).min(1).default(['markdown']),
   /** Supports `{name}`, `{page}`, `{date}`, `{hash}`, `{ext}`. */
   namingTemplate: z.string().min(1).max(256).default('{name}'),
   collisionPolicy: collisionPolicySchema.default('suffix'),

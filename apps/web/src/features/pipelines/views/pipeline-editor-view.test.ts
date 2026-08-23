@@ -54,6 +54,19 @@ function mountEditor(authorizedFolders: string[] = ['C:/scans']) {
   return wrapper;
 }
 
+/**
+ * The slice of a chip wrapper these assertions use.
+ *
+ * `findAllComponents` on a `DOMWrapper` is untyped, so without this the callbacks below are
+ * implicit `any` and `noImplicitAny` rejects the file. Naming the surface is honest; an `as`
+ * cast would only hide it.
+ */
+type ChipWrapper = {
+  text: () => string;
+  props: (name: string) => unknown;
+  trigger: (event: string) => Promise<void>;
+};
+
 /** Panel bodies are lazy; Vuetify only renders one once its panel opens. */
 async function openPanel(wrapper: ReturnType<typeof mountEditor>, index: number): Promise<void> {
   const titles = wrapper.findAllComponents({ name: 'VExpansionPanelTitle' });
@@ -67,7 +80,7 @@ describe('PipelineEditorView', () => {
     const wrapper = mountEditor();
 
     expect(wrapper.find('.editor').exists()).toBe(true);
-    expect(wrapper.findAllComponents({ name: 'VExpansionPanel' })).toHaveLength(6);
+    expect(wrapper.findAllComponents({ name: 'VExpansionPanel' })).toHaveLength(7);
   });
 
   it('opens every panel without throwing', async () => {
@@ -85,6 +98,72 @@ describe('PipelineEditorView', () => {
     await openPanel(wrapper, 4);
 
     expect(wrapper.text()).toContain('Quarantine');
+  });
+
+  it('offers every output format, not only the selected ones', () => {
+    // The regression: the chips bound `:model-value` to "is this format selected", but on
+    // VChip that prop controls the chip's own visibility (`isActive.value && createVNode`).
+    // Every unselected format therefore rendered nothing, so a brand-new pipeline showed only
+    // the default chip -- and since a chip that is not rendered cannot be clicked, Word, Excel,
+    // HTML, plain text and searchable PDF were unreachable on a pipeline entirely.
+    const wrapper = mountEditor();
+    const chips = wrapper.find('.editor__formats').findAllComponents({ name: 'VChip' });
+
+    expect(chips).toHaveLength(8);
+    const labels = chips.map((chip: ChipWrapper) => chip.text());
+    for (const label of [
+      'Markdown',
+      'JSON',
+      'Plain text',
+      'Word',
+      'Excel',
+      'HTML',
+      'Searchable PDF',
+      'Overlay image',
+    ]) {
+      expect(labels.some((text: string) => text.includes(label))).toBe(true);
+    }
+  });
+
+  it('offers the text encoding only once plain text is an output', async () => {
+    // It drives the .txt writer and nothing else, so offering it while no .txt is being
+    // written would be a control that silently does nothing.
+    const wrapper = mountEditor();
+
+    expect(wrapper.text()).not.toContain('Plain-text encoding');
+
+    const chips = wrapper.find('.editor__formats').findAllComponents({ name: 'VChip' });
+    const txt = chips.find((chip: ChipWrapper) => chip.text().includes('Plain text'));
+    await txt?.trigger('click');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).toContain('Plain-text encoding');
+  });
+
+  it('keeps the last output format selected', async () => {
+    // `formats` is `.min(1)`, so emptying it would fail validation only on save -- after the
+    // whole form had been filled in. The sole remaining chip is disabled instead.
+    const wrapper = mountEditor();
+    const chips = wrapper.find('.editor__formats').findAllComponents({ name: 'VChip' });
+    const markdown = chips.find((chip: ChipWrapper) => chip.text().includes('Markdown'));
+
+    expect(markdown?.props('disabled')).toBe(true);
+
+    await markdown?.trigger('click');
+
+    expect(wrapper.find('.editor__formats').text()).toContain('Markdown');
+  });
+
+  it('starts with every expert override unset', async () => {
+    // Unset is not cosmetic: an unset field is omitted from the OCR call, so a pipeline that
+    // never opens this panel must behave exactly as it did before the panel existed.
+    const wrapper = mountEditor();
+    // Index 6 is Expert: source, engine, output, post, reliability, schedule, expert.
+    await openPanel(wrapper, 6);
+
+    const panel = wrapper.findComponent({ name: 'ExpertSettingsPanel' });
+    expect(panel.exists()).toBe(true);
+    expect(panel.props('modelValue')).toEqual({});
   });
 
   it('unmounts cleanly after panels have been toggled', async () => {

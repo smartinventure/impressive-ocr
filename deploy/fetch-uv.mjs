@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 /**
- * Downloads the pinned `uv` binary into `vendor/uv/`.
+ * Downloads the pinned `uv` binary into `vendor/uv-<arch>/`.
+ *
+ * The directory carries the architecture because a single macOS build produces both an
+ * arm64 and an x64 app from one electron-builder run, and each has to receive its own
+ * binary. One shared `vendor/uv` would put an arm64 executable inside the Intel app, where
+ * it cannot run at all.
  *
  * `uv` is what installs Python and PaddleOCR on the user's machine at first run — the app
  * ships without either, because the GPU wheel alone is multiple gigabytes and bundling it
@@ -74,7 +79,7 @@ async function main() {
     process.exit(2);
   }
 
-  const vendorDir = join(repoRoot, 'vendor', 'uv');
+  const vendorDir = join(repoRoot, 'vendor', `uv-${arch}`);
   const binaryName = target === 'win' ? 'uv.exe' : 'uv';
   const binaryPath = join(vendorDir, binaryName);
 

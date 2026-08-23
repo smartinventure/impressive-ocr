@@ -43,13 +43,33 @@ class EngineModules(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class AdvancedEngineOptions(BaseModel):
+    """Expert overrides forwarded verbatim to PaddleOCR's ``predict()``.
+
+    Every field is ``None`` unless the pipeline set it, and ``None`` fields are dropped before
+    the call rather than sent — so an unset knob leaves PaddleOCR on whatever its own default
+    is today, instead of pinning whatever we believed it was when this was written.
+    """
+
+    text_det_limit_side_len: int | None = Field(default=None, alias="textDetLimitSideLen")
+    text_det_box_thresh: float | None = Field(default=None, alias="textDetBoxThresh")
+    text_det_thresh: float | None = Field(default=None, alias="textDetThresh")
+    text_det_unclip_ratio: float | None = Field(default=None, alias="textDetUnclipRatio")
+    text_rec_score_thresh: float | None = Field(default=None, alias="textRecScoreThresh")
+    layout_threshold: float | None = Field(default=None, alias="layoutThreshold")
+    markdown_ignore_labels: list[str] | None = Field(default=None, alias="markdownIgnoreLabels")
+
+    model_config = {"populate_by_name": True}
+
+
 class EngineOptions(BaseModel):
     profile: Literal["accurate", "fast"] = "fast"
     device: Literal["auto", "gpu", "cpu"] = "auto"
-    language: str = "auto"
     raster_dpi: int = Field(default=200, alias="rasterDpi")
     max_pages_per_document: int = Field(default=0, alias="maxPagesPerDocument")
     modules: EngineModules = Field(default_factory=EngineModules)
+    #: Defaulted, so a backend predating this field keeps working unchanged.
+    advanced: AdvancedEngineOptions = Field(default_factory=AdvancedEngineOptions)
     #: Threads the engine may use. 0 means "decide from the machine".
     #:
     #: Paddle otherwise grabs every core, which on a laptop is the difference between a slow
@@ -71,6 +91,9 @@ class JobRequest(BaseModel):
     engine: EngineOptions
     text_layer_strategy: TextLayerStrategy = Field(alias="textLayerStrategy")
     formats: list[OutputFormat]
+    #: Read only by the plain-text writer. Defaulted so an older backend, which does not
+    #: send the field at all, keeps working instead of failing validation on every job.
+    txt_encoding: str = Field(alias="txtEncoding", default="utf-8")
 
     model_config = {"populate_by_name": True}
 

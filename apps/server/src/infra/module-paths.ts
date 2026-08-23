@@ -46,5 +46,10 @@ export function defaultWebRoot(): string {
 }
 
 export function defaultUvBinary(): string {
-  return join(repositoryRoot(), 'vendor', 'uv', process.platform === 'win32' ? 'uv.exe' : 'uv');
+  return join(
+    repositoryRoot(),
+    'vendor',
+    `uv-${process.arch}`,
+    process.platform === 'win32' ? 'uv.exe' : 'uv',
+  );
 }

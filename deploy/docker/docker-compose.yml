@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+#
+# Impressive OCR — headless server.
+#
+#     docker compose -f deploy/docker/docker-compose.yml up -d
+#
+# Then open http://127.0.0.1:8084 and finish setup in the UI. The first start downloads the
+# Python runtime and the PaddleOCR wheels into the named volume below — several gigabytes,
+# once. Watch it with `docker compose logs -f`.
+
+services:
+  impressive-ocr:
+    image: ghcr.io/smartinventure/impressive-ocr:latest
+    container_name: impressive-ocr
+    restart: unless-stopped
+
+    ports:
+      # Bound to loopback on purpose. The server inside the container listens on all
+      # interfaces because it has no choice, so this line is what actually decides who can
+      # reach it. Change it to "8084:8084" only behind a reverse proxy that terminates TLS
+      # and after enabling authentication in Settings — the API can read and write every
+      # folder in the allowlist.
+      - '127.0.0.1:8084:8084'
+
+    volumes:
+      # Everything that must survive a container replacement: the SQLite database, the Python
+      # virtualenv built on first run, the downloaded OCR models, logs and job working files.
+      # Delete this volume and the multi-gigabyte first-run download happens again.
+      - impressive-ocr-data:/data
+
+      # The documents to OCR. Read-only here because the watcher only ever reads its input;
+      # drop ":ro" if you want Impressive OCR to write results back beside the originals.
+      - ./documents:/documents:ro
+
+      # Where output files are written. Must be writable.
+      - ./output:/output
+
+    environment:
+      # Both already default to these in the image; repeated here because they are the two
+      # an operator most often wants to change.
+      IMPRESSIVE_OCR_PORT: '8084'
+      IMPRESSIVE_OCR_DATA_DIR: /data
+
+    # PaddleOCR is memory-hungry and a large scanned PDF can spike well past a gigabyte.
+    # Without a limit an OOM takes the host down with it; with one, only this container dies
+    # and `restart: unless-stopped` brings it back.
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+
+    healthcheck:
+      # Inherited from the image, restated so `docker compose ps` shows the same intent.
+      test:
+        [
+          'CMD',
+          'node',
+          '-e',
+          "fetch('http://127.0.0.1:8084/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+volumes:
+  impressive-ocr-data:

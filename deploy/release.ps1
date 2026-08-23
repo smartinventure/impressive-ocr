@@ -51,6 +51,30 @@ Set-Location $repoRoot
 function Write-Step($message) { Write-Host "==> $message" -ForegroundColor Cyan }
 function Write-Warn($message) { Write-Host "!!  $message" -ForegroundColor Yellow }
 
+<#
+.SYNOPSIS
+    Run a native command and stop the release if it fails.
+.DESCRIPTION
+    Windows PowerShell does not raise an error when a native executable exits non-zero, and
+    `$ErrorActionPreference = 'Stop'` does not change that: it governs cmdlets, not processes.
+    A bare `pnpm lint` that fails simply carries on to the next line.
+
+    Not theoretical here. The checks below used to run four commands and then test
+    `$LASTEXITCODE`, which holds the exit code of the *last* one only - so a failing lint or
+    typecheck was silently ignored and the release was tagged and pushed anyway. release.sh
+    never had the bug because `set -e` covers it.
+#>
+function Invoke-Checked {
+    param(
+        [Parameter(Mandatory)][string]$Description,
+        [Parameter(Mandatory)][scriptblock]$Command
+    )
+    & $Command
+    if ($LASTEXITCODE -ne 0) {
+        throw "$Description failed (exit $LASTEXITCODE). Nothing was committed, tagged or pushed."
+    }
+}
+
 # --- Preconditions ----------------------------------------------------------
 
 Write-Step 'Checking the working tree'
@@ -101,16 +125,14 @@ if ($DryRun) {
 
 if (-not $SkipChecks) {
     Write-Step 'Running checks (use -SkipChecks to skip)'
-    pnpm install --frozen-lockfile
-    pnpm lint
-    pnpm -r typecheck
-    pnpm -r test
-    if ($LASTEXITCODE -ne 0) { throw 'Checks failed; nothing was tagged.' }
+    Invoke-Checked 'pnpm install' { pnpm install --frozen-lockfile }
+    Invoke-Checked 'Lint'         { pnpm lint }
+    Invoke-Checked 'Typecheck'    { pnpm -r typecheck }
+    Invoke-Checked 'Tests'        { pnpm -r test }
 
     $sidecarPython = Join-Path $repoRoot 'sidecar\.venv\Scripts\python.exe'
     if (Test-Path $sidecarPython) {
-        & $sidecarPython -m pytest sidecar -q
-        if ($LASTEXITCODE -ne 0) { throw 'Sidecar tests failed; nothing was tagged.' }
+        Invoke-Checked 'Sidecar tests' { & $sidecarPython -m pytest sidecar -q }
     } else {
         Write-Warn 'Sidecar venv not found — skipping Python tests. CI will still run them.'
     }
@@ -119,18 +141,20 @@ if (-not $SkipChecks) {
 # --- Bump, commit, tag, push ------------------------------------------------
 
 Write-Step "Setting version $next"
-node deploy/set-version.mjs $next | Out-Null
+Invoke-Checked 'Writing the version' { node deploy/set-version.mjs $next | Out-Null }
 
 Write-Step 'Committing and tagging'
-git add -A
-git commit -m "release: $tag"
+Invoke-Checked 'git add'    { git add -A }
+Invoke-Checked 'git commit' { git commit -m "release: $tag" }
 # Annotated, not lightweight: it records who cut the release and when, and `git describe`
 # only considers annotated tags by default.
-git tag -a $tag -m "Impressive OCR $next"
+Invoke-Checked 'git tag'    { git tag -a $tag -m "Impressive OCR $next" }
 
 Write-Step 'Pushing'
-git push origin main
-git push origin $tag
+# Checked separately, in this order: the tag is what triggers the build, so pushing it after
+# a failed branch push would start a release from a commit nobody else can see.
+Invoke-Checked 'git push main' { git push origin main }
+Invoke-Checked 'git push tag'  { git push origin $tag }
 
 Write-Host ''
 Write-Host "Released $tag." -ForegroundColor Green

@@ -137,7 +137,12 @@ function Get-Prerequisites {
     # --- uv. Only needed to install the OCR runtime, not to boot the stack, so its absence
     #     is a warning: the UI comes up and says the runtime is not installed.
     $uv = $env:IMPRESSIVE_OCR_UV_BINARY
-    if (-not $uv) { $uv = Join-Path $RepoRoot 'vendor\uv\uv.exe' }
+    # Per-architecture, mirroring deploy/fetch-uv.mjs: one macOS build ships both an arm64
+    # and an x64 app, so a single shared directory could only ever be right for one.
+    if (-not $uv) {
+        $uvArch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+        $uv = Join-Path $RepoRoot "vendor\\uv-$uvArch\\uv.exe"
+    }
     if (Test-Path $uv) {
         $checks.Add(@{ Name = 'uv'; State = 'ok'; Detail = $uv; Fix = $null; AutoFix = $false })
     }

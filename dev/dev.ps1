@@ -318,7 +318,7 @@ function Show-Environment {
 
     Write-Head '  IMPRESSIVE_OCR_UV_BINARY'
     Write-Host  ("    now      " + $(if ($env:IMPRESSIVE_OCR_UV_BINARY) { $env:IMPRESSIVE_OCR_UV_BINARY } else { '(unset)' }))
-    Write-Dim   '    default  <repo>\vendor\uv\uv.exe'
+    Write-Dim   '    default  <repo>\vendor\uv-<arch>\uv.exe'
     Write-Dim   '    uv builds the Python runtime. vendor/ is gitignored and fetched at build'
     Write-Dim   '    time, so a fresh clone must supply it before the runtime can install.'
     Write-Host ''

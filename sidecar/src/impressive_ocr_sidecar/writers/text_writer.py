@@ -26,7 +26,12 @@ class TextWriter:
     format: OutputFormat = "txt"
 
     def __init__(self, encoding: str = "utf-8") -> None:
-        self._encoding = encoding
+        # Translated here rather than at the call site, so every construction path gets it.
+        # `utf-8-bom` is our own setting name, not a Python codec: passed through untouched it
+        # reaches `write_text` and raises LookupError, which is not one of the errors `write`
+        # catches — so the job would die with an unhandled exception rather than a clear
+        # output error.
+        self._encoding = resolve_encoding(encoding)
 
     def is_available(self) -> bool:
         return True

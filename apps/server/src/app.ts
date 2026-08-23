@@ -1,7 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, createDatabase } from '@impressive-ocr/db';
-import { SESSION_IDLE_TIMEOUT_MINUTES, type AppSettings } from '@impressive-ocr/shared';
+import {
+  SESSION_IDLE_TIMEOUT_MINUTES,
+  type AppSettings,
+  type BindAddress,
+} from '@impressive-ocr/shared';
 import { ensureDirectory } from './infra/fs/file-ops';
 import {
   defaultMigrationsDir,
@@ -51,6 +55,20 @@ export interface CreateAppOptions {
    * unit file rather than the UI, and for tests that must not collide with a real install.
    */
   port?: number | undefined;
+  /**
+   * Override the configured bind address at startup.
+   *
+   * Exists for containers, which have no other option: inside its own network namespace a
+   * container that binds loopback is unreachable even from the host, so there would be no
+   * way to open the UI and configure anything.
+   *
+   * Deliberately **not** a way around `assertSafeExposure`. That guard governs the settings
+   * API — what a remote caller may flip at runtime — and still refuses to store a network
+   * binding without authentication and TLS. This is the operator's own decision, made once
+   * at startup on the machine itself, and `listen()` warns loudly if it leaves an
+   * unauthenticated server on a network interface.
+   */
+  bindAddress?: BindAddress | undefined;
   /** Directory holding the built SPA. */
   webRoot?: string | undefined;
   /** Path to the bundled `uv` binary. */
@@ -104,8 +122,11 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   const authService = new AuthService(db, sessions);
   const settingsService = new SettingsService(db, () => authService.hasPassword());
   const stored = settingsService.get();
-  const settings: AppSettings =
-    options.port === undefined ? stored : { ...stored, port: options.port };
+  const settings: AppSettings = {
+    ...stored,
+    ...(options.port === undefined ? {} : { port: options.port }),
+    ...(options.bindAddress === undefined ? {} : { bindAddress: options.bindAddress }),
+  };
 
   // Written to disk as well as the console, so the in-app log viewer has something to read.
   const logFile = new RotatingLogFile({ directory: paths.logsDir });
@@ -253,6 +274,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     http,
 
     listen: async () => {
+      // Said once, at the moment it becomes true. An unauthenticated server on a network
+      // interface can read and write every folder in the allowlist, and the operator who
+      // set the override is the only person who can put a proxy or a firewall in front of
+      // it — so this has to be visible in the log they are already watching.
+      if (settings.bindAddress === '0.0.0.0' && !settings.authEnabled) {
+        logger.warn(
+          { port: settings.port },
+          'Listening on all interfaces with authentication disabled; ' +
+            'publish this port only to a trusted network',
+        );
+      }
+
       try {
         await http.listen({ port: settings.port, host: settings.bindAddress });
       } catch (error) {

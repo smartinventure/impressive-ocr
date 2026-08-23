@@ -23,6 +23,13 @@ let updates: UpdateService | null = null;
 let updateTimer: NodeJS.Timeout | null = null;
 let trayStateTimer: NodeJS.Timeout | null = null;
 let quitting = false;
+/**
+ * Set once quitting is settled — the user confirmed, or there was nobody to ask.
+ *
+ * Separate from `quitting` because `before-quit` fires again after the confirmation
+ * dialog calls `app.quit()`, and without this the prompt would reappear forever.
+ */
+let quitConfirmed = false;
 
 /**
  * Headless mode, launched by the "Impressive OCR Server" shortcut the installer creates.
@@ -139,13 +146,27 @@ function registerAppHandlers(): void {
   // has no tray to quit from.
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     process.on(signal, () => {
+      // Never prompt here. A service manager sending SIGTERM cannot answer a dialog, and
+      // stalling on one turns a graceful stop into a kill a few seconds later.
+      quitConfirmed = true;
       quitting = true;
       app.quit();
     });
   }
 
-  app.on('before-quit', () => {
-    quitting = true;
+  app.on('before-quit', (event) => {
+    const running = host?.handle.services.scheduler.runningCount ?? 0;
+
+    // Quitting aborts whatever is mid-document. That is recoverable — the job is retried —
+    // but it can throw away many minutes of OCR on a large scan, so it should not happen
+    // because somebody hit Quit in the tray without thinking.
+    if (quitConfirmed || running === 0 || headless || window === null || window.isDestroyed()) {
+      quitting = true;
+      return;
+    }
+
+    event.preventDefault();
+    void confirmQuitWhileBusy(running);
   });
 
   app.on('will-quit', (event) => {
@@ -164,6 +185,48 @@ function registerAppHandlers(): void {
       .catch(() => undefined)
       .finally(() => app.exit(0));
   });
+}
+
+/**
+ * Ask before abandoning running conversions.
+ *
+ * Modal on the window rather than a notification: the answer decides whether work is thrown
+ * away, so it has to block. English only, like the tray menu — the main process has no
+ * access to the renderer's i18n bundle.
+ */
+async function confirmQuitWhileBusy(running: number): Promise<void> {
+  const parent = window;
+  if (parent === null || parent.isDestroyed()) {
+    quitConfirmed = true;
+    app.quit();
+    return;
+  }
+
+  // Bring it forward first: the tray Quit can be clicked while the window is hidden, and a
+  // modal parented to an invisible window is a silent hang.
+  revealWindow();
+
+  const { response } = await dialog.showMessageBox(parent, {
+    type: 'question',
+    buttons: ['Keep running', 'Quit anyway'],
+    defaultId: 0,
+    cancelId: 0,
+    title: 'Impressive OCR',
+    message:
+      running === 1
+        ? 'A document is still being processed.'
+        : `${running} documents are still being processed.`,
+    detail:
+      'Quitting stops them now. They stay in the queue and start again next time, but the ' +
+      'work done so far on them is lost.',
+  });
+
+  if (response !== 1) {
+    return;
+  }
+
+  quitConfirmed = true;
+  app.quit();
 }
 
 function revealWindow(): void {

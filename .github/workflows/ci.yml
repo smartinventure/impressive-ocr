@@ -1,13 +1,23 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 name: CI
 
+# Deliberately NOT on push.
+#
+# Every push to main used to run four jobs across two operating systems. On a public
+# repository that is free, but it is not free if this ever goes private, and a wedged job
+# bills against the default six-hour ceiling either way.
+#
+# What replaces it: `deploy/release.ps1` and `release.sh` run lint, typecheck and the full
+# test suite locally and refuse to tag if any of them fails, and `release.yml` runs the same
+# suite again on a clean runner before it builds anything. So the checks that matter still
+# stand between a mistake and a release - they just no longer run on every commit.
+#
+# Run it by hand from the Actions tab whenever a change deserves the full matrix before a
+# release, and on any pull request automatically.
 on:
-  push:
-    branches: [main]
-    # Tags are handled by release.yml; running both would duplicate every check.
-    tags-ignore: ['**']
   pull_request:
     branches: [main]
+  workflow_dispatch:
 
 concurrency:
   # A new push supersedes the previous run on the same ref.
@@ -22,6 +32,7 @@ jobs:
   node:
     name: Node (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -101,6 +112,7 @@ jobs:
   sidecar:
     name: Python sidecar
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -131,6 +143,7 @@ jobs:
   docker:
     name: Container image builds
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -151,6 +164,7 @@ jobs:
   desktop:
     name: Electron app packages
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 

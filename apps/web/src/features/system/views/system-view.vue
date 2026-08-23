@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import type { RuntimeInstallPlan, SidecarReleaseResult } from '@impressive-ocr/shared';
 import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
+import PreflightCard from '../components/preflight-card.vue';
 import UpdateCard from '../components/update-card.vue';
 
 /**
@@ -103,7 +104,12 @@ onMounted(async () => {
   <div class="system">
     <h1 class="system__title">{{ t('nav.status') }}</h1>
 
-    <!-- Desktop only; renders nothing in a browser or on the headless server. -->
+    <!-- Compatibility, above the install button on purpose: the answer to "can this machine
+         run it at all" is worth more than a progress bar on a download that cannot succeed. -->
+    <PreflightCard />
+
+    <!-- And below it, whether the app itself is current. Desktop only; renders nothing in a
+         browser or on the headless server, which are updated by whatever installed them. -->
     <update-card />
 
     <!-- Runtime -->

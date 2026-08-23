@@ -15,6 +15,7 @@ import type {
   JobState,
   PipelineWithStatus,
   RuntimeInstallPlan,
+  PreflightReport,
   RuntimeStatus,
   SidecarReleaseResult,
   SystemStatus,
@@ -100,6 +101,9 @@ export const systemApi = {
   runtime: () => api.get<RuntimeStatus>('/system/runtime'),
   /** What an install would download. Shown for confirmation before one is started. */
   runtimePlan: () => api.get<RuntimeInstallPlan>('/system/runtime/plan'),
+
+  /** Can this machine run the engine? Probes the CPU, so it is asked for, not polled. */
+  preflight: () => api.get<PreflightReport>('/system/preflight'),
   installRuntime: () => api.post<RuntimeStatus>('/system/runtime/install'),
   cancelInstall: () => api.post<{ cancelled: boolean }>('/system/runtime/cancel'),
   /** Stop the warm OCR workers and give their model memory back. */

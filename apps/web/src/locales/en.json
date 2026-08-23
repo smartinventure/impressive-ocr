@@ -229,6 +229,15 @@
     "results": "Results",
     "downloadResults": "Download results"
   },
+  "preflight": {
+    "title": "Compatibility",
+    "recheck": "Check again",
+    "download": "Open the download page",
+    "cannotRun": "This machine cannot run the OCR engine.",
+    "actionNeeded": "Something needs to be installed before OCR will work.",
+    "openSystem": "Open System for details",
+    "probeFailed": "The compatibility check could not run."
+  },
   "system": {
     "runtime": "OCR runtime",
     "hardware": "Hardware",

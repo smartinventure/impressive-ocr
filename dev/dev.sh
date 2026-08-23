@@ -9,7 +9,6 @@
 # Usage:  ./dev/dev.sh              interactive menu
 #         ./dev/dev.sh start
 #         ./dev/dev.sh stop
-#         ./dev/dev.sh doctor      check prerequisites, offer to install them
 
 set -uo pipefail
 
@@ -44,11 +43,6 @@ dim_()  { printf '%s%s%s\n' "$C_DIM"  "$*" "$C_OFF"; }
 rule_() { dim_ '--------------------------------------------------------------------------'; }
 
 is_windows() { case "$(uname -s)" in MINGW* | MSYS* | CYGWIN*) return 0 ;; *) return 1 ;; esac }
-
-# What this machine needs and how to get it: collect_prerequisites, check_prerequisites,
-# install_prerequisites. Kept separate because the launcher is long enough.
-# shellcheck source=dev/preflight.sh
-. "$DEV_DIR/preflight.sh"
 
 # ------------------------------------------------------------ environment ----
 
@@ -122,6 +116,103 @@ kill_tree() {
 
 # ---------------------------------------------------------------- actions ----
 
+# The vendor directory carries the architecture: one macOS build produces both an arm64
+# and an x64 app, and each needs its own binary. Mirrors deploy/fetch-uv.mjs.
+uv_arch() {
+  case "$(uname -m)" in
+    arm64 | aarch64) printf 'arm64' ;;
+    *) printf 'x64' ;;
+  esac
+}
+
+uv_binary() {
+  local uv="${IMPRESSIVE_OCR_UV_BINARY:-}"
+  if [ -z "$uv" ]; then
+    local dir="$REPO_ROOT/vendor/uv-$(uv_arch)"
+    if is_windows; then uv="$dir/uv.exe"; else uv="$dir/uv"; fi
+  fi
+  printf '%s' "$uv"
+}
+
+deps_stale() {
+  # True when node_modules is absent, or older than the lockfile. The mtime comparison
+  # catches the case that actually bites: pulling a branch that changed dependencies, where
+  # node_modules exists and is quietly wrong.
+  local marker="$REPO_ROOT/node_modules/.modules.yaml"
+  [ -f "$marker" ] || return 0
+  [ -f "$REPO_ROOT/pnpm-lock.yaml" ] || return 1
+  [ "$REPO_ROOT/pnpm-lock.yaml" -nt "$marker" ]
+}
+
+check_prerequisites() {
+  local ok=0
+
+  if command -v node >/dev/null 2>&1; then dim_ "  node  $(node --version)"
+  else bad_ '  node  MISSING - install Node 22 or newer from https://nodejs.org'; ok=1; fi
+
+  if command -v pnpm >/dev/null 2>&1; then dim_ "  pnpm  $(pnpm --version)"
+  else bad_ '  pnpm  MISSING'; ok=1; fi
+
+  if deps_stale; then warn_ '  deps  not installed, or older than pnpm-lock.yaml'; ok=1
+  else dim_ '  deps  installed'; fi
+
+  # uv is only needed to install the OCR runtime, not to boot the stack, so a miss here is
+  # a warning rather than a failure.
+  local uv
+  uv="$(uv_binary)"
+  if [ -x "$uv" ] || [ -f "$uv" ]; then dim_ "  uv    $uv"
+  else warn_ "  uv    MISSING at $uv - the OCR runtime cannot be installed"; fi
+
+  return $ok
+}
+
+install_prerequisites() {
+  # Do the setup rather than printing commands for someone to copy. A fresh clone
+  # legitimately needs `pnpm install` and `node deploy/fetch-uv.mjs`, and there is no reason
+  # a person should have to know that. Everything here is idempotent and silent when there
+  # is nothing to do, so Start stays fast on a machine that is already set up.
+  #
+  # Node itself is the one thing that cannot be fixed from inside a script that is only
+  # running because Node is absent -- that one gets a clear sentence instead.
+  if ! command -v node >/dev/null 2>&1; then
+    bad_ '  Node is not installed, and this is the one thing Start cannot fix for you.'
+    dim_ '  Install Node 22 or newer from https://nodejs.org, then run Start again.'
+    return 1
+  fi
+
+  # pnpm ships with Node as a Corepack shim; enabling it is preferable to a global npm
+  # install because the version then comes from packageManager in package.json.
+  if ! command -v pnpm >/dev/null 2>&1; then
+    head_ '  Enabling pnpm via Corepack'
+    corepack enable >/dev/null 2>&1 || true
+    if ! command -v pnpm >/dev/null 2>&1; then
+      bad_ '  Could not enable pnpm automatically.'
+      dim_ '  Run: corepack enable      (sudo may be required)'
+      return 1
+    fi
+    good_ '  pnpm ready'
+  fi
+
+  if deps_stale; then
+    head_ '  Installing dependencies (first run takes a few minutes)'
+    if ! pnpm install --dir "$REPO_ROOT"; then
+      bad_ '  pnpm install failed. The output above says why.'
+      return 1
+    fi
+    good_ '  Dependencies installed'
+  fi
+
+  # Fetched rather than committed: it is a 44 MB binary. Without it the app runs, but the
+  # OCR runtime cannot be installed -- so fetch it now rather than at the point of failure.
+  if [ ! -f "$(uv_binary)" ]; then
+    head_ '  Fetching uv (44 MB, needed to install the OCR runtime)'
+    if node "$REPO_ROOT/deploy/fetch-uv.mjs"; then good_ '  uv ready'
+    else warn_ '  Could not fetch uv. The stack will start, but the OCR runtime cannot install.'; fi
+  fi
+
+  return 0
+}
+
 wait_for_api() {
   local deadline=$((SECONDS + 90))
   printf '  waiting for the API '
@@ -159,8 +250,20 @@ start_stack() {
 
   head_ 'Checking prerequisites'
   if ! check_prerequisites; then
-    bad_ 'Cannot start until the items above are resolved.'
-    return 1
+    # Not a refusal: work out what is missing and install it. Only what genuinely cannot be
+    # fixed from here -- Node itself -- stops the launch.
+    echo
+    head_ 'Setting up what is missing'
+    if ! install_prerequisites; then
+      bad_ 'Cannot start until the items above are resolved.'
+      return 1
+    fi
+    echo
+    head_ 'Re-checking'
+    if ! check_prerequisites; then
+      bad_ 'Cannot start until the items above are resolved.'
+      return 1
+    fi
   fi
 
   mkdir -p "$RUN_DIR" "$IMPRESSIVE_OCR_DATA_DIR"
@@ -336,7 +439,6 @@ show_menu() {
     echo '  3) Restart'
     echo '  4) Status'
     echo '  5) Environment / where things are stored'
-    echo '  6) Check / install prerequisites'
     echo '  Q) Quit'
     echo
     read -r -p '  Select: ' choice
@@ -353,7 +455,6 @@ show_menu() {
       3) stop_stack; sleep 1; start_stack ;;
       4) show_status ;;
       5) show_environment ;;
-      6) install_prerequisites ;;
       q | quit | exit) return 0 ;;
       *) warn_ '  Not an option.' ;;
     esac
@@ -374,7 +475,6 @@ case "${1:-menu}" in
   restart) stop_stack; sleep 1; start_stack ;;
   status)  show_status ;;
   env)     show_environment ;;
-  doctor)  install_prerequisites ;;
   menu)    show_menu ;;
-  *)       echo "usage: $0 [start|stop|restart|status|env|doctor]" >&2; exit 2 ;;
+  *)       echo "usage: $0 [start|stop|restart|status|env]" >&2; exit 2 ;;
 esac

@@ -229,6 +229,15 @@
     "results": "Ergebnisse",
     "downloadResults": "Ergebnisse herunterladen"
   },
+  "preflight": {
+    "title": "Kompatibilität",
+    "recheck": "Erneut prüfen",
+    "download": "Download-Seite öffnen",
+    "cannotRun": "Auf diesem Rechner kann die OCR-Engine nicht ausgeführt werden.",
+    "actionNeeded": "Vor der Texterkennung muss noch etwas installiert werden.",
+    "openSystem": "Details unter System öffnen",
+    "probeFailed": "Die Kompatibilitätsprüfung konnte nicht ausgeführt werden."
+  },
   "system": {
     "runtime": "OCR-Laufzeitumgebung",
     "hardware": "Hardware",

@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+﻿# SPDX-License-Identifier: AGPL-3.0-or-later
 #
 # Start and stop the Impressive OCR development stack (API + web UI) from a menu.
 #
@@ -9,11 +9,10 @@
 # Usage:  .\dev\dev.ps1              interactive menu
 #         .\dev\dev.ps1 -Action start
 #         .\dev\dev.ps1 -Action stop
-#         .\dev\dev.ps1 -Action doctor    check prerequisites, offer to install them
 
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'start', 'stop', 'restart', 'status', 'env', 'doctor')]
+    [ValidateSet('menu', 'start', 'stop', 'restart', 'status', 'env')]
     [string] $Action = 'menu'
 )
 
@@ -32,10 +31,6 @@ $EnvFile   = Join-Path $DevDir 'dev.env'
 # packages/shared/src/settings.ts respectively.
 $WebPort = 5273
 $ApiPort = 8084
-
-# What this machine needs and how to get it: Get-Prerequisites, Test-Prerequisites,
-# Install-Prerequisites, Resolve-Pnpm. Kept separate because the launcher is long enough.
-. (Join-Path $DevDir 'preflight.ps1')
 
 # ------------------------------------------------------------ presentation ----
 
@@ -153,7 +148,121 @@ function Stop-Tree([int] $ProcessId) {
     }
 }
 
+function Resolve-Pnpm {
+    foreach ($candidate in @('pnpm.cmd', 'pnpm')) {
+        $command = Get-Command $candidate -ErrorAction SilentlyContinue
+        if ($command) { return $command.Source }
+    }
+    $fallback = Join-Path $env:APPDATA 'npm\pnpm.cmd'
+    if (Test-Path $fallback) { return $fallback }
+    return $null
+}
+
 # ---------------------------------------------------------------- actions ----
+
+function Get-UvBinary {
+    if ($env:IMPRESSIVE_OCR_UV_BINARY) { return $env:IMPRESSIVE_OCR_UV_BINARY }
+    # Per-architecture, mirroring deploy/fetch-uv.mjs.
+    $uvArch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
+    return (Join-Path $RepoRoot "vendor\\uv-$uvArch\\uv.exe")
+}
+
+function Test-DepsStale {
+    <#
+        True when node_modules is absent, or older than the lockfile.
+
+        The mtime comparison catches the case that actually bites: pulling a branch that
+        changed dependencies, where node_modules exists and is quietly wrong.
+    #>
+    $marker = Join-Path $RepoRoot 'node_modules\.modules.yaml'
+    if (-not (Test-Path $marker)) { return $true }
+
+    $lock = Join-Path $RepoRoot 'pnpm-lock.yaml'
+    if (-not (Test-Path $lock)) { return $false }
+
+    return ((Get-Item $lock).LastWriteTime -gt (Get-Item $marker).LastWriteTime)
+}
+
+function Test-Prerequisites {
+    $ok = $true
+
+    $node = Get-Command node -ErrorAction SilentlyContinue
+    if ($node) { Write-Dim ("  node  " + (& node --version)) }
+    else { Write-Bad '  node  MISSING - install Node 22 or newer from https://nodejs.org'; $ok = $false }
+
+    $pnpm = Resolve-Pnpm
+    if ($pnpm) { Write-Dim ("  pnpm  " + (& $pnpm --version)) }
+    else { Write-Bad '  pnpm  MISSING'; $ok = $false }
+
+    if (Test-DepsStale) { Write-Warn '  deps  not installed, or older than pnpm-lock.yaml'; $ok = $false }
+    else { Write-Dim '  deps  installed' }
+
+    # uv is only needed to install the OCR runtime, not to boot the stack, so a miss here
+    # is a warning rather than a failure.
+    $uv = Get-UvBinary
+    if (Test-Path $uv) { Write-Dim "  uv    $uv" }
+    else { Write-Warn "  uv    MISSING at $uv - the OCR runtime cannot be installed" }
+
+    return $ok
+}
+
+function Install-Prerequisites {
+    <#
+        Do the setup rather than printing commands for someone to copy.
+
+        A fresh clone legitimately needs `pnpm install` and `node deploy/fetch-uv.mjs`, and
+        there is no reason a person should have to know that. Everything here is idempotent
+        and silent when there is nothing to do, so Start stays fast on an already-set-up
+        machine.
+
+        Node itself is the one thing that cannot be fixed from inside a script that is only
+        running because Node is absent -- that one gets a clear sentence instead.
+    #>
+    if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
+        Write-Bad '  Node is not installed, and this is the one thing Start cannot fix for you.'
+        Write-Dim '  Install Node 22 or newer from https://nodejs.org, then run Start again.'
+        return $false
+    }
+
+    # pnpm ships with Node as a Corepack shim; enabling it is preferable to a global npm
+    # install because the version then comes from packageManager in package.json.
+    if (-not (Resolve-Pnpm)) {
+        Write-Head '  Enabling pnpm via Corepack'
+        $previous = $ErrorActionPreference
+        $ErrorActionPreference = 'Continue'
+        try { & corepack enable 2>$null | Out-Null } finally { $ErrorActionPreference = $previous }
+
+        if (-not (Resolve-Pnpm)) {
+            Write-Bad '  Could not enable pnpm automatically.'
+            Write-Dim '  Run: corepack enable      (an elevated prompt may be required)'
+            return $false
+        }
+        Write-Good '  pnpm ready'
+    }
+
+    if (Test-DepsStale) {
+        Write-Head '  Installing dependencies (first run takes a few minutes)'
+        & (Resolve-Pnpm) 'install' '--dir' $RepoRoot
+        if ($LASTEXITCODE -ne 0) {
+            Write-Bad '  pnpm install failed. The output above says why.'
+            return $false
+        }
+        Write-Good '  Dependencies installed'
+    }
+
+    # Fetched rather than committed: it is a 44 MB binary. Without it the app runs, but the
+    # OCR runtime cannot be installed -- so fetch it now rather than at the point of failure.
+    if (-not (Test-Path (Get-UvBinary))) {
+        Write-Head '  Fetching uv (44 MB, needed to install the OCR runtime)'
+        & node (Join-Path $RepoRoot 'deploy\fetch-uv.mjs')
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warn '  Could not fetch uv. The stack will start, but the OCR runtime cannot install.'
+        }
+        else { Write-Good '  uv ready' }
+    }
+
+    return $true
+}
 
 function Start-Stack {
     if ((Test-PortBusy $ApiPort) -or (Test-PortBusy $WebPort)) {
@@ -163,8 +272,20 @@ function Start-Stack {
 
     Write-Head 'Checking prerequisites'
     if (-not (Test-Prerequisites)) {
-        Write-Bad 'Cannot start until the items above are resolved.'
-        return
+        # Not a refusal: work out what is missing and install it. Only what genuinely cannot
+        # be fixed from here -- Node itself -- stops the launch.
+        Write-Host ''
+        Write-Head 'Setting up what is missing'
+        if (-not (Install-Prerequisites)) {
+            Write-Bad 'Cannot start until the items above are resolved.'
+            return
+        }
+        Write-Host ''
+        Write-Head 'Re-checking'
+        if (-not (Test-Prerequisites)) {
+            Write-Bad 'Cannot start until the items above are resolved.'
+            return
+        }
     }
 
     $pnpm = Resolve-Pnpm
@@ -381,7 +502,6 @@ function Show-Menu {
         Write-Host '  3) Restart'
         Write-Host '  4) Status'
         Write-Host '  5) Environment / where things are stored'
-        Write-Host '  6) Check / install prerequisites'
         Write-Host '  Q) Quit'
         Write-Host ''
         $choice = Read-Host '  Select'
@@ -399,7 +519,6 @@ function Show-Menu {
             '3' { Stop-Stack; Start-Sleep -Seconds 1; Start-Stack }
             '4' { Show-Status }
             '5' { Show-Environment }
-            '6' { Install-Prerequisites }
             'q' { return }
             'quit' { return }
             'exit' { return }
@@ -422,6 +541,5 @@ switch ($Action) {
     'restart' { Stop-Stack; Start-Sleep -Seconds 1; Start-Stack }
     'status' { Show-Status }
     'env' { Show-Environment }
-    'doctor' { Install-Prerequisites }
     default { Show-Menu }
 }

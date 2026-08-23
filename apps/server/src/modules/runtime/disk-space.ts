@@ -93,14 +93,17 @@ export async function measureDiskSpace(path: string): Promise<DiskSpace | null> 
 }
 
 /**
- * Free space for a directory that may not exist yet.
+ * Free space on the filesystem that *will* hold `path`, even when `path` does not exist yet.
  *
- * The runtime directory is created *by* the install, so measuring it before the first one
- * fails — and answering "unknown free space" for a drive with three terabytes on it is worse
- * than useless in a dialog asking someone to approve a download. Walks up to the nearest
- * ancestor that does exist, which is on the same filesystem in every case that matters.
+ * `statfs` fails on a missing path, and the directory whose space matters most — the venv —
+ * does not exist until the first install has run. So the plain measurement returned null
+ * exactly when the answer was most useful, and preflight reported "could not measure free
+ * space" on a machine with 30 GB free and nothing installed.
+ *
+ * Walking up to the nearest existing ancestor measures the same filesystem, which is the
+ * number we actually wanted.
  */
-export async function measureDiskSpaceForTarget(path: string): Promise<DiskSpace | null> {
+export async function measureNearestDiskSpace(path: string): Promise<DiskSpace | null> {
   let current = resolve(path);
   for (;;) {
     const space = await measureDiskSpace(current);

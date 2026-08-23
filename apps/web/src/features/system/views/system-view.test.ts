@@ -35,6 +35,13 @@ vi.mock('../../../api/endpoints', () => ({
     runtimePlan: (...args: unknown[]) => runtimePlan(...args),
     installRuntime: (...args: unknown[]) => installRuntime(...args),
     probeHardware: vi.fn(),
+    // The System page also renders the preflight card, which calls this on mount. Unmocked
+    // it rejects, and the failure surfaces as the install button never being found.
+    preflight: vi.fn().mockResolvedValue({
+      canRun: true,
+      checks: [],
+      blockers: [],
+    }),
   },
 }));
 
@@ -63,12 +70,28 @@ beforeEach(() => {
   installRuntime.mockReset().mockResolvedValue(undefined);
 });
 
+/**
+ * The install button, found by its label.
+ *
+ * Not `find('button')`: that returns the first button on the page, so it silently became the
+ * preflight card's "Check again" the moment a card was added above the runtime section.
+ */
+function installButton(wrapper: ReturnType<typeof mountView>) {
+  const button = wrapper
+    .findAll('button')
+    .find((candidate) => candidate.text().includes('Install the OCR runtime'));
+  if (button === undefined) {
+    throw new Error('The install button is not rendered.');
+  }
+  return button;
+}
+
 describe('SystemView runtime install', () => {
   it('asks for the plan and downloads nothing when the install button is pressed', async () => {
     const wrapper = mountView();
     await wrapper.vm.$nextTick();
 
-    await wrapper.find('button').trigger('click');
+    await installButton(wrapper).trigger('click');
     await wrapper.vm.$nextTick();
 
     expect(runtimePlan).toHaveBeenCalledTimes(1);
@@ -78,7 +101,7 @@ describe('SystemView runtime install', () => {
   it('shows the build, both sizes and the destination before asking', async () => {
     const wrapper = mountView();
     await wrapper.vm.$nextTick();
-    await wrapper.find('button').trigger('click');
+    await installButton(wrapper).trigger('click');
     await new Promise((resolve) => setTimeout(resolve, 0));
     await wrapper.vm.$nextTick();
 
@@ -93,7 +116,7 @@ describe('SystemView runtime install', () => {
   it('starts the install only once the confirmation is accepted', async () => {
     const wrapper = mountView();
     await wrapper.vm.$nextTick();
-    await wrapper.find('button').trigger('click');
+    await installButton(wrapper).trigger('click');
     await new Promise((resolve) => setTimeout(resolve, 0));
     await wrapper.vm.$nextTick();
 

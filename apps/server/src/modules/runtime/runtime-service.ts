@@ -6,6 +6,7 @@ import {
   hardwareCapabilitiesSchema,
   runtimeStatusSchema,
   type HardwareCapabilities,
+  type PreflightReport,
   type RuntimeInstallPlan,
   type RuntimeStatus,
 } from '@impressive-ocr/shared';
@@ -15,11 +16,12 @@ import { type EventBus, stamp } from '../events/event-bus';
 import {
   INSTALL_HEADROOM_BYTES,
   INSTALLED_BYTES_BY_FLAVOR,
-  measureDiskSpaceForTarget,
+  measureNearestDiskSpace,
   MODEL_DOWNLOAD_BYTES,
   SUPPORTING_DOWNLOAD_BYTES,
 } from './disk-space';
 import { probeHardware } from './gpu-probe';
+import { runPreflight } from './preflight';
 import { type RuntimeInstaller } from './runtime-installer';
 import { describeSelection, selectWheel } from './wheel-index';
 
@@ -49,6 +51,8 @@ export interface RuntimeServiceOptions {
   events: EventBus;
   logger: Logger;
   venvDir: string;
+  /** Reported by preflight: without it the OCR runtime cannot be installed at all. */
+  uvBinary: string;
 }
 
 /** Fast enough to look live, slow enough that a progress bar cannot flood SQLite. */
@@ -155,7 +159,7 @@ export class RuntimeService {
     const downloadBytes = selection.wheelBytes + SUPPORTING_DOWNLOAD_BYTES + MODEL_DOWNLOAD_BYTES;
     const installedBytes = INSTALLED_BYTES_BY_FLAVOR[selection.flavor];
     const targetPath = dirname(this.options.venvDir);
-    const space = await measureDiskSpaceForTarget(targetPath);
+    const space = await measureNearestDiskSpace(targetPath);
 
     return {
       flavor: selection.flavor,
@@ -170,6 +174,19 @@ export class RuntimeService {
       // fails with a precise message if the disk really is too full.
       enoughSpace: space === null || space.freeBytes >= installedBytes + INSTALL_HEADROOM_BYTES,
     };
+  }
+
+  /**
+   * Whether this machine can run the engine, and what to do about it if not.
+   *
+   * Not cached: the interesting answers change while the user is looking at the page — they
+   * install the Visual C++ runtime, or free up a drive, and want to see it clear.
+   */
+  async preflight(): Promise<PreflightReport> {
+    return runPreflight({
+      dataDirectory: this.options.venvDir,
+      uvBinary: this.options.uvBinary,
+    });
   }
 
   async probe(): Promise<HardwareCapabilities> {

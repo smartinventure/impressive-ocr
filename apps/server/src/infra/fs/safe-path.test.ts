@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { mkdtemp, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
@@ -15,7 +15,11 @@ let allowed: string;
 let outside: string;
 
 beforeAll(async () => {
-  root = await mkdtemp(join(tmpdir(), 'impressive-ocr-safe-path-'));
+  // Canonicalised, because `resolveSafePath` canonicalises too and the two have to be
+  // compared like for like. On a GitHub Windows runner `tmpdir()` hands back the 8.3 short
+  // form (RUNNER~1), which realpath expands to the long name (runneradmin) - so every
+  // assertion here failed on a difference that has nothing to do with path safety.
+  root = await realpath(await mkdtemp(join(tmpdir(), 'impressive-ocr-safe-path-')));
   allowed = join(root, 'allowed');
   outside = join(root, 'outside');
   await mkdir(join(allowed, 'nested'), { recursive: true });

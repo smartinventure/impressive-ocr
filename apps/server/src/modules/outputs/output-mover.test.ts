@@ -14,6 +14,17 @@ import { createLogger } from '../../infra/logger';
 
 const logger = createLogger({ level: 'silent', pretty: false });
 
+/**
+ * Absolute roots that are absolute on *both* platforms.
+ *
+ * `join(DRIVE, 'out')` is a drive-rooted absolute path on Windows and a plain relative one on
+ * Linux, where "D:" is just a directory name. `planDestinations` resolves what it is given,
+ * so on the Linux CI leg these assertions compared a drive letter against the runner's
+ * checkout directory and failed for a reason that had nothing to do with the code.
+ */
+const DRIVE = process.platform === 'win32' ? 'D:\\' : '/d';
+const OTHER_DRIVE = process.platform === 'win32' ? 'C:\\' : '/c';
+
 let root: string;
 
 beforeEach(async () => {
@@ -22,8 +33,8 @@ beforeEach(async () => {
 
 describe('planDestinations', () => {
   const request = {
-    workDir: join('D:', 'work', 'job1'),
-    outputRoot: join('D:', 'out'),
+    workDir: join(DRIVE, 'work', 'job1'),
+    outputRoot: join(DRIVE, 'out'),
     relativeDirectory: '',
     outputStem: 'invoice 4711',
   };
@@ -34,7 +45,7 @@ describe('planDestinations', () => {
       request,
     );
 
-    expect(plan[0]?.to).toBe(join('D:', 'out', 'invoice 4711_whatever.md'));
+    expect(plan[0]?.to).toBe(join(DRIVE, 'out', 'invoice 4711_whatever.md'));
   });
 
   it('keeps a per-page suffix so a multi-page scan does not collapse onto one name', () => {
@@ -49,8 +60,8 @@ describe('planDestinations', () => {
     );
 
     expect(plan.map((entry) => entry.to)).toEqual([
-      join('D:', 'out', 'invoice 4711_page_001.md'),
-      join('D:', 'out', 'invoice 4711_page_002.md'),
+      join(DRIVE, 'out', 'invoice 4711_page_001.md'),
+      join(DRIVE, 'out', 'invoice 4711_page_002.md'),
     ]);
   });
 
@@ -60,7 +71,7 @@ describe('planDestinations', () => {
       request,
     );
 
-    expect(plan[0]?.to).toBe(join('D:', 'out', 'invoice 4711.json'));
+    expect(plan[0]?.to).toBe(join(DRIVE, 'out', 'invoice 4711.json'));
   });
 
   it('mirrors the input folder structure when asked to', () => {
@@ -69,7 +80,7 @@ describe('planDestinations', () => {
       { ...request, relativeDirectory: join('2024', 'q1') },
     );
 
-    expect(plan[0]?.to).toBe(join('D:', 'out', '2024', 'q1', 'invoice 4711.md'));
+    expect(plan[0]?.to).toBe(join(DRIVE, 'out', '2024', 'q1', 'invoice 4711.md'));
   });
 });
 
@@ -227,34 +238,34 @@ describe('planDestinations containment', () => {
     // A Quick run's files come from anywhere, so `relative(inputPath, sourcePath)` yields
     // `..` segments. Followed literally, they wrote the results next to the originals.
     const plan = planDestinations([{ format: 'markdown', relativePath: 'doc.md' }], {
-      workDir: join('C:', 'work'),
-      outputRoot: join('C:', 'scans', 'out'),
+      workDir: join(OTHER_DRIVE, 'work'),
+      outputRoot: join(OTHER_DRIVE, 'scans', 'out'),
       relativeDirectory: join('..', 'in'),
       outputStem: 'doc',
     });
 
-    expect(plan[0]?.to.startsWith(join('C:', 'scans', 'out'))).toBe(true);
+    expect(plan[0]?.to.startsWith(join(OTHER_DRIVE, 'scans', 'out'))).toBe(true);
   });
 
   it('still honours a genuine subfolder', () => {
     const plan = planDestinations([{ format: 'markdown', relativePath: 'doc.md' }], {
-      workDir: join('C:', 'work'),
-      outputRoot: join('C:', 'scans', 'out'),
+      workDir: join(OTHER_DRIVE, 'work'),
+      outputRoot: join(OTHER_DRIVE, 'scans', 'out'),
       relativeDirectory: join('2026', 'january'),
       outputStem: 'doc',
     });
 
-    expect(plan[0]?.to).toBe(join('C:', 'scans', 'out', '2026', 'january', 'doc.md'));
+    expect(plan[0]?.to).toBe(join(OTHER_DRIVE, 'scans', 'out', '2026', 'january', 'doc.md'));
   });
 
   it('treats an absolute relativeDirectory as an escape attempt', () => {
     const plan = planDestinations([{ format: 'txt', relativePath: 'doc.txt' }], {
-      workDir: join('C:', 'work'),
-      outputRoot: join('C:', 'scans', 'out'),
-      relativeDirectory: join('D:', 'elsewhere'),
+      workDir: join(OTHER_DRIVE, 'work'),
+      outputRoot: join(OTHER_DRIVE, 'scans', 'out'),
+      relativeDirectory: join(DRIVE, 'elsewhere'),
       outputStem: 'doc',
     });
 
-    expect(plan[0]?.to.startsWith(join('C:', 'scans', 'out'))).toBe(true);
+    expect(plan[0]?.to.startsWith(join(OTHER_DRIVE, 'scans', 'out'))).toBe(true);
   });
 });

@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { expandTemplate, sanitizeStem, sourceStemOf } from './naming-template';
 
@@ -83,7 +84,13 @@ describe('sanitizeStem', () => {
 
 describe('sourceStemOf', () => {
   it('drops the directory and the extension', () => {
-    expect(sourceStemOf('D:\\scans\\invoice 4711.pdf')).toBe('invoice 4711');
+    // A native path, not a hard-coded Windows one. `basename` does not treat a backslash as
+    // a separator on POSIX - a backslash is a legal character in a Linux filename - so the
+    // literal version asserted Windows behaviour and failed on the Linux CI leg. The
+    // separator invariant is covered separately below, which is the part that matters.
+    const source = join(process.platform === 'win32' ? 'D:\\' : '/', 'scans', 'invoice 4711.pdf');
+
+    expect(sourceStemOf(source)).toBe('invoice 4711');
   });
 
   it('keeps a name that has no extension', () => {

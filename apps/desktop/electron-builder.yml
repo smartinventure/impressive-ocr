@@ -125,6 +125,11 @@ dmg:
   title: ${productName} ${version}
 
 linux:
+  # Spelled out, because the default is derived from the package name and this package is
+  # scoped: "@impressive-ocr/desktop" becomes "@impressive-ocrdesktop", and AppImage refuses
+  # an executable name containing "@". The Windows and macOS targets never look at it, which
+  # is why this only ever broke the Linux build.
+  executableName: impressive-ocr
   target:
     - target: AppImage
       arch: [x64]

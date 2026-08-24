@@ -184,12 +184,15 @@ jobs:
       - name: Fetch the bundled uv binary
         run: node deploy/fetch-uv.mjs --target linux --arch x64
 
-      - name: Package (unpacked)
-        # `--dir` stops before building an installer, which is the slow half and the half that
-        # differs per platform. What it does still exercise is everything that has actually
-        # broken here: the esbuild bundle, the asar, the native rebuild of better-sqlite3
-        # against Electron's ABI, and whether extraResources resolve at all.
-        run: pnpm --filter @impressive-ocr/desktop package --dir
+      - name: Package the real Linux targets
+        # `--linux`, not `--dir`. The unpacked build skips every installer, and installers are
+        # where the packaging bugs have actually been: NSIS rejecting a PNG icon on Windows,
+        # AppImage rejecting an executable name derived from a scoped package name on Linux.
+        # Both passed `--dir` and both broke a release.
+        #
+        # Only Linux is built here - it is the platform this runner is, and building the other
+        # two would mean paying for a Windows and a macOS runner on every pull request.
+        run: pnpm --filter @impressive-ocr/desktop package --linux
 
       - name: The app must contain everything it needs at runtime
         # Packaging succeeds happily with an extraResources entry pointing at nothing, and the
@@ -227,3 +230,15 @@ jobs:
             echo "::error::The packaged app is missing:$missing"
             exit 1
           fi
+
+          # And the installers themselves exist. Packaging can report success having produced
+          # only the unpacked directory.
+          for pattern in 'dist/release/*.AppImage' 'dist/release/*.deb'; do
+            # shellcheck disable=SC2086
+            if ls $pattern >/dev/null 2>&1; then
+              echo "  ok      $pattern"
+            else
+              echo "::error::No file matched $pattern"
+              exit 1
+            fi
+          done

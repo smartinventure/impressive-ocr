@@ -111,6 +111,7 @@ jobs:
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
     strategy:
       fail-fast: false
       matrix:
@@ -188,17 +189,31 @@ jobs:
           echo "::warning::AZURE_CLIENT_ID is not set - producing an UNSIGNED Windows build."
           pnpm --filter @impressive-ocr/desktop package --win
 
-      - name: Package the macOS apps
-        if: matrix.target == 'mac'
+      - name: Package the macOS apps (signed and notarised)
+        if: matrix.target == 'mac' && env.APPLE_CERT_BASE64 != ''
         env:
-          # Notarisation. Absent on forks, where electron-builder produces an unsigned build
-          # rather than failing.
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           CSC_LINK: ${{ secrets.APPLE_CERT_BASE64 }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
         run: pnpm --filter @impressive-ocr/desktop package --mac
+
+      - name: Package the macOS apps (unsigned)
+        if: matrix.target == 'mac' && env.APPLE_CERT_BASE64 == ''
+        # Split rather than passing the variables through empty, which is what the single step
+        # used to do. An unset secret still defines the variable as "", and electron-builder
+        # reads an empty CSC_LINK as a certificate *path* - resolving it to the project
+        # directory and failing with "apps/desktop not a file". Absent and empty are not the
+        # same thing to it.
+        #
+        # CSC_IDENTITY_AUTO_DISCOVERY stops it hunting the runner's keychain for an identity
+        # it will not find either.
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          echo "::warning::APPLE_CERT_BASE64 is not set - producing an UNSIGNED macOS build."
+          pnpm --filter @impressive-ocr/desktop package --mac
 
       - name: Package the Linux app
         if: matrix.target == 'linux'

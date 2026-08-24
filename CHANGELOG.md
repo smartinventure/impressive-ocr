@@ -67,6 +67,13 @@ worth having.
   rather than whether the field had *matched*, and those differ precisely when the value is
   already correct — which is the normal case for a first release asking for 1.0.0 while the
   tree says 1.0.0. It failed after every check had run.
+- The Linux build failed: `executableName` defaults to the package name, and this package is
+  scoped, so `@impressive-ocr/desktop` became `@impressive-ocrdesktop` — which AppImage
+  refuses, because of the `@`. Pinned to `impressive-ocr`.
+- The macOS build failed with "apps/desktop not a file". An unset GitHub secret still defines
+  the variable as an empty string, and electron-builder reads an empty `CSC_LINK` as a
+  certificate *path*, resolving it to the project directory. Absent and empty are not the same
+  thing to it, so the signed and unsigned paths are now separate steps, as on Windows.
 - The release scripts aborted when the version write changed nothing. `git commit` exits 1
   for an empty commit, which under `set -e` and the PowerShell exit-code check read as a
   failure — but "the tree already carries this version" is the normal state for a first

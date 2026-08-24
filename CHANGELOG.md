@@ -12,6 +12,13 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-08-24
+
+The first public release. Everything below records the development that led to it — several
+entries describe defects that no released version ever shipped, kept because the reasoning is
+worth having.
+
+
 ### Added
 
 - Release pipeline: tag-triggered builds for Windows, macOS, Linux desktop, the headless
@@ -38,6 +45,14 @@ release checklist, because deciding what is worth telling users about is not aut
   called them, so a user could not learn a release existed.
 - Quitting the desktop app while documents are being processed now asks first. Closing the
   window still just hides it — this is about the explicit Quit.
+- The System page reports the OCR engine version installed in the runtime, and offers to
+  update it. The engine is copied into its virtual environment once and never touched again,
+  so an application update otherwise leaves the old Python in place, silently.
+- An engine selector in Quick Mode, with an explanation of when each is worth its time. It
+  defaulted to the fast engine with no control, so the accurate one was unreachable outside a
+  pipeline — which is backwards, since Quick Mode is the "one document, make it right" case.
+- Quick Mode shows the settings a run was started with while it runs. Starting a run replaced
+  the form with a progress card, taking every choice that shaped the result with it.
 
 ### Fixed
 
@@ -54,6 +69,10 @@ release checklist, because deciding what is worth telling users about is not aut
   whatever the pipeline said. Had it been wired up naively it would have crashed — the
   setting name `utf-8-bom` is not a Python codec, and the resulting `LookupError` is not
   among the errors the writer catches.
+- The accurate profile failed on every document with "`_PaddleOCRVLPipeline` object has no
+  attribute `doc_preprocessor_pipeline`". PaddleOCR-VL builds its document preprocessor in the
+  constructor or not at all, and we asked for it at predict time instead; since orientation
+  detection is on by default, that was the whole profile rather than an edge case.
 - The pipeline editor showed only the already-selected output formats. The format chips bound
   `model-value`, which on Vuetify's `VChip` controls the chip's own visibility, so every
   unselected format rendered nothing — and because a chip that is not rendered cannot be
@@ -88,3 +107,4 @@ release checklist, because deciding what is worth telling users about is not aut
 - The headless server is bundled with esbuild instead of `tsc`.
 
 [Unreleased]: https://github.com/smartinventure/impressive-ocr/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/smartinventure/impressive-ocr/releases/tag/v1.0.0

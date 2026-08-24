@@ -116,8 +116,15 @@ step "Setting version $NEXT"
 node deploy/set-version.mjs "$NEXT" >/dev/null
 
 step 'Committing and tagging'
-git add -A
-git commit -m "release: $TAG"
+# A no-op version write leaves nothing to commit - the first release, or a re-cut after an
+# aborted one - and `git commit` exits 1 for it. Under `set -e` that would abort the release
+# over the absence of work rather than a failure.
+if [[ -n "$(git status --porcelain)" ]]; then
+  git add -A
+  git commit -m "release: $TAG"
+else
+  warn "Version $NEXT was already written; tagging the existing commit."
+fi
 # Annotated, not lightweight: records who cut the release and when, and `git describe`
 # only considers annotated tags by default.
 git tag -a "$TAG" -m "Impressive OCR $NEXT"

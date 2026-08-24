@@ -67,6 +67,10 @@ worth having.
   rather than whether the field had *matched*, and those differ precisely when the value is
   already correct — which is the normal case for a first release asking for 1.0.0 while the
   tree says 1.0.0. It failed after every check had run.
+- The release scripts aborted when the version write changed nothing. `git commit` exits 1
+  for an empty commit, which under `set -e` and the PowerShell exit-code check read as a
+  failure — but "the tree already carries this version" is the normal state for a first
+  release, and the right response is to tag the commit that is already there.
 - `deploy/release.ps1` ignored a failing lint or typecheck and released anyway. Windows
   PowerShell does not raise an error when a native command exits non-zero — not even
   under `$ErrorActionPreference = 'Stop'` — and the script checked `$LASTEXITCODE` once,

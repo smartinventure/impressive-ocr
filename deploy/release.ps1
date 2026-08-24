@@ -144,8 +144,16 @@ Write-Step "Setting version $next"
 Invoke-Checked 'Writing the version' { node deploy/set-version.mjs $next | Out-Null }
 
 Write-Step 'Committing and tagging'
-Invoke-Checked 'git add'    { git add -A }
-Invoke-Checked 'git commit' { git commit -m "release: $tag" }
+# The version write is a no-op whenever the tree already carries the target version - the
+# first release, or a re-cut after an aborted one. `git commit` then exits 1 with "nothing to
+# commit", which is not a failure: there is simply nothing to record, and the commit to tag is
+# the one already sitting there.
+if (git status --porcelain) {
+    Invoke-Checked 'git add'    { git add -A }
+    Invoke-Checked 'git commit' { git commit -m "release: $tag" }
+} else {
+    Write-Warn "Version $next was already written; tagging the existing commit."
+}
 # Annotated, not lightweight: it records who cut the release and when, and `git describe`
 # only considers annotated tags by default.
 Invoke-Checked 'git tag'    { git tag -a $tag -m "Impressive OCR $next" }

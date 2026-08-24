@@ -60,6 +60,13 @@ worth having.
 - Quick Mode shows the settings a run was started with while it runs. Starting a run replaced
   the form with a progress card, taking every choice that shaped the result with it.
 
+### Known limitations
+
+- **No Linux desktop build.** It fails during AppImage packing, and blocking Windows, macOS,
+  the server and the container on it was the wrong trade. Linux is still covered by the
+  headless server tarball and the container image, and CI builds the real AppImage and deb on
+  every pull request — so the fix can be proved there before the release leg comes back.
+
 ### Fixed
 
 - `deploy/set-version.mjs` refused to write a version the tree already held, reporting that

@@ -54,6 +54,8 @@ export interface RuntimeVersions {
   python: string | null;
   paddle: string | null;
   paddleocr: string | null;
+  /** The sidecar package installed in the venv, which can lag the app that ships it. */
+  sidecar: string | null;
 }
 
 export interface InstallResult {
@@ -232,11 +234,42 @@ export class RuntimeInstaller {
    * Failure is not an error: this is display detail, and an interpreter that cannot answer
    * has bigger problems that `isInstalled` and the first job will surface properly.
    */
+  /**
+   * Reinstall just the sidecar into an existing venv.
+   *
+   * `--force-reinstall` because the version usually has not changed: during development the
+   * source moves while `pyproject.toml` still says 1.0.0, and pip would consider the copy in
+   * the venv already satisfactory. `--no-deps` because Paddle is several gigabytes and is not
+   * what changed - this has to be the cheap repair, or nobody will run it.
+   */
+  async reinstallSidecar(signal?: AbortSignal): Promise<RuntimeVersions> {
+    const python = venvPython(this.options.venvDir);
+
+    await this.run(
+      [
+        'pip',
+        'install',
+        '--force-reinstall',
+        '--no-deps',
+        this.options.sidecarProjectDir,
+        '--python',
+        python,
+      ],
+      // A no-op rather than undefined: `run` calls this for every line it recognises, and
+      // there is no progress bar to drive here - the whole point is that this takes seconds.
+      () => undefined,
+      'install-paddleocr',
+      signal,
+    );
+
+    return this.verify(python, signal);
+  }
+
   async readVersions(signal?: AbortSignal): Promise<RuntimeVersions> {
     try {
       return await this.verify(venvPython(this.options.venvDir), signal);
     } catch {
-      return { python: null, paddle: null, paddleocr: null };
+      return { python: null, paddle: null, paddleocr: null, sidecar: null };
     }
   }
 
@@ -374,7 +407,7 @@ export class RuntimeInstaller {
    * would make the System page confidently wrong.
    */
   private async verify(python: string, signal: AbortSignal | undefined): Promise<RuntimeVersions> {
-    let versions: RuntimeVersions = { python: null, paddle: null, paddleocr: null };
+    let versions: RuntimeVersions = { python: null, paddle: null, paddleocr: null, sidecar: null };
 
     await runCommand({
       command: python,
@@ -446,6 +479,7 @@ export function parseVersions(line: string): RuntimeVersions | null {
       python: asVersion(record.python),
       paddle: asVersion(record.paddle),
       paddleocr: asVersion(record.paddleocr),
+      sidecar: asVersion(record.sidecar),
     };
   } catch {
     // A truncated line is not worth failing an otherwise successful install over.

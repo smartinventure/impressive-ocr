@@ -162,6 +162,17 @@ export const runtimeStatusSchema = z.object({
   pythonVersion: z.string().nullable(),
   paddleVersion: z.string().nullable(),
   paddleocrVersion: z.string().nullable(),
+  /**
+   * The sidecar package *installed in the venv*, which is not the same thing as the sidecar
+   * shipped with the app.
+   *
+   * It is installed as a copy, once, during the runtime setup. Everything after that - an app
+   * update, or a developer editing the source - leaves that copy untouched, so the Python
+   * doing the OCR can be arbitrarily older than the application around it. That is invisible
+   * unless it is reported, and it has already cost one silent regression: a recogniser fix
+   * that never reached the engine actually running.
+   */
+  sidecarVersion: z.string().nullable(),
   /** `paddlepaddle` or `paddlepaddle-gpu`, recorded so we can detect a hardware change later. */
   paddleFlavor: z.enum(['cpu', 'gpu']).nullable(),
   errorMessage: z.string().max(2000).nullable(),

@@ -9,14 +9,25 @@ import { parseVersions } from './runtime-installer';
  * computed and discarded. These pin the parsing so they cannot silently go missing again.
  */
 describe('parseVersions', () => {
-  const line = 'IMPRESSIVE_OCR_VERSIONS {"python":"3.12.8","paddle":"3.0.0","paddleocr":"3.2.0"}';
+  const line =
+    'IMPRESSIVE_OCR_VERSIONS {"python":"3.12.8","paddle":"3.0.0","paddleocr":"3.2.0","sidecar":"1.2.3"}';
 
-  it('reads all three versions', () => {
+  it('reads every version, the sidecar included', () => {
     expect(parseVersions(line)).toEqual({
       python: '3.12.8',
       paddle: '3.0.0',
       paddleocr: '3.2.0',
+      sidecar: '1.2.3',
     });
+  });
+
+  it('reports an unknown sidecar rather than omitting it', () => {
+    // A runtime installed before the sidecar version was reported prints null here. That must
+    // read as "unknown" - which triggers the backfill - and never as "up to date".
+    const older =
+      'IMPRESSIVE_OCR_VERSIONS {"python":"3.12.8","paddle":"3.0.0","paddleocr":"3.2.0","sidecar":null}';
+
+    expect(parseVersions(older)?.sidecar).toBeNull();
   });
 
   it('finds the payload even when something else printed on the same line', () => {
@@ -41,6 +52,7 @@ describe('parseVersions', () => {
       python: '3.12.8',
       paddle: null,
       paddleocr: null,
+      sidecar: null,
     });
   });
 });

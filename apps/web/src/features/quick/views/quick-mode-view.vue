@@ -24,6 +24,15 @@ const quick = useQuickRun();
 /** Offering GPU on a machine that cannot use one would only produce a silent fallback. */
 const gpuAvailable = computed(() => store.system?.hardware.canUseGpu ?? false);
 
+/**
+ * Whether the vision-language engine can run here at all. It needs a GPU with enough VRAM, so
+ * on most machines `fast` is the only real choice and the control says so rather than
+ * offering something that would be refused.
+ */
+const accurateAvailable = computed(
+  () => store.system?.hardware.availableProfiles.includes('accurate') ?? false,
+);
+
 const FORMATS: { value: OutputFormat; labelKey: string }[] = [
   { value: 'markdown', labelKey: 'format.markdown' },
   { value: 'json', labelKey: 'format.json' },
@@ -112,6 +121,28 @@ function toggleFormat(format: OutputFormat): void {
             {{ t(format.labelKey) }}
           </v-chip>
         </div>
+
+        <!-- Quick Mode is where someone converts one document and wants it right, which is
+             exactly the case the slower engine is for. It defaulted to `fast` with no way to
+             change it, so the better recogniser was unreachable outside a pipeline. -->
+        <v-select
+          v-model="quick.options.value.profile"
+          :items="[
+            { value: 'fast', title: t('quick.profileFast') },
+            {
+              value: 'accurate',
+              title: t('quick.profileAccurate'),
+              props: { disabled: !accurateAvailable },
+            },
+          ]"
+          :label="t('quick.profileLabel')"
+          :hint="accurateAvailable ? t('quick.profileHint') : t('quick.profileHintNoGpu')"
+          persistent-hint
+          density="comfortable"
+          variant="outlined"
+          class="mb-4"
+          :disabled="quick.busy.value"
+        />
 
         <!-- Forcing one device or the other is how you find out what the GPU is worth on your
              own documents; `auto` leaves the choice to the scheduler. -->

@@ -2,7 +2,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { RuntimeInstallPlan, SidecarReleaseResult } from '@impressive-ocr/shared';
+import {
+  APP_VERSION,
+  type RuntimeInstallPlan,
+  type SidecarReleaseResult,
+} from '@impressive-ocr/shared';
 import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 import PreflightCard from '../components/preflight-card.vue';
@@ -17,6 +21,37 @@ import UpdateCard from '../components/update-card.vue';
 
 const store = useLiveStore();
 const { t } = useI18n();
+
+/** What the application ships, against which the installed engine is compared. */
+const appVersion = APP_VERSION;
+
+const refreshing = ref(false);
+const refreshError = ref<string | null>(null);
+
+/**
+ * The engine's Python is a *copy* in the venv, not the source the app ships. It only changes
+ * when something reinstalls it, so after an app update these two numbers disagree and the OCR
+ * keeps running the old code.
+ */
+const engineOutdated = computed(() => {
+  // Null means "not recorded yet", which the backfill resolves on the next start. Treating it
+  // as outdated would nag about a runtime nobody has measured.
+  const installed = store.runtime?.sidecarVersion ?? null;
+  return installed !== null && installed !== appVersion;
+});
+
+async function refreshEngine(): Promise<void> {
+  refreshing.value = true;
+  refreshError.value = null;
+  try {
+    await systemApi.refreshSidecar();
+    await store.refresh();
+  } catch (error) {
+    refreshError.value = error instanceof Error ? error.message : t('errors.saveFailed');
+  } finally {
+    refreshing.value = false;
+  }
+}
 
 const hardware = ref<HardwareWithExplanation | null>(null);
 const installing = computed(() => store.runtime?.state === 'installing');
@@ -165,7 +200,39 @@ onMounted(async () => {
           <dt>Build</dt>
           <dd class="ocr-mono">{{ store.runtime?.paddleFlavor ?? '—' }}</dd>
         </div>
+        <div>
+          <dt>{{ t('runtime.engineVersion') }}</dt>
+          <dd class="ocr-mono">{{ store.runtime?.sidecarVersion ?? '—' }}</dd>
+        </div>
       </dl>
+
+      <!-- The sidecar is copied into the venv once and never touched again, so an app update
+           leaves the engine running the previous Python. Nothing else would show that. -->
+      <div v-if="store.runtimeReady && engineOutdated" class="ocr-alert-warn mt-4">
+        {{
+          t('runtime.engineOutdated', {
+            engine: store.runtime?.sidecarVersion ?? '—',
+            app: appVersion,
+          })
+        }}
+      </div>
+
+      <div v-if="store.runtimeReady" class="mt-3">
+        <v-btn
+          size="small"
+          variant="tonal"
+          :color="engineOutdated ? 'primary' : undefined"
+          prepend-icon="autorenew"
+          :loading="refreshing"
+          @click="refreshEngine"
+        >
+          {{ t('runtime.updateEngine') }}
+        </v-btn>
+        <span class="text-body-2 text-medium-emphasis ml-3">{{
+          t('runtime.updateEngineHint')
+        }}</span>
+        <div v-if="refreshError" class="ocr-alert-error mt-3">{{ refreshError }}</div>
+      </div>
     </v-card>
 
     <!-- Hardware -->

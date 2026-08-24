@@ -41,6 +41,7 @@ const INITIAL_STATUS: RuntimeStatus = {
   pythonVersion: null,
   paddleVersion: null,
   paddleocrVersion: null,
+  sidecarVersion: null,
   paddleFlavor: null,
   errorMessage: null,
 };
@@ -112,7 +113,11 @@ export class RuntimeService {
   private async backfillVersions(): Promise<void> {
     const missing =
       this.status.state === 'ready' &&
-      (this.status.pythonVersion === null || this.status.paddleocrVersion === null);
+      (this.status.pythonVersion === null ||
+        this.status.paddleocrVersion === null ||
+        // Every runtime installed before this field existed reports null here, which would
+        // otherwise read as "unknown" forever and hide precisely the mismatch it is for.
+        this.status.sidecarVersion === null);
     if (!missing) return;
 
     const versions = await this.options.installer.readVersions();
@@ -123,6 +128,7 @@ export class RuntimeService {
       pythonVersion: versions.python,
       paddleVersion: versions.paddle,
       paddleocrVersion: versions.paddleocr,
+      sidecarVersion: versions.sidecar,
     });
     this.options.logger.info({ versions }, 'Backfilled runtime versions');
   }
@@ -187,6 +193,36 @@ export class RuntimeService {
       dataDirectory: this.options.venvDir,
       uvBinary: this.options.uvBinary,
     });
+  }
+
+  /**
+   * Reinstall the sidecar into the existing venv, and report what is now there.
+   *
+   * The sidecar is copied into the venv once, during setup, and never touched again. So an
+   * app update ships new Python while the engine keeps running the old copy, and the change
+   * simply has no effect - silently, with a healthy-looking runtime. This is the repair for
+   * that, and it is deliberately cheap: seconds, no Paddle download, no model download.
+   *
+   * Not folded into `startInstall`, because that is a multi-gigabyte operation nobody will
+   * run to pick up a Python fix.
+   */
+  async refreshSidecar(): Promise<RuntimeStatus> {
+    if (this.status.state !== 'ready') {
+      throw new Error('The OCR runtime is not installed yet.');
+    }
+
+    const versions = await this.options.installer.reinstallSidecar();
+    this.setStatus({
+      ...this.status,
+      pythonVersion: versions.python ?? this.status.pythonVersion,
+      paddleVersion: versions.paddle ?? this.status.paddleVersion,
+      paddleocrVersion: versions.paddleocr ?? this.status.paddleocrVersion,
+      sidecarVersion: versions.sidecar,
+      message: 'The OCR engine was updated.',
+    });
+    this.options.logger.info({ sidecar: versions.sidecar }, 'Sidecar reinstalled');
+
+    return this.status;
   }
 
   async probe(): Promise<HardwareCapabilities> {
@@ -263,6 +299,7 @@ export class RuntimeService {
         pythonVersion: result.versions.python,
         paddleVersion: result.versions.paddle,
         paddleocrVersion: result.versions.paddleocr,
+        sidecarVersion: result.versions.sidecar,
         errorMessage: null,
       });
       this.options.logger.info({ flavor: result.selection.flavor }, 'Runtime installed');

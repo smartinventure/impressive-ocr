@@ -102,7 +102,11 @@
     "freeSpace": "Frei auf diesem Laufwerk",
     "about": "ca. {size}",
     "tightSpace": "Auf diesem Laufwerk ist möglicherweise zu wenig Platz für die Installation und ihre temporären Dateien.",
-    "planFailed": "Es konnte nicht ermittelt werden, was installiert würde. Läuft der Dienst noch?"
+    "planFailed": "Es konnte nicht ermittelt werden, was installiert würde. Läuft der Dienst noch?",
+    "engineVersion": "OCR-Engine",
+    "engineOutdated": "Die OCR-Engine hat Version {engine}, die Anwendung dagegen {app}. Sie wird einmalig installiert und nicht automatisch aktualisiert — jetzt aktualisieren, um Verbesserungen der Texterkennung zu erhalten.",
+    "updateEngine": "OCR-Engine aktualisieren",
+    "updateEngineHint": "Dauert Sekunden und lädt nichts herunter."
   },
   "errors": {
     "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",
@@ -385,7 +389,12 @@
     "deviceGpu": "GPU",
     "deviceCpu": "CPU",
     "deviceHint": "Erzwingen Sie eines von beiden, um sie an eigenen Dokumenten zu vergleichen.",
-    "deviceHintNoGpu": "Keine nutzbare GPU auf diesem Rechner, es läuft alles auf der CPU."
+    "deviceHintNoGpu": "Keine nutzbare GPU auf diesem Rechner, es läuft alles auf der CPU.",
+    "profileLabel": "Erkennungs-Engine",
+    "profileFast": "Schnell — gut für alltägliche Dokumente",
+    "profileAccurate": "Genau — am besten bei Spalten, Tabellen und schwierigen Scans",
+    "profileHint": "Genau erfasst das Layout von Zeitschriften- und Zeitungsseiten deutlich besser und braucht ein Mehrfaches der Zeit pro Seite.",
+    "profileHintNoGpu": "Genau benötigt eine GPU mit ausreichend Speicher, die dieser Rechner nicht hat."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

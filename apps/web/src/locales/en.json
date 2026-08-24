@@ -102,7 +102,11 @@
     "freeSpace": "Free on that drive",
     "about": "about {size}",
     "tightSpace": "That drive may not have enough free space for the install and its temporary files.",
-    "planFailed": "Could not work out what would be installed. Is the service still running?"
+    "planFailed": "Could not work out what would be installed. Is the service still running?",
+    "engineVersion": "OCR engine",
+    "engineOutdated": "The OCR engine is version {engine}, but this application is {app}. It was installed once and is not updated automatically — update it to pick up recognition improvements.",
+    "updateEngine": "Update the OCR engine",
+    "updateEngineHint": "Takes seconds and downloads nothing."
   },
   "errors": {
     "loadFailed": "Could not load data from the service.",
@@ -385,7 +389,12 @@
     "deviceGpu": "GPU",
     "deviceCpu": "CPU",
     "deviceHint": "Force one or the other to compare them on your own documents.",
-    "deviceHintNoGpu": "No usable GPU on this machine, so everything runs on the CPU."
+    "deviceHintNoGpu": "No usable GPU on this machine, so everything runs on the CPU.",
+    "profileLabel": "Recognition engine",
+    "profileFast": "Fast — good on everyday documents",
+    "profileAccurate": "Accurate — best on columns, tables and messy scans",
+    "profileHint": "Accurate reads layout far better on magazine and newspaper pages, and is several times slower per page.",
+    "profileHintNoGpu": "Accurate needs a GPU with enough memory, which this machine does not have."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

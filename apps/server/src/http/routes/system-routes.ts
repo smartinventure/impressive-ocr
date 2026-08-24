@@ -57,6 +57,14 @@ export function registerSystemRoutes(app: AppFastify, services: AppServices): vo
 
   app.get('/api/system/runtime', () => services.runtime.getStatus());
 
+  /**
+   * Reinstall the sidecar into the existing venv.
+   *
+   * Synchronous, unlike the full install: it takes seconds and downloads nothing, so there is
+   * no progress to stream and no reason to answer 202 and make the client poll.
+   */
+  app.post('/api/system/runtime/refresh', async () => services.runtime.refreshSidecar());
+
   /** What an install would download, so the UI can ask before starting one. */
   app.get('/api/system/runtime/plan', async () => services.runtime.planInstall());
 

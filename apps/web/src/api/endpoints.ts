@@ -105,6 +105,8 @@ export const systemApi = {
   /** Can this machine run the engine? Probes the CPU, so it is asked for, not polled. */
   preflight: () => api.get<PreflightReport>('/system/preflight'),
   installRuntime: () => api.post<RuntimeStatus>('/system/runtime/install'),
+  /** Reinstall just the sidecar. Seconds, and downloads nothing. */
+  refreshSidecar: () => api.post<RuntimeStatus>('/system/runtime/refresh'),
   cancelInstall: () => api.post<{ cancelled: boolean }>('/system/runtime/cancel'),
   /** Stop the warm OCR workers and give their model memory back. */
   releaseSidecars: (force: boolean) =>

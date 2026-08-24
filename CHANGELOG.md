@@ -51,11 +51,22 @@ worth having.
 - An engine selector in Quick Mode, with an explanation of when each is worth its time. It
   defaulted to the fast engine with no control, so the accurate one was unreachable outside a
   pipeline — which is backwards, since Quick Mode is the "one document, make it right" case.
+- An update indicator in the navigation footer, beside the version it refers to. The check
+  already ran at startup and on an interval; its only surface was a card on a page nobody
+  visits when nothing is wrong.
+- Controls for the two desktop startup settings, `openBrowserOnStart` and
+  `startMinimizedToTray`. Both existed in the schema from the beginning with no control
+  anywhere, so the app opened a browser tab on every start and there was no way to stop it.
 - Quick Mode shows the settings a run was started with while it runs. Starting a run replaced
   the form with a progress card, taking every choice that shaped the result with it.
 
 ### Fixed
 
+- `deploy/set-version.mjs` refused to write a version the tree already held, reporting that
+  `package.json` had no version field. All three writers tested whether the text had *changed*
+  rather than whether the field had *matched*, and those differ precisely when the value is
+  already correct — which is the normal case for a first release asking for 1.0.0 while the
+  tree says 1.0.0. It failed after every check had run.
 - `deploy/release.ps1` ignored a failing lint or typecheck and released anyway. Windows
   PowerShell does not raise an error when a native command exits non-zero — not even
   under `$ErrorActionPreference = 'Stop'` — and the script checked `$LASTEXITCODE` once,

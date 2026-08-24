@@ -310,7 +310,13 @@
     "concurrency": "Documents processed at once",
     "concurrencyHint": "Each one holds its own copy of the OCR models in memory — roughly 2-4 GB. Raise it only if you have RAM to spare.",
     "sidecarIdle": "Release idle OCR workers after (minutes)",
-    "sidecarIdleHint": "A worker keeps its models loaded so the next document starts instantly, which costs several GB of memory — on the GPU, VRAM another application cannot then use. 0 keeps them until the app closes."
+    "sidecarIdleHint": "A worker keeps its models loaded so the next document starts instantly, which costs several GB of memory — on the GPU, VRAM another application cannot then use. 0 keeps them until the app closes.",
+    "desktop": "Desktop app",
+    "desktopHint": "How the application behaves when it starts. These apply to the desktop app only.",
+    "openBrowserOnStart": "Also open the interface in my browser",
+    "openBrowserOnStartHint": "The app already has its own window; this opens a browser tab as well, for people who prefer working there.",
+    "startMinimizedToTray": "Start minimised to the tray",
+    "startMinimizedToTrayHint": "No window appears; the queue runs in the background. Useful when the app starts with the computer."
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -495,5 +501,10 @@
     "fastCpuSpeed": "~114 s",
     "qualityNote": "Both engines read almost the same characters. The gap is structure: Fast placed much of the text in the wrong order on this layout, which is what the percentage measures.",
     "hardwareNote": "Times depend on your hardware and on the page. Model loading adds ten to twenty seconds to the first document only, after which the engine stays warm."
+  },
+  "updateBadge": {
+    "available": "Update available",
+    "ready": "Update ready",
+    "tooltip": "Version {version} is available. Open the System page to install it."
   }
 }

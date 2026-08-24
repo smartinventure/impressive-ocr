@@ -81,6 +81,23 @@ function bump(version, level) {
   }
 }
 
+/**
+ * Replace one occurrence, failing only when the field is genuinely absent.
+ *
+ * The obvious test — did the text change? — conflates "no such field" with "already holds
+ * this value", and the second is the normal case for the very first release: the tree already
+ * says 1.0.0 and you ask for 1.0.0. That threw after every check had run, claiming
+ * package.json had no version field, which it plainly did.
+ *
+ * Matching is the question actually being asked, so ask that.
+ */
+function replaceField(raw, pattern, replacement, missingMessage) {
+  if (!pattern.test(raw)) {
+    throw new Error(missingMessage);
+  }
+  return raw.replace(pattern, replacement);
+}
+
 function writeJsonVersion(relativePath, version) {
   const path = join(repoRoot, relativePath);
   let raw;
@@ -93,10 +110,12 @@ function writeJsonVersion(relativePath, version) {
   }
   // Textual replacement rather than parse-and-stringify: rewriting the JSON would reorder
   // keys and reformat the whole file, burying the one-line change in every release diff.
-  const updated = raw.replace(/("version"\s*:\s*)"[^"]*"/, `$1"${version}"`);
-  if (updated === raw) {
-    throw new Error(`No version field found in ${relativePath}`);
-  }
+  const updated = replaceField(
+    raw,
+    /("version"\s*:\s*)"[^"]*"/,
+    `$1"${version}"`,
+    `No version field found in ${relativePath}`,
+  );
   writeFileSync(path, updated);
   return true;
 }
@@ -104,10 +123,12 @@ function writeJsonVersion(relativePath, version) {
 function writeVersionTs(version) {
   const path = join(repoRoot, VERSION_TS);
   const raw = readFileSync(path, 'utf8');
-  const updated = raw.replace(/(APP_VERSION = )'[^']*'/, `$1'${version}'`);
-  if (updated === raw) {
-    throw new Error(`No APP_VERSION found in ${VERSION_TS}`);
-  }
+  const updated = replaceField(
+    raw,
+    /(APP_VERSION = )'[^']*'/,
+    `$1'${version}'`,
+    `No APP_VERSION found in ${VERSION_TS}`,
+  );
   writeFileSync(path, updated);
 }
 
@@ -115,10 +136,12 @@ function writePyproject(version) {
   const path = join(repoRoot, PYPROJECT);
   const raw = readFileSync(path, 'utf8');
   // Anchored to the line so a dependency pin like `foo>=1.0.0` is never rewritten.
-  const updated = raw.replace(/^version = "[^"]*"$/m, `version = "${version}"`);
-  if (updated === raw) {
-    throw new Error(`No version found in ${PYPROJECT}`);
-  }
+  const updated = replaceField(
+    raw,
+    /^version = "[^"]*"$/m,
+    `version = "${version}"`,
+    `No version found in ${PYPROJECT}`,
+  );
   writeFileSync(path, updated);
 }
 

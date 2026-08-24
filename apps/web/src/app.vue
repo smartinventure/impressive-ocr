@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router';
 import { useTheme } from 'vuetify';
 import { APP_VERSION } from '@impressive-ocr/shared';
 import { useLiveStore } from './stores/live-store';
+import UpdateBadge from './components/update-badge.vue';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
 import { setLocale, type AppLocale } from './plugins/i18n';
 
@@ -123,6 +124,9 @@ onBeforeUnmount(() => store.stop());
           <v-chip size="small" variant="tonal" :color="connectionColour" label>
             {{ t(`connection.${store.connection}`) }}
           </v-chip>
+
+          <!-- Beside the version it refers to, and silent unless there is an update. -->
+          <UpdateBadge />
 
           <div class="shell__colophon">
             <span>&copy; Smart In Venture {{ COPYRIGHT_YEAR }}</span>

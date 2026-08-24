@@ -310,7 +310,13 @@
     "concurrency": "Gleichzeitig verarbeitete Dokumente",
     "concurrencyHint": "Jedes hält eine eigene Kopie der OCR-Modelle im Speicher — etwa 2–4 GB. Nur erhöhen, wenn genügend RAM vorhanden ist.",
     "sidecarIdle": "Ungenutzte OCR-Prozesse freigeben nach (Minuten)",
-    "sidecarIdleHint": "Ein Prozess hält seine Modelle geladen, damit das nächste Dokument sofort startet — das kostet mehrere GB Speicher, auf der GPU VRAM, das anderen Anwendungen fehlt. 0 behält sie, bis die App geschlossen wird."
+    "sidecarIdleHint": "Ein Prozess hält seine Modelle geladen, damit das nächste Dokument sofort startet — das kostet mehrere GB Speicher, auf der GPU VRAM, das anderen Anwendungen fehlt. 0 behält sie, bis die App geschlossen wird.",
+    "desktop": "Desktop-App",
+    "desktopHint": "Verhalten beim Start. Gilt nur für die Desktop-Anwendung.",
+    "openBrowserOnStart": "Oberfläche zusätzlich im Browser öffnen",
+    "openBrowserOnStartHint": "Die App hat bereits ein eigenes Fenster; dies öffnet zusätzlich einen Browser-Tab, für alle, die lieber dort arbeiten.",
+    "startMinimizedToTray": "Minimiert im Infobereich starten",
+    "startMinimizedToTrayHint": "Es erscheint kein Fenster, die Warteschlange läuft im Hintergrund. Sinnvoll, wenn die App mit dem Rechner startet."
   },
   "auth": {
     "signInTitle": "Anmelden",
@@ -495,5 +501,10 @@
     "fastCpuSpeed": "~114 s",
     "qualityNote": "Beide Engines erkennen nahezu dieselben Zeichen. Der Unterschied liegt in der Struktur: Schnell hat große Teile des Textes in der falschen Reihenfolge angeordnet — genau das misst der Prozentwert.",
     "hardwareNote": "Die Zeiten hängen von Ihrer Hardware und der Seite ab. Das Laden der Modelle kostet nur beim ersten Dokument zehn bis zwanzig Sekunden, danach bleibt die Engine warm."
+  },
+  "updateBadge": {
+    "available": "Update verfügbar",
+    "ready": "Update bereit",
+    "tooltip": "Version {version} ist verfügbar. Zum Installieren die Systemseite öffnen."
   }
 }

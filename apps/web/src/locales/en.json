@@ -472,5 +472,28 @@
     "download": "Download",
     "install": "Restart and install",
     "releaseNotes": "Release notes"
+  },
+  "engineHelp": {
+    "trigger": "Which engine should I choose?",
+    "title": "Choosing an OCR engine",
+    "fastTitle": "Fast",
+    "fastFor": "Letters, invoices, forms, reports — anything laid out in a single column. The right choice for watched folders, where hundreds of documents matter more than any one of them.",
+    "fastLimit": "It reads characters well but reconstructs page structure poorly. On a magazine or newspaper page it can interleave columns, break a drop capital away from its word, and turn a headline into an anagram — output that looks plausible and is not usable.",
+    "accurateTitle": "Accurate",
+    "accurateFor": "Magazines, newspapers, multi-column layouts, tables, and any scan you intend to read or publish. It reconstructs reading order, so columns and drop capitals come out in the order a person would read them.",
+    "accurateLimit": "Needs a GPU with enough memory, and takes far longer per page. On a large backlog that difference is hours, not seconds.",
+    "measuredTitle": "Measured on one dense magazine page",
+    "measuredIntro": "A single-page German magazine article, processed on a desktop GPU and compared against a hand-checked transcript.",
+    "colSetting": "Setting",
+    "colSpeed": "Per page",
+    "colQuality": "Matched the transcript",
+    "rowFastGpu": "Fast, GPU",
+    "rowAccurateGpu": "Accurate, GPU",
+    "rowFastCpu": "Fast, CPU",
+    "fastGpuSpeed": "~5 s",
+    "accurateGpuSpeed": "~80 s",
+    "fastCpuSpeed": "~114 s",
+    "qualityNote": "Both engines read almost the same characters. The gap is structure: Fast placed much of the text in the wrong order on this layout, which is what the percentage measures.",
+    "hardwareNote": "Times depend on your hardware and on the page. Model loading adds ten to twenty seconds to the first document only, after which the engine stays warm."
   }
 }

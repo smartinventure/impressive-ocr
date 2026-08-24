@@ -472,5 +472,28 @@
     "download": "Herunterladen",
     "install": "Neu starten und installieren",
     "releaseNotes": "Versionshinweise"
+  },
+  "engineHelp": {
+    "trigger": "Welche Engine soll ich wählen?",
+    "title": "OCR-Engine auswählen",
+    "fastTitle": "Schnell",
+    "fastFor": "Briefe, Rechnungen, Formulare, Berichte — alles einspaltig gesetzte. Die richtige Wahl für überwachte Ordner, bei denen Hunderte Dokumente zählen und nicht das einzelne.",
+    "fastLimit": "Zeichen werden gut erkannt, der Seitenaufbau dagegen schlecht. Bei Zeitschriften- und Zeitungsseiten können Spalten ineinandergeschoben, Initialen vom Wort getrennt und Überschriften verdreht werden — ein Ergebnis, das plausibel aussieht und unbrauchbar ist.",
+    "accurateTitle": "Genau",
+    "accurateFor": "Zeitschriften, Zeitungen, mehrspaltige Layouts, Tabellen und jeder Scan, den Sie lesen oder veröffentlichen wollen. Die Lesereihenfolge wird rekonstruiert, Spalten und Initialen erscheinen so, wie ein Mensch sie liest.",
+    "accurateLimit": "Benötigt eine GPU mit ausreichend Speicher und braucht deutlich länger pro Seite. Bei großen Mengen sind das Stunden, nicht Sekunden.",
+    "measuredTitle": "Gemessen an einer dicht gesetzten Zeitschriftenseite",
+    "measuredIntro": "Ein einseitiger deutscher Zeitschriftenartikel, verarbeitet auf einer Desktop-GPU und verglichen mit einer geprüften Abschrift.",
+    "colSetting": "Einstellung",
+    "colSpeed": "Pro Seite",
+    "colQuality": "Übereinstimmung",
+    "rowFastGpu": "Schnell, GPU",
+    "rowAccurateGpu": "Genau, GPU",
+    "rowFastCpu": "Schnell, CPU",
+    "fastGpuSpeed": "~5 s",
+    "accurateGpuSpeed": "~80 s",
+    "fastCpuSpeed": "~114 s",
+    "qualityNote": "Beide Engines erkennen nahezu dieselben Zeichen. Der Unterschied liegt in der Struktur: Schnell hat große Teile des Textes in der falschen Reihenfolge angeordnet — genau das misst der Prozentwert.",
+    "hardwareNote": "Die Zeiten hängen von Ihrer Hardware und der Seite ab. Das Laden der Modelle kostet nur beim ersten Dokument zehn bis zwanzig Sekunden, danach bleibt die Engine warm."
   }
 }

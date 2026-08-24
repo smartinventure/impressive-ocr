@@ -8,6 +8,7 @@ import { useQuickRun } from '../composables/use-quick-run';
 import FileSourcePicker from '../components/file-source-picker.vue';
 import FolderPickerField from '../../../components/folder-picker-field.vue';
 import RunSettingsSummary from '../components/run-settings-summary.vue';
+import EngineHelp from '../components/engine-help.vue';
 
 /**
  * Quick Mode: OCR a handful of files once.
@@ -144,6 +145,13 @@ function toggleFormat(format: OutputFormat): void {
           class="mb-4"
           :disabled="quick.busy.value"
         />
+
+        <!-- The two engines fail differently, not merely at different speeds, and the
+             consequence of choosing wrong is a batch reprocessed. Explained next to the
+             choice rather than in documentation nobody opens mid-task. -->
+        <div class="mb-4 mt-n2">
+          <EngineHelp />
+        </div>
 
         <!-- Forcing one device or the other is how you find out what the GPU is worth on your
              own documents; `auto` leaves the choice to the scheduler. -->

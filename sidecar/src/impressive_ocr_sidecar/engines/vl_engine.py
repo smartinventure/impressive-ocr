@@ -15,7 +15,7 @@ from typing import Any
 
 from ..core.errors import CorruptDocumentError, DeviceMemoryError, EngineLoadError
 from ..core.logging import get_logger
-from ..core.protocol import EngineOptions
+from ..core.protocol import EngineModules, EngineOptions
 from .base import PageResult
 from .result_adapter import to_page_result
 
@@ -29,8 +29,11 @@ class VlEngine:
 
     name = "paddleocr-vl"
 
-    def __init__(self, device: str) -> None:
+    def __init__(self, device: str, modules: EngineModules | None = None) -> None:
         self._device = device
+        # Needed before load(), exactly as with PP-StructureV3: the document preprocessor is
+        # built in the constructor or not at all.
+        self._modules = modules if modules is not None else EngineModules()
         self._pipeline: Any = None
         self._version = "unknown"
 
@@ -45,7 +48,19 @@ class VlEngine:
             from paddleocr import PaddleOCRVL
 
             self._version = getattr(paddleocr, "__version__", "unknown")
-            self._pipeline = PaddleOCRVL(device=self._device)
+            # The preprocessing toggles belong here, not only on predict().
+            #
+            # PaddleOCR-VL ships with `use_doc_preprocessor: False`, so its constructor never
+            # builds `doc_preprocessor_pipeline`. Asking for orientation or unwarping at
+            # predict time then flips the pipeline into using a sub-model that does not
+            # exist, and every page dies with "object has no attribute
+            # doc_preprocessor_pipeline". Since orientation detection is on by default, that
+            # was every document, on every run of this profile.
+            self._pipeline = PaddleOCRVL(
+                device=self._device,
+                use_doc_orientation_classify=self._modules.doc_orientation_classify,
+                use_doc_unwarping=self._modules.doc_unwarping,
+            )
         except ImportError as error:
             raise EngineLoadError(
                 f"PaddleOCR-VL is unavailable; install paddleocr[doc-parser]: {error}"
@@ -89,15 +104,16 @@ class VlEngine:
 def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
     """Map our options onto PaddleOCR-VL's keyword arguments.
 
-    The VLM handles layout, tables and formulas in one pass, so the per-module toggles that
-    PP-StructureV3 exposes mostly do not apply here — only the document preprocessing
-    switches do.
+    The VLM handles layout, tables and formulas in one pass, so the per-module toggles
+    PP-StructureV3 exposes do not apply here.
+
+    The two preprocessing switches are deliberately **not** sent. They are decided in the
+    constructor, which is where the sub-models are built, and passing them again could only
+    contradict it: a job asking for orientation on a pipeline that was built without it flips
+    PaddleOCR-VL into calling a sub-pipeline that was never created. Omitted, the pipeline
+    uses what it was constructed with, which is always something that exists.
     """
-    modules = options.modules
-    kwargs: dict[str, Any] = {
-        "use_doc_orientation_classify": modules.doc_orientation_classify,
-        "use_doc_unwarping": modules.doc_unwarping,
-    }
+    kwargs: dict[str, Any] = {}
     if options.max_pages_per_document > 0:
         kwargs["page_num"] = options.max_pages_per_document
     return kwargs

@@ -53,9 +53,15 @@ class TestStructurePredictKwargs:
 
 
 class TestVlPredictKwargs:
-    def test_only_forwards_the_preprocessing_switches(self) -> None:
-        # The VLM handles layout, tables and formulas in one pass, so PP-StructureV3's
-        # per-module toggles have no equivalent and must not be forwarded.
+    def test_forwards_no_module_switches_at_all(self) -> None:
+        """Not even the preprocessing pair, which this deliberately stopped sending.
+
+        The VLM handles layout, tables and formulas in one pass, so PP-StructureV3's toggles
+        have no equivalent. The two preprocessing switches used to be forwarded, and that was
+        the bug: PaddleOCR-VL builds its doc preprocessor in the constructor or not at all, so
+        asking for it here made every page fail with "object has no attribute
+        doc_preprocessor_pipeline". They are decided at construction now.
+        """
         kwargs = vl_engine.build_predict_kwargs(EngineOptions())
 
-        assert set(kwargs) == {"use_doc_orientation_classify", "use_doc_unwarping"}
+        assert kwargs == {}

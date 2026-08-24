@@ -26,7 +26,7 @@ def create_engine(
     and instantiates its sub-models in its constructor.
     """
     if profile == "accurate":
-        return VlEngine(device=device)
+        return VlEngine(device=device, modules=modules)
     return StructureEngine(device=device, modules=modules)
 
 

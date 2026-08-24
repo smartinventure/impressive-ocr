@@ -394,7 +394,19 @@
     "profileFast": "Schnell — gut für alltägliche Dokumente",
     "profileAccurate": "Genau — am besten bei Spalten, Tabellen und schwierigen Scans",
     "profileHint": "Genau erfasst das Layout von Zeitschriften- und Zeitungsseiten deutlich besser und braucht ein Mehrfaches der Zeit pro Seite.",
-    "profileHintNoGpu": "Genau benötigt eine GPU mit ausreichend Speicher, die dieser Rechner nicht hat."
+    "profileHintNoGpu": "Genau benötigt eine GPU mit ausreichend Speicher, die dieser Rechner nicht hat.",
+    "settingsUsed": "Einstellungen dieses Laufs:",
+    "summaryEngine": "Engine: {value}",
+    "summaryDevice": "Angefordert: {value}",
+    "summaryTextLayer": "Vorhandener Text: {value}",
+    "summaryFormats": "Formate: {value}",
+    "summaryTables": "Tabellen",
+    "summaryFormulas": "Formeln",
+    "engineFastShort": "Schnell",
+    "engineAccurateShort": "Genau",
+    "strategyHybridShort": "Hybrid",
+    "strategySkipShort": "Überspringen",
+    "strategyAlwaysShort": "Immer OCR"
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

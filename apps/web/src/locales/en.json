@@ -394,7 +394,19 @@
     "profileFast": "Fast — good on everyday documents",
     "profileAccurate": "Accurate — best on columns, tables and messy scans",
     "profileHint": "Accurate reads layout far better on magazine and newspaper pages, and is several times slower per page.",
-    "profileHintNoGpu": "Accurate needs a GPU with enough memory, which this machine does not have."
+    "profileHintNoGpu": "Accurate needs a GPU with enough memory, which this machine does not have.",
+    "settingsUsed": "Settings for this run:",
+    "summaryEngine": "Engine: {value}",
+    "summaryDevice": "Requested: {value}",
+    "summaryTextLayer": "Existing text: {value}",
+    "summaryFormats": "Formats: {value}",
+    "summaryTables": "Tables",
+    "summaryFormulas": "Formulas",
+    "engineFastShort": "Fast",
+    "engineAccurateShort": "Accurate",
+    "strategyHybridShort": "Hybrid",
+    "strategySkipShort": "Skip if text",
+    "strategyAlwaysShort": "Always OCR"
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

@@ -7,6 +7,7 @@ import { useLiveStore } from '../../../stores/live-store';
 import { useQuickRun } from '../composables/use-quick-run';
 import FileSourcePicker from '../components/file-source-picker.vue';
 import FolderPickerField from '../../../components/folder-picker-field.vue';
+import RunSettingsSummary from '../components/run-settings-summary.vue';
 
 /**
  * Quick Mode: OCR a handful of files once.
@@ -296,6 +297,10 @@ function toggleFormat(format: OutputFormat): void {
           }}
         </v-chip>
       </div>
+
+      <!-- The form is gone once a run starts, taking every choice that shaped the result with
+           it. Shown after the counters so the live numbers stay first. -->
+      <RunSettingsSummary :options="quick.options.value" class="mb-4" />
 
       <!-- Say why, rather than leaving a zero to be interpreted. -->
       <v-alert

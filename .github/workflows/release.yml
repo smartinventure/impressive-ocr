@@ -291,6 +291,12 @@ jobs:
 
       - name: Build and push
         uses: docker/build-push-action@v6
+        env:
+          # buildx otherwise uploads a `.dockerbuild` build record as a workflow artifact.
+          # Nothing reads it, it is not a release asset, and the publish job below has to
+          # know to ignore it — so it is cheaper not to produce it.
+          DOCKER_BUILD_SUMMARY: false
+          DOCKER_BUILD_RECORD_UPLOAD: false
         with:
           context: .
           file: deploy/docker/Dockerfile
@@ -330,9 +336,29 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      # Named one by one rather than "download everything".
+      #
+      # Fetching every artifact means fetching whatever any action happened to leave behind:
+      # buildx's build record turned up here, failed to download, and took the whole release
+      # with it — and had it succeeded it would have been published as a release asset. Naming
+      # them also turns a build that silently produced nothing into a failure here, at the
+      # step that can still say which platform is missing.
       - uses: actions/download-artifact@v8
         with:
-          path: artifacts
+          name: win
+          path: artifacts/win
+      - uses: actions/download-artifact@v8
+        with:
+          name: mac
+          path: artifacts/mac
+      - uses: actions/download-artifact@v8
+        with:
+          name: linux
+          path: artifacts/linux
+      - uses: actions/download-artifact@v8
+        with:
+          name: server
+          path: artifacts/server
 
       - name: Flatten, and add the stable names the website links to
         # `releases/latest/download/<name>` only resolves for a filename that never changes,
@@ -342,7 +368,10 @@ jobs:
         run: node deploy/make-stable-aliases.mjs artifacts --out upload
 
       - name: Publish
-        uses: softprops/action-gh-release@v2
+        # v3 is the first release that runs on Node 24. v2 targets Node 20, which is EOL and
+        # is being force-migrated by GitHub — the same thing that broke download-artifact@v4,
+        # and this step had simply never been reached to fail yet.
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ needs.verify.outputs.tag }}
           name: Impressive OCR ${{ needs.verify.outputs.version }}

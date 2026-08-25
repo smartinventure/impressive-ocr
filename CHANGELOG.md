@@ -34,6 +34,16 @@ release checklist, because deciding what is worth telling users about is not aut
   is now on a version that targets Node 24 natively. The publish job also gained `actions:
   read` — declaring any permission drops the rest to `none`, and reading artifacts is an
   Actions API call.
+- The publish job then failed on a different artifact: buildx quietly uploads a
+  `.dockerbuild` build record, and "download every artifact" meant downloading that too. It
+  failed to verify, which failed the release — and had it verified, the flattening step
+  would have published a 72 KB build record as a release asset, since it copies every file
+  it finds. The record is no longer produced, and the four platform artifacts are now
+  fetched by name, so a stray artifact cannot reach the release and a missing platform
+  fails at the step that can name it.
+- `softprops/action-gh-release` moved from v2 to v3, the first release that runs on
+  Node 24. It sits immediately after the download step and had never been reached, so it
+  would have failed next for exactly the reason the artifact actions did.
 - Long documents failed with the single word "terminated", after the GPU had already done
   most of the work. `fetch` abandons a response body that has been idle for five minutes,
   and PaddleOCR-VL parses an entire PDF before it yields its first page — so any accurate

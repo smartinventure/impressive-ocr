@@ -28,6 +28,12 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ### Fixed
 
+- The release workflow built every platform and then failed to publish: `download-artifact`
+  could not fetch the artifacts the six build jobs had just uploaded. GitHub is force-running
+  actions that target Node 20 on Node 24, and the pinned `@v4` was one of them. Every action
+  is now on a version that targets Node 24 natively. The publish job also gained `actions:
+  read` — declaring any permission drops the rest to `none`, and reading artifacts is an
+  Actions API call.
 - Long documents failed with the single word "terminated", after the GPU had already done
   most of the work. `fetch` abandons a response body that has been idle for five minutes,
   and PaddleOCR-VL parses an entire PDF before it yields its first page — so any accurate

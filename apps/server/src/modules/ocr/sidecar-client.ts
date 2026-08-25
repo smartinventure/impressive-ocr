@@ -114,6 +114,11 @@ export class SidecarClient {
  *
  * Network chunks fall mid-line, so parsing per chunk would corrupt every message that
  * straddles a boundary.
+ *
+ * Blank lines are dropped rather than parsed. That is the sidecar's keepalive: it sends a
+ * bare newline every 30 seconds while an engine is working, because `fetch` abandons a
+ * response body that has been idle for five minutes and the accurate engine can legitimately
+ * produce nothing for far longer than that on a long document.
  */
 async function* readLines(
   body: ReadableStream<Uint8Array>,

@@ -6,6 +6,7 @@ import type {
   FolderRole,
   FolderValidation,
   AuthStatus,
+  ConsentStatus,
   SetPasswordRequest,
   CreatePipelineRequest,
   HardwareCapabilities,
@@ -113,6 +114,11 @@ export const systemApi = {
     api.post<SidecarReleaseResult>('/system/sidecars/release', { force }),
   pauseAll: () => api.post<{ globallyPaused: boolean }>('/system/pause'),
   resumeAll: () => api.post<{ globallyPaused: boolean }>('/system/resume'),
+};
+
+export const consentApi = {
+  get: () => api.get<ConsentStatus>('/consent'),
+  accept: (version: number) => api.post<ConsentStatus>('/consent/accept', { version }),
 };
 
 export const settingsApi = {

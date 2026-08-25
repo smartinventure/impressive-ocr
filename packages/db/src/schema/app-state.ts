@@ -22,6 +22,8 @@ export const APP_STATE_KEYS = {
   globallyPaused: 'globally-paused',
   /** The web UI password hash. Separate from `settings` so it is never sent to a client. */
   auth: 'auth',
+  /** Which version of the terms, privacy policy and licence summary was agreed to. */
+  consent: 'consent',
 } as const;
 
 export type AppStateKey = (typeof APP_STATE_KEYS)[keyof typeof APP_STATE_KEYS];

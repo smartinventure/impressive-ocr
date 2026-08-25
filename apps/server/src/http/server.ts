@@ -18,6 +18,7 @@ import { HttpError, registerErrorHandler } from './errors';
 import type { AppFastify } from './fastify-types';
 import { registerAuthHook } from './auth-hook';
 import { registerAuthRoutes } from './routes/auth-routes';
+import { registerConsentRoutes } from './routes/consent-routes';
 import { registerEventRoutes } from './routes/events-routes';
 import { registerFilesystemRoutes } from './routes/filesystem-routes';
 import { registerJobRoutes } from './routes/jobs-routes';
@@ -126,6 +127,7 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
   registerAuthHook(app, { auth: options.services.auth, settings: options.services.settings });
 
   registerAuthRoutes(app, options.services);
+  registerConsentRoutes(app, options.services);
 
   registerPipelineRoutes(app, options.services);
   registerQuickRoutes(app, options.services);

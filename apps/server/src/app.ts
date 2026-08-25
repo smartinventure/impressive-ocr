@@ -30,6 +30,7 @@ import { Scheduler } from './modules/queue/scheduler';
 import { RuntimeInstaller } from './modules/runtime/runtime-installer';
 import { RuntimeService } from './modules/runtime/runtime-service';
 import { AuthService } from './modules/auth/auth-service';
+import { ConsentService } from './modules/consent/consent-service';
 import { createSessionStore } from './modules/auth/session-store';
 import { QuickRunService } from './modules/quick/quick-run-service';
 import { QuickRunStore } from './modules/quick/quick-run-store';
@@ -121,6 +122,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   const sessions = createSessionStore({ idleTimeoutMinutes: SESSION_IDLE_TIMEOUT_MINUTES });
   const authService = new AuthService(db, sessions);
   const settingsService = new SettingsService(db, () => authService.hasPassword());
+  const consentService = new ConsentService(db);
   const stored = settingsService.get();
   const settings: AppSettings = {
     ...stored,
@@ -235,6 +237,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     jobs,
     settings: settingsService,
     auth: authService,
+    consent: consentService,
     paths,
     resources: new ResourceMonitor(),
     quick,

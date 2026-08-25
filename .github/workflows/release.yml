@@ -129,11 +129,13 @@ jobs:
             label: macOS arm64 + x64
             target: mac
             uv: 'mac:arm64 mac:x64'
-          # The Linux desktop build is deliberately absent: it fails in AppImage packing and
-          # is not worth blocking every other platform's release on. CI still builds the real
-          # AppImage and deb on every pull request, so the fix can be developed and proved
-          # there, and this entry restored once it passes. The headless server and the
-          # container image below still cover Linux.
+          # AppImage and deb, x64. Kept on its own runner rather than folded into the server
+          # entry below, so a desktop packaging failure cannot take the headless tarball with
+          # it — they are shipped to different people for different reasons.
+          - os: ubuntu-latest
+            label: Linux x64 (AppImage + deb)
+            target: linux
+            uv: 'linux:x64'
           - os: ubuntu-latest
             label: Server x64 (headless)
             target: server
@@ -215,6 +217,13 @@ jobs:
         run: |
           echo "::warning::APPLE_CERT_BASE64 is not set - producing an UNSIGNED macOS build."
           pnpm --filter @impressive-ocr/desktop package --mac
+
+      - name: Package the Linux app
+        if: matrix.target == 'linux'
+        # Unsigned by design. Linux has no equivalent of Authenticode or notarisation that a
+        # user would notice; the AppImage carries an embedded block map so electron-updater
+        # can still verify and delta-update it.
+        run: pnpm --filter @impressive-ocr/desktop package --linux
 
       - name: Package the headless server
         if: matrix.target == 'server'
@@ -349,6 +358,8 @@ jobs:
             | Windows x64 | [Installer](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-win-x64.exe) |
             | macOS (Apple Silicon) | [Disk image](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-mac-arm64.dmg) |
             | macOS (Intel) | [Disk image](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-mac-x64.dmg) |
+            | Linux x64 | [AppImage](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-linux-x86_64.AppImage) |
+            | Debian / Ubuntu x64 | [.deb](https://github.com/${{ github.repository }}/releases/latest/download/Impressive-OCR-linux-amd64.deb) |
             | Server (headless) | [tar.gz](https://github.com/${{ github.repository }}/releases/latest/download/impressive-ocr-server-linux-x64.tar.gz) |
 
             ### Container

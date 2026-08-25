@@ -136,30 +136,44 @@ export class Scheduler {
         return;
       }
 
+      // Only offer the claim pipelines whose device still has a slot.
+      //
+      // Claiming a job and handing it straight back looks harmless and is not: `claimNext`
+      // counts an attempt, so every tick spent waiting for a busy GPU used to burn one of
+      // the job's three retries. A document queued behind a long accurate run accumulated
+      // hundreds of "attempts" without being touched, and was then quarantined by its first
+      // real failure, with no retry left to spend.
+      const claimable = new Map<string, Pipeline>();
+      for (const [id, pipeline] of eligible) {
+        if (free[resolveDevice(pipeline, hardware).device] > 0) {
+          claimable.set(id, pipeline);
+        }
+      }
+      if (claimable.size === 0) {
+        return;
+      }
+
       const job = this.options.jobs.claimNext({
-        pipelineIds: [...eligible.keys()],
+        pipelineIds: [...claimable.keys()],
         now: new Date(),
       });
       if (job === null) {
         return;
       }
 
-      const pipeline = eligible.get(job.pipelineId);
+      const pipeline = claimable.get(job.pipelineId);
       if (pipeline === undefined) {
-        // The pipeline changed between building the list and claiming. Put it back.
-        this.options.jobs.update(job.id, { state: 'pending', startedAt: null });
+        // The pipeline changed between building the list and claiming. Put it back, and
+        // give back the attempt with it — nothing was tried.
+        this.options.jobs.update(job.id, {
+          state: 'pending',
+          startedAt: null,
+          attempts: Math.max(0, job.attempts - 1),
+        });
         return;
       }
 
-      const device = resolveDevice(pipeline, hardware).device;
-      if (free[device] <= 0) {
-        // The only device this job can use is saturated. Return it and stop: claiming
-        // further jobs would risk starving the busy device's queue out of order.
-        this.options.jobs.update(job.id, { state: 'pending', startedAt: null });
-        return;
-      }
-
-      this.launch(job, pipeline, device);
+      this.launch(job, pipeline, resolveDevice(pipeline, hardware).device);
     }
   }
 

@@ -506,5 +506,30 @@
     "available": "Update verfügbar",
     "ready": "Update bereit",
     "tooltip": "Version {version} ist verfügbar. Zum Installieren die Systemseite öffnen."
+  },
+  "firstRun": {
+    "consent": {
+      "title": "Bevor Sie beginnen",
+      "intro": "Impressive OCR läuft vollständig auf diesem Rechner. Bitte lesen Sie das Folgende und stimmen Sie zu, bevor Sie es verwenden.",
+      "documents": "Die Dokumente, denen Sie zustimmen:",
+      "terms": "Allgemeine Geschäftsbedingungen",
+      "privacy": "Datenschutzerklärung",
+      "noTelemetry": "Kein Konto, kein Cloud-Dienst, keine Telemetrie. Nichts über Ihre Dokumente verlässt jemals diesen Rechner.",
+      "agree": "Ich stimme zu"
+    },
+    "licence": {
+      "title": "Lizenz",
+      "free": "Impressive OCR ist freie Software unter der GNU Affero General Public License v3. Sie dürfen sie kostenlos nutzen, auch kommerziell.",
+      "obligation": "Die AGPL verlangt dafür eines: Wenn Sie die Software verändern und anderen über ein Netzwerk zugänglich machen, müssen Sie Ihre Änderungen unter derselben Lizenz veröffentlichen.",
+      "commercial": "Falls das für Ihr Unternehmen nicht infrage kommt, ist eine kommerzielle Lizenz erhältlich.",
+      "enquire": "Anfragen auf speedbits.io"
+    },
+    "engine": {
+      "title": "Noch ein Schritt",
+      "body": "Die OCR-Engine ist noch nicht installiert; bis dahin kann kein Dokument verarbeitet werden. Öffnen Sie die Systemseite und starten Sie dort die Installation.",
+      "size": "Sie umfasst einige Gigabyte und wird einmalig heruntergeladen. Die passende Variante für Ihre Hardware wird automatisch gewählt.",
+      "open": "Systemseite öffnen",
+      "later": "Später"
+    }
   }
 }

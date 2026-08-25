@@ -130,6 +130,9 @@ linux:
   # an executable name containing "@". The Windows and macOS targets never look at it, which
   # is why this only ever broke the Linux build.
   executableName: impressive-ocr
+  # Ties the installed .desktop entry to Electron's app_id, so a running window is matched
+  # to its launcher rather than showing up as a second, nameless application in the dock.
+  syncDesktopName: true
   target:
     - target: AppImage
       arch: [x64]

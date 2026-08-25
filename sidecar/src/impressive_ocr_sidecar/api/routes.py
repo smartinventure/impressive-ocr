@@ -32,6 +32,17 @@ _logger = get_logger()
 
 router = APIRouter()
 
+#: How long the job stream may stay silent before a keepalive byte goes out.
+#:
+#: Comfortably under the five minutes an idle response body gets from the backend's HTTP
+#: client, so a healthy job is never mistaken for a dead one.
+KEEPALIVE_INTERVAL_SECONDS = 30.0
+
+#: A bare newline. NDJSON treats a blank line as nothing at all and the backend's line
+#: reader drops it, so this keeps the socket alive without inventing a message type that
+#: both halves would then have to version.
+KEEPALIVE_FRAME = b"\n"
+
 
 @router.get("/health", response_model=None)
 async def health(request: Request) -> HealthResponse:
@@ -111,7 +122,22 @@ async def _stream_job(job: JobRequest, request: Request) -> AsyncIterator[bytes]
         generator = run_job(job, engine)
 
         while True:
-            message = await asyncio.to_thread(_next_or_none, generator)
+            step = asyncio.create_task(asyncio.to_thread(_next_or_none, generator))
+
+            # Keep the socket warm while the engine works.
+            #
+            # PaddleOCR-VL parses an entire PDF before it yields its first page, so a long
+            # document can spend half an hour emitting nothing at all. The backend's HTTP
+            # client gives up on a response body that has been idle for five minutes, which
+            # killed healthy multi-page jobs with the opaque error "terminated" — and, worse,
+            # did so after the GPU had already done most of the work.
+            while True:
+                done, _ = await asyncio.wait({step}, timeout=KEEPALIVE_INTERVAL_SECONDS)
+                if done:
+                    break
+                yield KEEPALIVE_FRAME
+
+            message = step.result()
             if message is None:
                 break
             yield _encode(message)

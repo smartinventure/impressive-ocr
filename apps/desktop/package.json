@@ -6,7 +6,14 @@
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "Impressive OCR desktop application",
-  "author": "Impressive OCR",
+  "//author": "electron-builder turns this into the Debian Maintainer field, which fpm refuses to synthesise. A bare name string is not enough - it needs the address too.",
+  "author": {
+    "name": "Smart In Venture GmbH",
+    "email": "cloud@smartinventure.com"
+  },
+  "homepage": "https://github.com/smartinventure/impressive-ocr",
+  "//desktopName": "Matches Electron's app_id and StartupWMClass, so a running window is associated with its launcher entry instead of appearing as a second, nameless application.",
+  "desktopName": "impressive-ocr.desktop",
   "main": "dist/main.cjs",
   "scripts": {
     "build": "node build.mjs",

@@ -12,6 +12,41 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ## [Unreleased]
 
+### Added
+
+- Linux desktop builds are published again: AppImage and deb, x64, with stable `latest`
+  download links alongside Windows and macOS.
+- A first-run screen: the Terms and Conditions, the Privacy Policy and a plain summary of
+  the licence, agreed to before anything else. Recorded server-side against a version
+  number, so raising that version re-asks everyone exactly once. Asked by the application
+  rather than by an installer, because the installer is not a place every user passes
+  through — the AppImage is run rather than installed, the container has no installer, and
+  someone using the headless server from a browser never sees one.
+- Immediately after that, on a machine where the OCR engine is not installed yet, a prompt
+  pointing at the System page, where the install lives. Nothing could be processed until
+  that had been done and nothing said so.
+
+### Fixed
+
+- Long documents failed with the single word "terminated", after the GPU had already done
+  most of the work. `fetch` abandons a response body that has been idle for five minutes,
+  and PaddleOCR-VL parses an entire PDF before it yields its first page — so any accurate
+  job past roughly five minutes, which is any multi-page scan, killed itself. The sidecar
+  now sends a keepalive newline every 30 seconds while an engine is working; the backend's
+  line reader already discarded blank lines, so no message type had to be invented.
+- A queued document burned its whole retry budget while it waited. Claiming a job counts an
+  attempt, and the scheduler claimed one every half-second only to hand it straight back
+  whenever the device it needed was busy — several hundred "attempts" for a document that
+  had not been touched. Its first real failure then quarantined it immediately, with
+  nothing left to retry. The scheduler now only offers the claim pipelines whose device has
+  a free slot.
+- The Linux build failed while packaging the `deb`. `fpm` requires a Debian `Maintainer`,
+  which electron-builder derives from `author` — and a bare name string does not carry the
+  address it needs. The AppImage was never the problem; it had been building correctly all
+  along, behind the failure that stopped the run before the artefacts were collected.
+- Linux windows were not associated with their launcher entry: `desktopName` was unset, so
+  the running application appeared separately from the icon that started it.
+
 ## [1.0.0] - 2026-08-24
 
 The first public release. Everything below records the development that led to it — several
@@ -59,13 +94,6 @@ worth having.
   anywhere, so the app opened a browser tab on every start and there was no way to stop it.
 - Quick Mode shows the settings a run was started with while it runs. Starting a run replaced
   the form with a progress card, taking every choice that shaped the result with it.
-
-### Known limitations
-
-- **No Linux desktop build.** It fails during AppImage packing, and blocking Windows, macOS,
-  the server and the container on it was the wrong trade. Linux is still covered by the
-  headless server tarball and the container image, and CI builds the real AppImage and deb on
-  every pull request — so the fix can be proved there before the release leg comes back.
 
 ### Fixed
 

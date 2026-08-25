@@ -8,10 +8,9 @@ Nothing is uploaded. There is no account, no cloud service and no telemetry. Doc
 usually the last thing anyone wants to hand to a third party, and scanned mail, invoices and
 contracts are exactly the material this is built for.
 
-Ships as a **desktop app** for Windows and macOS, and as a **headless server** — the same
-backend either way, so a spare machine can do the processing while everyone else uses a
-browser. On Linux, run the server or the container; a Linux desktop build is not published
-yet.
+Ships as a **desktop app** for Windows, macOS and Linux, and as a **headless server** — the
+same backend either way, so a spare machine can do the processing while everyone else uses a
+browser.
 
 ## What it does
 

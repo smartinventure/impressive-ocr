@@ -25,7 +25,6 @@ export const appSettingsSchema = z.object({
    * these. Empty means "not configured yet" and blocks all pipelines — deliberately fail-closed.
    */
   folderAllowlist: z.array(absolutePathSchema).default([]),
-  openBrowserOnStart: z.boolean().default(true),
   startMinimizedToTray: z.boolean().default(false),
   /**
    * Share of the CPU cores OCR may use, as a percentage.

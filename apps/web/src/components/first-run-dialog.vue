@@ -42,7 +42,6 @@ function goToSystem(): void {
         <v-alert type="info" variant="tonal" density="comfortable" class="mb-4">
           <div class="text-subtitle-2 mb-1">{{ t('firstRun.licence.title') }}</div>
           <p class="mb-2">{{ t('firstRun.licence.free') }}</p>
-          <p class="mb-2">{{ t('firstRun.licence.obligation') }}</p>
           <p class="mb-0">
             {{ t('firstRun.licence.commercial') }}
             <a :href="LICENCE_ENQUIRY_URL" target="_blank" rel="noopener noreferrer">

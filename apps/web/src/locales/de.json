@@ -313,8 +313,6 @@
     "sidecarIdleHint": "Ein Prozess hält seine Modelle geladen, damit das nächste Dokument sofort startet — das kostet mehrere GB Speicher, auf der GPU VRAM, das anderen Anwendungen fehlt. 0 behält sie, bis die App geschlossen wird.",
     "desktop": "Desktop-App",
     "desktopHint": "Verhalten beim Start. Gilt nur für die Desktop-Anwendung.",
-    "openBrowserOnStart": "Oberfläche zusätzlich im Browser öffnen",
-    "openBrowserOnStartHint": "Die App hat bereits ein eigenes Fenster; dies öffnet zusätzlich einen Browser-Tab, für alle, die lieber dort arbeiten.",
     "startMinimizedToTray": "Minimiert im Infobereich starten",
     "startMinimizedToTrayHint": "Es erscheint kein Fenster, die Warteschlange läuft im Hintergrund. Sinnvoll, wenn die App mit dem Rechner startet."
   },
@@ -519,8 +517,7 @@
     },
     "licence": {
       "title": "Lizenz",
-      "free": "Impressive OCR ist freie Software unter der GNU Affero General Public License v3. Sie dürfen sie kostenlos nutzen, auch kommerziell.",
-      "obligation": "Die AGPL verlangt dafür eines: Wenn Sie die Software verändern und anderen über ein Netzwerk zugänglich machen, müssen Sie Ihre Änderungen unter derselben Lizenz veröffentlichen.",
+      "free": "Impressive OCR ist freie Software unter der GNU Affero General Public License v3 AUSSCHLIESSLICH FÜR DEN PRIVATEN GEBRAUCH. Für die kommerzielle Nutzung fragen Sie bitte eine kostenpflichtige Lizenz unter www.speedbits.io an.",
       "commercial": "Falls das für Ihr Unternehmen nicht infrage kommt, ist eine kommerzielle Lizenz erhältlich.",
       "enquire": "Anfragen auf speedbits.io"
     },

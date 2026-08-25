@@ -313,8 +313,6 @@
     "sidecarIdleHint": "A worker keeps its models loaded so the next document starts instantly, which costs several GB of memory — on the GPU, VRAM another application cannot then use. 0 keeps them until the app closes.",
     "desktop": "Desktop app",
     "desktopHint": "How the application behaves when it starts. These apply to the desktop app only.",
-    "openBrowserOnStart": "Also open the interface in my browser",
-    "openBrowserOnStartHint": "The app already has its own window; this opens a browser tab as well, for people who prefer working there.",
     "startMinimizedToTray": "Start minimised to the tray",
     "startMinimizedToTrayHint": "No window appears; the queue runs in the background. Useful when the app starts with the computer."
   },
@@ -519,8 +517,7 @@
     },
     "licence": {
       "title": "Licence",
-      "free": "Impressive OCR is free software under the GNU Affero General Public License v3. You may use it, including commercially, at no cost.",
-      "obligation": "The AGPL asks one thing in return: if you modify it and make it available to others over a network, you must publish your changes under the same licence.",
+      "free": "Impressive OCR is free software under the GNU Affero General Public License v3 for PRIVATE USE ONLY. If you want to use it commercially, please inquire for a paid license under www.speedbits.io.",
       "commercial": "If that does not work for your organisation, a commercial licence is available.",
       "enquire": "Enquire at speedbits.io"
     },

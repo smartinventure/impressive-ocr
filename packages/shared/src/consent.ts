@@ -18,7 +18,7 @@ import { isoTimestampSchema } from './common';
  * Acceptance is stored as the version that was agreed to, so raising this re-prompts everyone
  * exactly once. Storing a bare boolean would silently carry an agreement to superseded terms.
  */
-export const CONSENT_TERMS_VERSION = 1;
+export const CONSENT_TERMS_VERSION = 2;
 
 /** The documents a user is agreeing to. Absolute, because they are also opened from email. */
 export const TERMS_URL = 'https://speedbits.io/terms-conditions/';

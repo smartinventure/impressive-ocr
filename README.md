@@ -50,8 +50,8 @@ words — against a hand-checked transcript produced by ChatGPT.
 | Output | Character similarity | Word similarity | Umlaut words | Words |
 |---|---|---|---|---|
 | ChatGPT transcript (reference) | 100% | 100% | 39/39 | 637 |
-| Fast | 48.6% | 94.2% | 36/39 | 620 |
-| **Accurate** | **98.8%** | **98.3%** | 36/39 | **637** |
+| Impressive OCR Fast | 48.6% | 94.2% | 36/39 | 620 |
+| Impressive OCR **Accurate** | **98.8%** | **98.3%** | 36/39 | **637** |
 
 Two numbers, because either alone misleads. **Word similarity** asks whether the right words
 were read; **character similarity** compares the page as one string, so it is sensitive to

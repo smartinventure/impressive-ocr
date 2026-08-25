@@ -119,24 +119,11 @@ onMounted(load);
     </v-card>
 
     <!-- Server -->
-    <!-- Only in the desktop app: the main process is the sole reader of both, and a browser
-         against the headless server has neither a window nor a tray for them to describe.
-         They existed in the schema from the start with no control anywhere, so the app opened
-         a browser tab on every start and nobody could stop it. -->
+    <!-- Only in the desktop app: the main process is the sole reader, and a browser against
+         the headless server has neither a window nor a tray to describe. -->
     <v-card v-if="settings && desktop.isDesktop.value" class="pa-5 mb-4">
       <h2 class="text-h6 mb-1">{{ t('settings.desktop') }}</h2>
       <p class="text-body-2 text-medium-emphasis mb-4">{{ t('settings.desktopHint') }}</p>
-
-      <v-switch
-        :model-value="settings.openBrowserOnStart"
-        :label="t('settings.openBrowserOnStart')"
-        :hint="t('settings.openBrowserOnStartHint')"
-        persistent-hint
-        color="primary"
-        density="compact"
-        class="mb-3"
-        @update:model-value="save({ openBrowserOnStart: $event === true })"
-      />
 
       <v-switch
         :model-value="settings.startMinimizedToTray"

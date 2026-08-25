@@ -104,12 +104,6 @@ async function main(): Promise<void> {
     } else {
       revealWindow();
     }
-
-    if (settings.openBrowserOnStart && !settings.startMinimizedToTray) {
-      // Both: the native window *and* the browser, because some people simply prefer their
-      // browser and the app is identical in either.
-      void shell.openExternal(host.url);
-    }
   }
 
   updateTimer = setInterval(() => void updates?.checkQuietly(), UPDATE_CHECK_INTERVAL_MS);

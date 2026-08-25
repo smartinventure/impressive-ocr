@@ -26,6 +26,20 @@ release checklist, because deciding what is worth telling users about is not aut
   pointing at the System page, where the install lives. Nothing could be processed until
   that had been done and nothing said so.
 
+### Changed
+
+- The licence summary on the first-run screen now states that the AGPL grant is for private
+  use, and directs commercial users to speedbits.io for a paid licence.
+
+### Removed
+
+- The desktop app no longer opens a browser tab at startup, and the `openBrowserOnStart`
+  setting is gone with it. The Electron window is already the interface, so a second copy in
+  a browser was an interruption rather than a convenience — and the setting existed only for
+  that one behaviour, so keeping it would have left a switch that did nothing. Opening the
+  interface in a browser is still one click away, in the tray menu, where it is asked for
+  rather than assumed.
+
 ### Fixed
 
 - The release workflow built every platform and then failed to publish: `download-artifact`

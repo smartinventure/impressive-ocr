@@ -1,6 +1,6 @@
 {
   "name": "impressive-ocr",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "Folder-watching OCR workstation powered by PaddleOCR",
   "license": "AGPL-3.0-or-later",

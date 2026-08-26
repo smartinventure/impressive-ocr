@@ -23,6 +23,11 @@ import {
 import { probeHardware } from './gpu-probe';
 import { runPreflight } from './preflight';
 import { type RuntimeInstaller } from './runtime-installer';
+import {
+  selectVlServerBuild,
+  vlServerDownloadBytes,
+  vlServerInstalledBytes,
+} from '../ocr/vl-server-index';
 import { describeSelection, selectWheel } from './wheel-index';
 
 /**
@@ -194,8 +199,18 @@ export class RuntimeService {
   async planInstall(): Promise<RuntimeInstallPlan> {
     const hardware = this.hardware ?? (await this.probe());
     const selection = selectWheel(hardware);
-    const downloadBytes = selection.wheelBytes + SUPPORTING_DOWNLOAD_BYTES + MODEL_DOWNLOAD_BYTES;
-    const installedBytes = INSTALLED_BYTES_BY_FLAVOR[selection.flavor];
+    // The inference engine is part of the install, so it belongs in the figure the user is
+    // shown before agreeing to it. Quoting only the Python side understated the download by
+    // ~1.9 GB and the footprint by ~2.3 GB, on the one screen that exists to prevent exactly
+    // that surprise.
+    const vlBuild = selectVlServerBuild(hardware);
+    const downloadBytes =
+      selection.wheelBytes +
+      SUPPORTING_DOWNLOAD_BYTES +
+      MODEL_DOWNLOAD_BYTES +
+      vlServerDownloadBytes(vlBuild);
+    const installedBytes =
+      INSTALLED_BYTES_BY_FLAVOR[selection.flavor] + vlServerInstalledBytes(vlBuild);
     const targetPath = dirname(this.options.venvDir);
     const space = await measureNearestDiskSpace(targetPath);
 

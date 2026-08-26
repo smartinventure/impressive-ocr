@@ -40,8 +40,11 @@ well and reconstructs page *structure* less reliably: on a multi-column page it 
 columns and tear a drop capital off its word. The accurate engine rebuilds reading order.
 
 Accurate is now the faster of the two as well as the better one, on either kind of machine.
-Fast remains for its specialised table, formula, chart and seal recognisers, and for anyone
-who prefers a smaller install.
+Fast remains for two reasons. Its dedicated table recogniser is still the more precise of the
+two — on a ruled invoice-style table it placed every cell correctly where the accurate engine
+missed two words in fifty, though both read every *number* correctly. And it carries formula,
+chart and seal recognisers that have no vision-language equivalent, so it is also the smaller
+install for anyone who does not want the inference engine.
 
 ## How accurate is it?
 
@@ -103,8 +106,10 @@ and write every folder on its allowlist, so publish it further only behind a rev
 with authentication enabled.
 
 On first start the app downloads its Python runtime, the OCR models and the inference engine
-— several gigabytes, once. It picks the CPU or GPU build of each after probing the hardware,
-which is why they are not bundled.
+— roughly 2.3 GB for the engine alone on an NVIDIA machine, and several gigabytes in total.
+It happens once, and it picks the CPU or GPU build of each after probing the hardware, which
+is why none of it is bundled. The exact figures are shown for confirmation before anything is
+fetched.
 
 ## Building from source
 

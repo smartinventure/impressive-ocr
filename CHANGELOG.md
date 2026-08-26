@@ -29,6 +29,10 @@ release checklist, because deciding what is worth telling users about is not aut
   official BF16 release — about four seconds, once — so the only weights that ever run are
   the ones they published. Falls back to the built-in backend whenever the server is missing
   or will not start: slower, but never broken, and the reason is logged.
+- The pre-install confirmation now includes the inference engine. It previously quoted only
+  the Python side, understating the download by ~1.9 GB and the disk footprint by ~2.3 GB —
+  on the one screen whose entire job is to prevent that surprise. Sizes are per build, because
+  extracted CUDA binaries are 1.1 GB where the CPU ones are a tenth of that.
 - Two settings for it, under **OCR engine**: whether to use the fast inference engine at all,
   and how many page regions it recognises at once. Eight measured fastest; sixteen and
   twenty-four were slower, because more slots divide the same memory between them.

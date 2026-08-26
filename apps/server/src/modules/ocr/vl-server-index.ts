@@ -29,6 +29,8 @@ export interface VlServerBuild {
   /** Shown before the download, which is most of a gigabyte. */
   description: string;
   archiveBytes: number;
+  /** Extracted, which for CUDA is far more than the archive suggests. */
+  installedBytes: number;
 }
 
 const RELEASE_BASE = `https://github.com/ggml-org/llama.cpp/releases/download/${LLAMA_CPP_BUILD}`;
@@ -52,11 +54,14 @@ export const MODEL_ASSETS = {
 /** Downloaded at BF16, quantised on the machine, and the original deleted. */
 export const QUANTISATION = 'Q5_K_M';
 
+/** What the weights occupy afterwards: the quantised model plus the untouched projector. */
+export const VL_MODEL_INSTALLED_BYTES = (326 + 841) * 1024 ** 2;
+
 /**
  * Measured 2026-08-26. BF16 weights 892 MB plus the 841 MB projector; the quantised result
  * is 326 MB, so the install peaks well above what it finally occupies.
  */
-export const MODEL_DOWNLOAD_BYTES = 1733 * 1024 ** 2;
+export const VL_MODEL_DOWNLOAD_BYTES = 1733 * 1024 ** 2;
 
 /**
  * CUDA 12.4 rather than the newer 13.x builds.
@@ -74,6 +79,8 @@ const WINDOWS_CUDA: VlServerBuild = {
   ],
   description: 'llama.cpp (NVIDIA CUDA)',
   archiveBytes: 642 * 1024 ** 2,
+  // Measured after extraction: the CUDA kernels expand to nearly double.
+  installedBytes: 1105 * 1024 ** 2,
 };
 
 const WINDOWS_CPU: VlServerBuild = {
@@ -81,6 +88,7 @@ const WINDOWS_CPU: VlServerBuild = {
   assets: [`${RELEASE_BASE}/llama-${LLAMA_CPP_BUILD}-bin-win-cpu-x64.zip`],
   description: 'llama.cpp (CPU)',
   archiveBytes: 40 * 1024 ** 2,
+  installedBytes: 100 * 1024 ** 2,
 };
 
 /**
@@ -96,6 +104,7 @@ const LINUX_GPU: VlServerBuild = {
   assets: [`${RELEASE_BASE}/llama-${LLAMA_CPP_BUILD}-bin-ubuntu-vulkan-x64.tar.gz`],
   description: 'llama.cpp (Vulkan)',
   archiveBytes: 60 * 1024 ** 2,
+  installedBytes: 150 * 1024 ** 2,
 };
 
 const LINUX_CPU: VlServerBuild = {
@@ -103,6 +112,7 @@ const LINUX_CPU: VlServerBuild = {
   assets: [`${RELEASE_BASE}/llama-${LLAMA_CPP_BUILD}-bin-ubuntu-x64.tar.gz`],
   description: 'llama.cpp (CPU)',
   archiveBytes: 40 * 1024 ** 2,
+  installedBytes: 100 * 1024 ** 2,
 };
 
 /** Apple Silicon. Metal is compiled in, so there is no separate accelerated build to pick. */
@@ -111,6 +121,7 @@ const MACOS_METAL: VlServerBuild = {
   assets: [`${RELEASE_BASE}/llama-${LLAMA_CPP_BUILD}-bin-macos-arm64.tar.gz`],
   description: 'llama.cpp (Apple Metal)',
   archiveBytes: 40 * 1024 ** 2,
+  installedBytes: 100 * 1024 ** 2,
 };
 
 const MACOS_INTEL: VlServerBuild = {
@@ -118,6 +129,7 @@ const MACOS_INTEL: VlServerBuild = {
   assets: [`${RELEASE_BASE}/llama-${LLAMA_CPP_BUILD}-bin-macos-x64.tar.gz`],
   description: 'llama.cpp (CPU)',
   archiveBytes: 40 * 1024 ** 2,
+  installedBytes: 100 * 1024 ** 2,
 };
 
 /**
@@ -140,5 +152,16 @@ export function selectVlServerBuild(hardware: HardwareCapabilities): VlServerBui
 
 /** Total bytes the `download-vl-server` step will fetch, for the confirmation shown first. */
 export function vlServerDownloadBytes(build: VlServerBuild): number {
-  return build.archiveBytes + MODEL_DOWNLOAD_BYTES;
+  return build.archiveBytes + VL_MODEL_DOWNLOAD_BYTES;
+}
+
+/**
+ * What it occupies once installed, which is not what it downloaded.
+ *
+ * Two corrections in opposite directions: the language model shrinks when it is quantised,
+ * and the binaries expand when they are extracted. On a CUDA machine the second dominates —
+ * a 642 MB archive becomes 1.1 GB on disk.
+ */
+export function vlServerInstalledBytes(build: VlServerBuild): number {
+  return build.installedBytes + VL_MODEL_INSTALLED_BYTES;
 }

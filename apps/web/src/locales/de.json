@@ -106,7 +106,10 @@
     "engineVersion": "OCR-Engine",
     "engineOutdated": "Die OCR-Engine hat Version {engine}, die Anwendung dagegen {app}. Sie wird einmalig installiert und nicht automatisch aktualisiert — jetzt aktualisieren, um Verbesserungen der Texterkennung zu erhalten.",
     "updateEngine": "OCR-Engine aktualisieren",
-    "updateEngineHint": "Dauert Sekunden und lädt nichts herunter."
+    "updateEngineHint": "Dauert Sekunden und lädt nichts herunter.",
+    "vlServerMissing": "Die schnelle Inferenz-Engine ist nicht installiert. Der Genau-Modus funktioniert weiterhin, benötigt aber rund 28-mal länger pro Seite und läuft nicht ohne Grafikkarte.",
+    "installVlServer": "Schnelle Engine installieren",
+    "installVlServerHint": "Rund 1,9 GB, einmaliger Download."
   },
   "errors": {
     "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",
@@ -279,6 +282,7 @@
     "install-paddle": "PaddlePaddle wird installiert",
     "install-paddleocr": "PaddleOCR wird installiert",
     "download-models": "OCR-Modelle werden geladen",
+    "download-vl-server": "Schnelle Inferenz-Engine wird installiert",
     "verify": "Wird überprüft"
   },
   "settings": {
@@ -314,7 +318,12 @@
     "desktop": "Desktop-App",
     "desktopHint": "Verhalten beim Start. Gilt nur für die Desktop-Anwendung.",
     "startMinimizedToTray": "Minimiert im Infobereich starten",
-    "startMinimizedToTrayHint": "Es erscheint kein Fenster, die Warteschlange läuft im Hintergrund. Sinnvoll, wenn die App mit dem Rechner startet."
+    "startMinimizedToTrayHint": "Es erscheint kein Fenster, die Warteschlange läuft im Hintergrund. Sinnvoll, wenn die App mit dem Rechner startet.",
+    "engineTitle": "OCR-Engine",
+    "vlBackend": "Schnelle Inferenz-Engine für den Genau-Modus verwenden",
+    "vlBackendHint": "Führt dasselbe Modell rund 28-mal schneller aus und ermöglicht den Genau-Modus auch ohne Grafikkarte. Ohne diese Option wird die eingebaute Engine von PaddleOCR genutzt, die deutlich langsamer ist.",
+    "vlConcurrency": "Gleichzeitig erkannte Seitenbereiche",
+    "vlConcurrencyHint": "Wie viele Bereiche einer Seite die Engine parallel verarbeitet. Acht war am schnellsten; höhere Werte verteilen denselben Speicher auf mehr Slots und werden wieder langsamer."
   },
   "auth": {
     "signInTitle": "Anmelden",

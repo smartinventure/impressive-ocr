@@ -46,7 +46,9 @@ def create_app(config: SidecarConfig) -> FastAPI:
     )
 
     app.state.config = config
-    app.state.engine_cache = EngineCache(profile=config.profile, device=config.device)
+    app.state.engine_cache = EngineCache(
+        profile=config.profile, device=config.device, vl_server=config.vl_server
+    )
     app.state.started_at = time.monotonic()
     app.state.busy_jobs = 0
 

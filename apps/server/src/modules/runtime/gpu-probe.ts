@@ -122,9 +122,13 @@ export async function probeHardware(): Promise<HardwareCapabilities> {
     gpu,
     gpuUnavailableReason: reason,
     canUseGpu,
-    // The accurate profile is a 0.9B VLM: unusably slow on a CPU and too large for a small
-    // card, so it needs the higher VRAM floor on top of a working GPU.
+    // The accurate profile is a 0.9B VLM, too large for a small card, so it needs the higher
+    // VRAM floor on top of a working GPU.
     availableProfiles: canUseGpu && supportsAccurateProfile(gpu) ? ['accurate', 'fast'] : ['fast'],
+    // Always false here. Whether that profile can run on a CPU depends on the batching
+    // inference engine being installed, which is a question about files on disk rather than
+    // about hardware; `RuntimeService.getHardware` is where the two are combined.
+    canRunAccurateOnCpu: false,
     probedAt: new Date().toISOString(),
   };
 }

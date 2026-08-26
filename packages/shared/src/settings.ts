@@ -37,6 +37,28 @@ export const appSettingsSchema = z.object({
    */
   cpuBudgetPercent: z.number().int().min(10).max(100).default(50),
   /**
+   * How the accurate profile runs its vision-language model.
+   *
+   * `native` is PaddleOCR's own backend, which decodes one layout region at a time -- 56 s
+   * for a dense page, because every region re-streams all 0.9 B weights. `llama-cpp` drives
+   * the same weights through a local `llama-server` that batches those regions, measured at
+   * 2 s for the same page at the same accuracy, and it runs on a CPU where the native path
+   * is not worth offering at all.
+   *
+   * Defaults to `llama-cpp`; falls back to `native` on its own whenever the server is not
+   * installed or will not start, because a slow accurate run beats a broken one.
+   */
+  vlBackend: z.enum(['llama-cpp', 'native']).default('llama-cpp'),
+  /**
+   * Layout regions the accurate profile may recognise at once.
+   *
+   * One number, deliberately: it sets `llama-server --parallel` *and* PaddleOCR's
+   * `vl_rec_max_concurrency`, and if those disagree the smaller one wins while the other
+   * half of the slots sit idle. Measured sweet spot is 8 -- 16 and 24 were slower, because
+   * more slots divide the same KV cache and add scheduling overhead.
+   */
+  vlConcurrency: z.number().int().min(1).max(32).default(8),
+  /**
    * How many documents may be OCR'd at once, across all pipelines.
    *
    * Each concurrent document means another warm model set resident in RAM -- roughly 2-4 GB

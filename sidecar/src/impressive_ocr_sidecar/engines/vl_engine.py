@@ -2,9 +2,13 @@
 """The `accurate` profile: PaddleOCR-VL, a 0.9B vision-language document parser.
 
 Best-in-class on complex tables, formulas and messy scans, and it covers 109 languages
-without being told which one to expect. It wants roughly 8 GB of VRAM; on CPU a 0.9B VLM
-is slow enough to be unusable for bulk work, which is why the backend only ever routes
-this profile to a qualifying GPU.
+without being told which one to expect.
+
+How it is *driven* matters more than where it runs. PaddleOCR's own backend recognises one
+layout region at a time, which costs about a minute on a dense page and needs most of an 8 GB
+card. Pointed at a local inference server that batches those regions instead, the identical
+weights take ~2 s/page on the same GPU and ~11 s/page on a CPU -- which is why this profile
+is no longer GPU-only. See `build_backend_kwargs`.
 """
 
 from __future__ import annotations
@@ -13,6 +17,7 @@ from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
+from ..core.config import VlServerSettings
 from ..core.errors import CorruptDocumentError, DeviceMemoryError, EngineLoadError
 from ..core.logging import get_logger
 from ..core.protocol import EngineModules, EngineOptions
@@ -29,11 +34,20 @@ class VlEngine:
 
     name = "paddleocr-vl"
 
-    def __init__(self, device: str, modules: EngineModules | None = None) -> None:
+    def __init__(
+        self,
+        device: str,
+        modules: EngineModules | None = None,
+        *,
+        vl_server: VlServerSettings | None = None,
+    ) -> None:
         self._device = device
         # Needed before load(), exactly as with PP-StructureV3: the document preprocessor is
         # built in the constructor or not at all.
         self._modules = modules if modules is not None else EngineModules()
+        # Where the language model runs. `None` is PaddleOCR's own backend, which decodes one
+        # layout region at a time; see `build_backend_kwargs`.
+        self._vl_server = vl_server
         self._pipeline: Any = None
         self._version = "unknown"
 
@@ -60,6 +74,7 @@ class VlEngine:
                 device=self._device,
                 use_doc_orientation_classify=self._modules.doc_orientation_classify,
                 use_doc_unwarping=self._modules.doc_unwarping,
+                **build_backend_kwargs(self._vl_server),
             )
         except ImportError as error:
             raise EngineLoadError(
@@ -90,15 +105,39 @@ class VlEngine:
         try:
             results = self._pipeline.predict(str(source), **build_predict_kwargs(options))
         except Exception as error:
-            raise _classify(
-                error, f"PaddleOCR-VL could not read the document: {error}"
-            ) from error
+            raise _classify(error, f"PaddleOCR-VL could not read the document: {error}") from error
 
         for index, result in enumerate(results, start=1):
             if index in skip_pages:
                 continue
             width, height = _page_size(result)
             yield to_page_result(result, page_number=index, width=width, height=height)
+
+
+def build_backend_kwargs(vl_server: VlServerSettings | None) -> dict[str, Any]:
+    """Map our backend settings onto PaddleOCR's constructor keywords.
+
+    Returns an **empty dict** when no server was configured, so an unconfigured sidecar
+    constructs `PaddleOCRVL` exactly as it did before this option existed. Passing
+    `vl_rec_backend=None` explicitly would not be equivalent: PaddleOCR validates the value
+    against its supported list before deciding whether it was set.
+
+    Why this matters at all: PaddleOCR's own backend pins the language model to a batch size
+    of one (`PADDLEOCR_VL_LOCAL_BATCH_SIZE`), so every layout region on a page re-streams the
+    full 0.9 B of weights. A server backend receives all of a page's regions as concurrent
+    requests instead, which is the whole 28x difference -- the model is identical.
+    """
+    if vl_server is None:
+        return {}
+
+    kwargs: dict[str, Any] = {
+        "vl_rec_backend": vl_server.backend,
+        "vl_rec_server_url": vl_server.url,
+    }
+    # Left to PaddleOCR's default (200) when unset, which is far more than any page needs.
+    if vl_server.max_concurrency is not None:
+        kwargs["vl_rec_max_concurrency"] = vl_server.max_concurrency
+    return kwargs
 
 
 def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:

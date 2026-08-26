@@ -3,6 +3,8 @@ import type { EngineProfile, ResolvedDevice, SidecarHealth } from '@impressive-o
 import type { Logger } from '../../infra/logger';
 import { SidecarClient } from './sidecar-client';
 import { SidecarProcess } from './sidecar-process';
+import { LLAMA_CPP_BACKEND } from './vl-server-index';
+import { VlServerProcess, type VlServerProcessOptions } from './vl-server-process';
 
 /**
  * Keeps one warm sidecar per profile/device pair.
@@ -25,6 +27,15 @@ export interface SidecarPoolOptions {
   cpuBudgetPercent: () => number;
   /** Minutes an idle worker may keep its models; 0 keeps them until shutdown. Read fresh. */
   idleMinutes: () => number;
+  /**
+   * How to start the inference server for the accurate profile, or null to use PaddleOCR's
+   * own backend.
+   *
+   * A factory rather than a process, because the settings behind it are read fresh and a
+   * worker may be restarted long after the pool was built. Returning null is the honest way
+   * to say "not installed" or "the user turned it off" — both end at the native backend.
+   */
+  vlServer: () => VlServerProcessOptions | null;
   logger: Logger;
 }
 
@@ -41,6 +52,8 @@ interface Worker {
   profile: EngineProfile;
   device: ResolvedDevice;
   process: SidecarProcess;
+  /** The inference server this worker talks to. Null on the native backend and on fast. */
+  vlServer: VlServerProcess | null;
   client: SidecarClient;
   restarts: number;
   startedAt: Date;
@@ -100,7 +113,7 @@ export class SidecarPool {
           { key: worker.key, busy: worker.busy, forced: force },
           'Releasing sidecar worker',
         );
-        await worker.process.stop();
+        await stopWorker(worker);
         this.workers.delete(worker.key);
       }),
     );
@@ -132,7 +145,7 @@ export class SidecarPool {
       );
       // Fire and forget: the sweep must not block, and a stop that fails leaves the worker in
       // the map to be retried on the next pass.
-      void worker.process.stop().then(() => {
+      void stopWorker(worker).then(() => {
         this.workers.delete(worker.key);
       });
     }
@@ -167,11 +180,43 @@ export class SidecarPool {
     }
   }
 
+  /**
+   * Start the inference server for an accurate worker, or return null to use PaddleOCR's own
+   * backend.
+   *
+   * **Never throws.** Every failure here — not installed, missing GPU driver, port taken,
+   * binary that will not run on this machine — falls back to the native backend, which is
+   * slower but correct. Refusing to start the worker instead would turn a performance
+   * regression into an outage, and the user would have no way to tell the two apart.
+   */
+  private async startVlServer(): Promise<VlServerProcess | null> {
+    const options = this.options.vlServer();
+    if (options === null) {
+      return null;
+    }
+
+    const server = new VlServerProcess(options);
+    try {
+      await server.start();
+      return server;
+    } catch (error) {
+      this.options.logger.warn(
+        { err: error },
+        'Inference server did not start; the accurate profile will use the slower built-in backend',
+      );
+      await server.stop();
+      return null;
+    }
+  }
+
   private async startWorker(
     profile: EngineProfile,
     device: ResolvedDevice,
     previousRestarts: number,
   ): Promise<Worker> {
+    const vlServer = profile === 'accurate' ? await this.startVlServer() : null;
+    const vlServerUrl = vlServer?.baseUrl ?? null;
+    const maxConcurrency = this.options.vlServer()?.concurrency ?? null;
     const process_ = new SidecarProcess({
       pythonPath: this.options.pythonPath,
       profile,
@@ -180,6 +225,7 @@ export class SidecarPool {
       modelCacheDir: this.options.modelCacheDir,
       logLevel: this.options.logLevel,
       cpuBudgetPercent: this.options.cpuBudgetPercent(),
+      vlServer: vlServerUrl === null ? null : { backend: LLAMA_CPP_BACKEND, url: vlServerUrl, maxConcurrency },
       logger: this.options.logger,
     });
 
@@ -198,6 +244,7 @@ export class SidecarPool {
       profile,
       device,
       process: process_,
+      vlServer,
       client,
       restarts: previousRestarts + (previousRestarts > 0 ? 1 : 0),
       startedAt: new Date(),
@@ -214,7 +261,7 @@ export class SidecarPool {
       return;
     }
     this.options.logger.warn({ key, restarts: worker.restarts }, 'Recycling sidecar');
-    await worker.process.stop();
+    await stopWorker(worker);
     this.workers.set(key, { ...worker, restarts: worker.restarts + 1, busy: false });
   }
 
@@ -233,9 +280,21 @@ export class SidecarPool {
   async stopAll(): Promise<void> {
     this.stopped = true;
     clearInterval(this.idleSweep);
-    await Promise.all([...this.workers.values()].map((worker) => worker.process.stop()));
+    await Promise.all([...this.workers.values()].map((worker) => stopWorker(worker)));
     this.workers.clear();
   }
+}
+
+/**
+ * Stop a worker and the inference server it owns.
+ *
+ * They are one unit: the server exists only to serve that worker, so leaving it running would
+ * hold on to the video memory the caller just asked to have back — which is the entire point
+ * of every path that stops a worker.
+ */
+async function stopWorker(worker: Worker): Promise<void> {
+  await worker.process.stop();
+  await worker.vlServer?.stop();
 }
 
 export function keyFor(profile: EngineProfile, device: ResolvedDevice): string {

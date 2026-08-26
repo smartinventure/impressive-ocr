@@ -198,6 +198,36 @@ onMounted(load);
 
     <PasswordCard @changed="load" />
 
+    <!-- How the Accurate profile is driven. Not a quality setting: the same model either way,
+         so the only thing on offer here is speed and whether a CPU can run it at all. -->
+    <v-card v-if="settings" class="pa-5 mb-4">
+      <h2 class="text-h6 mb-4">{{ t('settings.engineTitle') }}</h2>
+
+      <v-switch
+        :model-value="settings.vlBackend === 'llama-cpp'"
+        :label="t('settings.vlBackend')"
+        :hint="t('settings.vlBackendHint')"
+        persistent-hint
+        color="primary"
+        density="compact"
+        class="mb-6"
+        @update:model-value="save({ vlBackend: $event === true ? 'llama-cpp' : 'native' })"
+      />
+
+      <v-slider
+        v-if="settings.vlBackend === 'llama-cpp'"
+        :model-value="settings.vlConcurrency"
+        :min="1"
+        :max="16"
+        :step="1"
+        thumb-label
+        :label="t('settings.vlConcurrency')"
+        :hint="t('settings.vlConcurrencyHint')"
+        persistent-hint
+        @end="save({ vlConcurrency: Number($event) })"
+      />
+    </v-card>
+
     <!-- Resource use. The defaults are chosen so the machine stays usable during a run. -->
     <v-card v-if="settings" class="pa-5 mb-4">
       <h2 class="text-h6 mb-4">{{ t('settings.resourcesTitle') }}</h2>

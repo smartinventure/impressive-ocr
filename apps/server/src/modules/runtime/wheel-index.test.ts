@@ -14,6 +14,7 @@ function hardware(overrides: Partial<HardwareCapabilities> = {}): HardwareCapabi
     gpuUnavailableReason: 'no-nvidia-driver',
     canUseGpu: false,
     availableProfiles: ['fast'],
+    canRunAccurateOnCpu: false,
     probedAt: '2026-08-19T00:00:00.000Z',
     ...overrides,
   };

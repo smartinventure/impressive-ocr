@@ -63,6 +63,20 @@ export const hardwareCapabilitiesSchema = z.object({
   canUseGpu: z.boolean(),
   /** Profiles this machine can actually run; `accurate` additionally needs the VL floor. */
   availableProfiles: z.array(engineProfileSchema),
+  /**
+   * Whether `accurate` can run on the CPU, which is a different question from whether it is
+   * available at all.
+   *
+   * It depends on the batching inference engine being installed, not on the hardware: with
+   * it a CPU manages ~11 s/page, and without it PaddleOCR recognises one layout region at a
+   * time and a CPU run never realistically finishes. Kept apart from `availableProfiles`
+   * because a machine can have a card good enough for `accurate` and still be unable to run
+   * it on the CPU — and that combination, routed wrongly, is the slowest path in the product.
+   *
+   * Defaulted so the hardware probe, which cannot see installed files, does not have to
+   * answer it.
+   */
+  canRunAccurateOnCpu: z.boolean().default(false),
   probedAt: isoTimestampSchema,
 });
 
@@ -148,6 +162,7 @@ export const runtimeStepSchema = z.enum([
   'install-paddle',
   'install-paddleocr',
   'download-models',
+  'download-vl-server',
   'verify',
 ]);
 export type RuntimeStep = z.infer<typeof runtimeStepSchema>;
@@ -175,6 +190,15 @@ export const runtimeStatusSchema = z.object({
   sidecarVersion: z.string().nullable(),
   /** `paddlepaddle` or `paddlepaddle-gpu`, recorded so we can detect a hardware change later. */
   paddleFlavor: z.enum(['cpu', 'gpu']).nullable(),
+  /**
+   * Whether the batching inference engine is installed.
+   *
+   * Reported because its absence is otherwise invisible and expensive: the accurate profile
+   * still works, roughly 28x slower, with nothing on screen to say why. An installation set
+   * up before this engine existed is already `ready` and never re-runs the installer, so it
+   * needs somewhere to be offered.
+   */
+  vlServerInstalled: z.boolean().default(false),
   errorMessage: z.string().max(2000).nullable(),
 });
 

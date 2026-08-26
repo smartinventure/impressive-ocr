@@ -16,6 +16,18 @@ import { logSidecarLine, type Logger } from '../../infra/logger';
 /** A model load can legitimately take minutes on a cold cache; the handshake cannot. */
 const HANDSHAKE_TIMEOUT_MS = 30_000;
 
+/**
+ * The inference server this sidecar should send layout regions to.
+ *
+ * Null means PaddleOCR's own in-process backend. The pool decides — including when a server
+ * failed to start — so that the two halves never disagree about which engine actually ran.
+ */
+export interface SidecarVlServer {
+  backend: string;
+  url: string;
+  maxConcurrency: number | null;
+}
+
 export interface SidecarProcessOptions {
   pythonPath: string;
   profile: EngineProfile;
@@ -25,6 +37,8 @@ export interface SidecarProcessOptions {
   logLevel: string;
   /** Share of the machine's cores OCR may use. */
   cpuBudgetPercent: number;
+  /** Where the accurate profile's language model runs; null uses PaddleOCR's own backend. */
+  vlServer: SidecarVlServer | null;
   logger: Logger;
 }
 
@@ -82,6 +96,7 @@ export class SidecarProcess {
         IMPRESSIVE_OCR_LOG_LEVEL: this.options.logLevel,
         // Read before Paddle is imported; see core/resources.py for why it matters.
         IMPRESSIVE_OCR_CPU_BUDGET_PERCENT: String(this.options.cpuBudgetPercent),
+        ...vlServerEnvironment(this.options.vlServer),
         // Unbuffered, or the handshake line can sit in Python's stdout buffer and the
         // start times out even though the process is healthy.
         PYTHONUNBUFFERED: '1',
@@ -190,6 +205,27 @@ export class SidecarProcess {
  * Exported for testing: a stray print from a dependency must not be mistaken for the
  * handshake, and must not stall startup either.
  */
+/**
+ * The `IMPRESSIVE_OCR_VL_*` variables, or nothing at all.
+ *
+ * Exported for testing. Empty rather than empty-string values when unset: the sidecar treats
+ * a backend without a URL as a misconfiguration and refuses to start, which is the behaviour
+ * we want — but only for a genuine half-configuration, not for the fast profile.
+ */
+export function vlServerEnvironment(vlServer: SidecarVlServer | null): Record<string, string> {
+  if (vlServer === null) {
+    return {};
+  }
+  const environment: Record<string, string> = {
+    IMPRESSIVE_OCR_VL_BACKEND: vlServer.backend,
+    IMPRESSIVE_OCR_VL_SERVER_URL: vlServer.url,
+  };
+  if (vlServer.maxConcurrency !== null) {
+    environment.IMPRESSIVE_OCR_VL_MAX_CONCURRENCY = String(vlServer.maxConcurrency);
+  }
+  return environment;
+}
+
 export function parseHandshake(line: string): SidecarHandshake | null {
   const trimmed = line.trim();
   if (!trimmed.startsWith('{')) {

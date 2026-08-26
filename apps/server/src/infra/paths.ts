@@ -19,6 +19,13 @@ export interface AppPaths {
   runtimeDir: string;
   modelCacheDir: string;
   venvDir: string;
+  /**
+   * `llama-server` and the GGUF weights the accurate profile runs on.
+   *
+   * Beside the venv rather than inside it: it is not a Python package, and a `uv`
+   * operation that rebuilds the environment must not take a gigabyte of weights with it.
+   */
+  vlServerDir: string;
   databaseFile: string;
   logsDir: string;
   /** Holds the self-signed certificate used when the UI is served over https. */
@@ -41,6 +48,7 @@ export function resolveAppPaths(overrideDataDir?: string): AppPaths {
     runtimeDir,
     modelCacheDir: join(runtimeDir, 'models'),
     venvDir: join(runtimeDir, 'venv'),
+    vlServerDir: join(runtimeDir, 'vl-server'),
     databaseFile: join(dataDir, 'impressive-ocr.db'),
     logsDir: join(dataDir, 'logs'),
     tlsDir: join(dataDir, 'tls'),
@@ -66,4 +74,32 @@ export function venvPython(venvDir: string): string {
   return process.platform === 'win32'
     ? join(venvDir, 'Scripts', 'python.exe')
     : join(venvDir, 'bin', 'python');
+}
+
+/**
+ * Where the inference server and its weights live once installed.
+ *
+ * One place, so the installer that writes them and the pool that runs them cannot drift
+ * apart. The quantised model is named for its format because the BF16 original is deleted
+ * after conversion, and a bare `model.gguf` would leave no way to tell which one survived.
+ */
+export interface VlServerPaths {
+  executable: string;
+  model: string;
+  projector: string;
+}
+
+export function vlServerPaths(vlServerDir: string, quantisation: string): VlServerPaths {
+  const executable = process.platform === 'win32' ? 'llama-server.exe' : 'llama-server';
+  return {
+    executable: join(vlServerDir, 'bin', executable),
+    model: join(vlServerDir, `model-${quantisation}.gguf`),
+    projector: join(vlServerDir, 'mmproj.gguf'),
+  };
+}
+
+/** The quantiser, shipped in the same archive as the server. */
+export function vlQuantiserPath(vlServerDir: string): string {
+  const executable = process.platform === 'win32' ? 'llama-quantize.exe' : 'llama-quantize';
+  return join(vlServerDir, 'bin', executable);
 }

@@ -26,55 +26,63 @@ browser.
   re-OCRed. The hybrid default only processes the pages that need it.
 - **After processing.** Leave the original alone, delete it, or move it to an archive folder.
 
-## Two engines, and the difference is not just speed
+## Two engines
 
 | | Fast | Accurate |
 |---|---|---|
 | Model | PP-StructureV3 + PP-OCRv6 | PaddleOCR-VL (0.9B vision-language) |
 | Good at | letters, invoices, forms, single-column text | magazines, newspapers, columns, tables, difficult scans |
-| Speed | ~5 s/page on a desktop GPU | ~80 s/page on the same GPU |
-| Needs | runs on CPU too | a GPU with enough memory |
+| On a desktop GPU | ~3.5 s/page | **~2 s/page** |
+| On CPU only | ~100 s/page | **~11 s/page** |
 
-They fail differently, which matters more than the speed gap. The fast engine reads characters
-well and reconstructs page *structure* poorly: on a multi-column page it can interleave columns
-and tear a drop capital off its word, producing output that looks plausible and is unusable.
-The accurate engine rebuilds reading order.
+They fail differently, and that matters more than the speed. The fast engine reads characters
+well and reconstructs page *structure* less reliably: on a multi-column page it can interleave
+columns and tear a drop capital off its word. The accurate engine rebuilds reading order.
 
-Use Fast for folder-watching volume. Use Accurate for pages someone will actually read.
+Accurate is now the faster of the two as well as the better one, on either kind of machine.
+Fast remains for its specialised table, formula, chart and seal recognisers, and for anyone
+who prefers a smaller install.
 
 ## How accurate is it?
 
-Measured on a dense German magazine page — two columns, a drop capital, a photograph, ~640
-words — against a hand-checked transcript produced by ChatGPT.
+Measured on a dense German magazine page — two columns, a drop capital, a photograph, 637
+words — against a hand-checked reference transcript.
 
-| Output | Character similarity | Word similarity | Umlaut words | Words |
-|---|---|---|---|---|
-| ChatGPT transcript (reference) | 100% | 100% | 39/39 | 637 |
-| Impressive OCR Fast | 48.6% | 94.2% | 36/39 | 620 |
-| Impressive OCR **Accurate** | **98.8%** | **98.3%** | 36/39 | **637** |
+| Output | Word accuracy | Bag recall | Reading-order loss |
+|---|---|---|---|
+| Fast | 95.1% | 97.2% | 2.0 pts |
+| **Accurate** | **98.4%** | **98.7%** | **0.3 pts** |
 
-Two numbers, because either alone misleads. **Word similarity** asks whether the right words
-were read; **character similarity** compares the page as one string, so it is sensitive to
-order. The fast engine scores 94% on words and 49% on characters — it reads the letters and
-misplaces them. An early comparison using word similarity alone ranked the better engine last.
+Two numbers, because either alone misleads. **Word accuracy** is order-sensitive — one minus
+the word edit distance against the reference. **Bag recall** ignores order entirely: how much
+of the page was read at all, wherever it ended up. The gap between them is what reading-order
+damage costs you, which is precisely where the two engines differ.
 
-In accurate mode, seven differences remained across 637 words: two dropped letters, two added,
-one transposition, one spurious space, and one German line-break hyphen left unjoined
-(`zu- frieden`). The kicker above the headline was missed.
+In accurate mode six differences remain across 637 words: two words split in two, one dropped
+letter, one added, one misread, and one German line-break hyphen left unjoined (`zu- frieden`).
+The kicker above the headline was missed.
 
-This is one page on one machine, not a benchmark suite. A single-column invoice would narrow
-the gap considerably — which is the case where Fast is the right answer anyway.
+This is one page on one machine, not a benchmark suite. A single-column invoice narrows the
+gap considerably.
 
-### Where the time goes
+### Why the accurate engine used to be slow
 
-Sampling the GPU during an accurate run: 68% utilisation, 2790 MHz, and **41 W of a ~160 W
-budget** — a card waiting on memory rather than computing. Vision-language decoding writes the
-page out token by token, streaming the model's weights for each one, so throughput follows
-**memory bandwidth**. More VRAM does not make it faster; a wider memory bus does.
+It was never the model. PaddleOCR's built-in backend pins the language model to a **batch size
+of one**, so each of a page's layout regions — 23 on the page above — re-streams all 0.9 B
+weights in turn. That is the worst possible shape for a decoder whose throughput is set by
+memory bandwidth, and the card shows it: 68% utilisation at 41 W of a ~160 W budget, waiting
+on memory rather than working.
 
-Input resolution is not a lever either. Feeding the same page at 120, 150 and 200 DPI produced
-the same runtime within noise, because the cost tracks how much text comes *out*, not how many
-pixels went in. 300 DPI took 2.3× as long and scored worse.
+The same weights behind a local [llama.cpp](https://github.com/ggml-org/llama.cpp) server,
+which recognises eight regions at once, do the same work in a fortieth of the time and in half
+the video memory. The model is byte-identical; only the way it is driven changed. It is
+installed with the runtime, quantised on your machine from PaddlePaddle's official release,
+and if it is ever missing the app quietly uses the built-in backend instead.
+
+Input resolution is not a lever for it, and lowering it actively hurts. The accurate engine is
+handed the PDF and derives its own page geometry; rendering to an image first costs reading
+order — bag recall stays above 97% while word accuracy falls as low as 60%, the signature of
+correctly-read text assembled in the wrong sequence.
 
 ## Running it
 
@@ -94,9 +102,9 @@ Then open <http://127.0.0.1:8084>. The port is bound to loopback on purpose: the
 and write every folder on its allowlist, so publish it further only behind a reverse proxy
 with authentication enabled.
 
-On first start the app downloads its Python runtime and the OCR models — several gigabytes,
-once. It picks the CPU or GPU build after probing the hardware, which is why they are not
-bundled.
+On first start the app downloads its Python runtime, the OCR models and the inference engine
+— several gigabytes, once. It picks the CPU or GPU build of each after probing the hardware,
+which is why they are not bundled.
 
 ## Building from source
 

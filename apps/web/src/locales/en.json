@@ -106,7 +106,10 @@
     "engineVersion": "OCR engine",
     "engineOutdated": "The OCR engine is version {engine}, but this application is {app}. It was installed once and is not updated automatically — update it to pick up recognition improvements.",
     "updateEngine": "Update the OCR engine",
-    "updateEngineHint": "Takes seconds and downloads nothing."
+    "updateEngineHint": "Takes seconds and downloads nothing.",
+    "vlServerMissing": "The fast inference engine is not installed. Accurate mode still works, but takes roughly 28 times longer per page and cannot run without a graphics card.",
+    "installVlServer": "Install the fast engine",
+    "installVlServerHint": "About 1.9 GB, downloaded once."
   },
   "errors": {
     "loadFailed": "Could not load data from the service.",
@@ -279,6 +282,7 @@
     "install-paddle": "Installing PaddlePaddle",
     "install-paddleocr": "Installing PaddleOCR",
     "download-models": "Downloading OCR models",
+    "download-vl-server": "Installing the fast inference engine",
     "verify": "Verifying"
   },
   "settings": {
@@ -314,7 +318,12 @@
     "desktop": "Desktop app",
     "desktopHint": "How the application behaves when it starts. These apply to the desktop app only.",
     "startMinimizedToTray": "Start minimised to the tray",
-    "startMinimizedToTrayHint": "No window appears; the queue runs in the background. Useful when the app starts with the computer."
+    "startMinimizedToTrayHint": "No window appears; the queue runs in the background. Useful when the app starts with the computer.",
+    "engineTitle": "OCR engine",
+    "vlBackend": "Use the fast inference engine for Accurate mode",
+    "vlBackendHint": "Runs the same model roughly 28x faster, and lets Accurate mode work without a graphics card. Turning this off falls back to PaddleOCR’s built-in engine, which is far slower.",
+    "vlConcurrency": "Page regions recognised at once",
+    "vlConcurrencyHint": "How many parts of a page the engine works on in parallel. Eight measured fastest; higher divides the same memory between more slots and slows down again."
   },
   "auth": {
     "signInTitle": "Sign in",

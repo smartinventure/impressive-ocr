@@ -53,6 +53,32 @@ async function refreshEngine(): Promise<void> {
   }
 }
 
+/**
+ * Installing the fast inference engine into a runtime that predates it.
+ *
+ * Offered here because such an installation is already `ready` and will never run the
+ * installer again, so without this it stays on the slow backend permanently -- and nothing
+ * on screen would explain why the accurate profile is a minute a page.
+ */
+const installingEngine = ref(false);
+const engineError = ref<string | null>(null);
+const vlServerMissing = computed(
+  () => store.runtimeReady && store.runtime?.vlServerInstalled === false,
+);
+
+async function installFastEngine(): Promise<void> {
+  installingEngine.value = true;
+  engineError.value = null;
+  try {
+    await systemApi.installVlServer();
+    await store.refresh();
+  } catch (error) {
+    engineError.value = error instanceof Error ? error.message : t('errors.saveFailed');
+  } finally {
+    installingEngine.value = false;
+  }
+}
+
 const hardware = ref<HardwareWithExplanation | null>(null);
 const installing = computed(() => store.runtime?.state === 'installing');
 
@@ -232,6 +258,28 @@ onMounted(async () => {
           t('runtime.updateEngineHint')
         }}</span>
         <div v-if="refreshError" class="ocr-alert-error mt-3">{{ refreshError }}</div>
+      </div>
+
+      <!-- Absent only on installations set up before this engine existed. Everything still
+           works without it; it is just ~28x slower, which is worth one prompt. -->
+      <div v-if="vlServerMissing" class="ocr-alert-warn mt-4">
+        {{ t('runtime.vlServerMissing') }}
+        <div class="mt-3">
+          <v-btn
+            size="small"
+            variant="tonal"
+            color="primary"
+            prepend-icon="bolt"
+            :loading="installingEngine"
+            @click="installFastEngine"
+          >
+            {{ t('runtime.installVlServer') }}
+          </v-btn>
+          <span class="text-body-2 text-medium-emphasis ml-3">{{
+            t('runtime.installVlServerHint')
+          }}</span>
+        </div>
+        <div v-if="engineError" class="ocr-alert-error mt-3">{{ engineError }}</div>
       </div>
     </v-card>
 

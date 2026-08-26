@@ -34,6 +34,9 @@ import { describeSelection, selectWheel } from './wheel-index';
  */
 
 const INITIAL_STATUS: RuntimeStatus = {
+  // Overwritten on every read by `getStatus`, which checks the disk rather than trusting
+  // a value that was true whenever this object was last written.
+  vlServerInstalled: false,
   state: 'not-installed',
   currentStep: null,
   progressPercent: 0,
@@ -54,6 +57,8 @@ export interface RuntimeServiceOptions {
   venvDir: string;
   /** Reported by preflight: without it the OCR runtime cannot be installed at all. */
   uvBinary: string;
+  /** Whether the batching inference engine is on disk; see `getHardware`. */
+  isVlServerInstalled: () => boolean;
 }
 
 /** Fast enough to look live, slow enough that a progress bar cannot flood SQLite. */
@@ -133,15 +138,42 @@ export class RuntimeService {
     this.options.logger.info({ versions }, 'Backfilled runtime versions');
   }
 
+  /**
+   * Computed fresh rather than stored, like `getHardware`: the engine appears partway through
+   * its own install, and a cached `false` would leave the System page still offering a
+   * download that had already finished.
+   */
   getStatus(): RuntimeStatus {
-    return this.status;
+    return { ...this.status, vlServerInstalled: this.options.isVlServerInstalled() };
   }
 
+  /**
+   * What this machine can run.
+   *
+   * The probe answers for the *hardware*; whether the Accurate profile is offered also
+   * depends on something the probe cannot see -- whether the batching inference engine is
+   * installed. With it, that profile runs on a CPU at a usable speed; without it, PaddleOCR
+   * recognises one layout region at a time and a CPU run is effectively stalled.
+   *
+   * Combined here rather than in the probe so the probe stays a pure hardware question, and
+   * every caller sees one consistent answer.
+   */
   getHardware(): HardwareCapabilities {
     if (this.hardware === null) {
       throw new Error('Hardware has not been probed yet');
     }
-    return this.hardware;
+    if (!this.options.isVlServerInstalled()) {
+      return this.hardware;
+    }
+    return {
+      ...this.hardware,
+      // Both, and for different reasons: the profile becomes offerable at all, and it becomes
+      // routable to the CPU. A machine with a big card gains only the second.
+      availableProfiles: this.hardware.availableProfiles.includes('accurate')
+        ? this.hardware.availableProfiles
+        : ['accurate', ...this.hardware.availableProfiles],
+      canRunAccurateOnCpu: true,
+    };
   }
 
   isReady(): boolean {
@@ -221,6 +253,59 @@ export class RuntimeService {
       message: 'The OCR engine was updated.',
     });
     this.options.logger.info({ sidecar: versions.sidecar }, 'Sidecar reinstalled');
+
+    return this.status;
+  }
+
+  /**
+   * Add the fast inference engine to a runtime installed before it existed.
+   *
+   * Without this such an installation is permanently on the slow backend: it is already
+   * `ready`, so the installer never runs again, and nothing on screen would explain why the
+   * accurate profile takes a minute a page here and two seconds elsewhere.
+   *
+   * Reuses the install progress channel, so the System page shows the same bar it shows for
+   * everything else rather than needing a second kind of progress.
+   */
+  async installVlServer(): Promise<RuntimeStatus> {
+    if (this.status.state !== 'ready') {
+      throw new Error('The OCR runtime is not installed yet.');
+    }
+
+    const hardware = this.getHardware();
+    this.setStatus({
+      ...this.status,
+      state: 'installing',
+      currentStep: 'download-vl-server',
+      message: 'Downloading the fast inference engine',
+    });
+
+    try {
+      await this.options.installer.installVlServerOnly({
+        hardware,
+        onProgress: (progress) =>
+          this.setStatus({ ...this.status, currentStep: progress.step, message: progress.message }),
+      });
+      this.setStatus({
+        ...this.status,
+        state: 'ready',
+        currentStep: null,
+        progressPercent: 100,
+        message: 'The fast inference engine is ready.',
+      });
+      this.options.logger.info('Inference engine installed');
+    } catch (error) {
+      // Back to `ready`, not `failed`: the OCR runtime itself is untouched and still works.
+      // Only the fast path is missing, which is exactly what the fallback exists for.
+      this.setStatus({
+        ...this.status,
+        state: 'ready',
+        currentStep: null,
+        message: 'The fast inference engine could not be installed.',
+      });
+      this.options.logger.error({ err: error }, 'Could not install the inference engine');
+      throw error;
+    }
 
     return this.status;
   }

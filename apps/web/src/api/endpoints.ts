@@ -108,6 +108,8 @@ export const systemApi = {
   installRuntime: () => api.post<RuntimeStatus>('/system/runtime/install'),
   /** Reinstall just the sidecar. Seconds, and downloads nothing. */
   refreshSidecar: () => api.post<RuntimeStatus>('/system/runtime/refresh'),
+  /** Add the fast inference engine to a runtime installed before it existed. */
+  installVlServer: () => api.post<RuntimeStatus>('/system/runtime/vl-server'),
   cancelInstall: () => api.post<{ cancelled: boolean }>('/system/runtime/cancel'),
   /** Stop the warm OCR workers and give their model memory back. */
   releaseSidecars: (force: boolean) =>

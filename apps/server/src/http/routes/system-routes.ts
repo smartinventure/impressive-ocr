@@ -65,6 +65,15 @@ export function registerSystemRoutes(app: AppFastify, services: AppServices): vo
    */
   app.post('/api/system/runtime/refresh', async () => services.runtime.refreshSidecar());
 
+  /**
+   * Add the fast inference engine to an existing runtime.
+   *
+   * Awaited rather than fire-and-forget, unlike a full install: this is ~1.9 GB rather than
+   * several gigabytes, and the caller asked for exactly this one thing, so it should learn
+   * whether it worked.
+   */
+  app.post('/api/system/runtime/vl-server', async () => services.runtime.installVlServer());
+
   /** What an install would download, so the UI can ask before starting one. */
   app.get('/api/system/runtime/plan', async () => services.runtime.planInstall());
 

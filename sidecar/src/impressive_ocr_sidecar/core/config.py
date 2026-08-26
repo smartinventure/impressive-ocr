@@ -39,6 +39,24 @@ class ConfigError(RuntimeError):
 
 
 @dataclass(frozen=True, slots=True)
+class VlServerSettings:
+    """An OpenAI-compatible inference server the backend has already started for us.
+
+    Grouped rather than passed as loose arguments because the three travel together through
+    every layer -- config, registry, engine -- and are meaningless apart: a URL without a
+    backend name tells PaddleOCR nothing, and a backend name without a URL cannot be reached.
+    """
+
+    #: One of PaddleOCR's supported values, e.g. ``llama-cpp-server``.
+    backend: str
+    #: Base URL including the ``/v1`` suffix.
+    url: str
+    #: Layout regions recognised at once. Must match the server's own slot count, or the
+    #: smaller of the two wins and the rest of the slots sit idle.
+    max_concurrency: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class SidecarConfig:
     """Immutable settings for one sidecar process.
 
@@ -56,6 +74,13 @@ class SidecarConfig:
     log_level: str
     #: Share of the machine's cores OCR may use. Applied as a thread cap before Paddle loads.
     cpu_budget_percent: int
+
+    #: Where the ``accurate`` profile's language model runs.
+    #:
+    #: ``None`` means PaddleOCR's own in-process backend, which is what this sidecar did
+    #: before the option existed, and what an accurate worker falls back to when the backend
+    #: could not start a server for it.
+    vl_server: VlServerSettings | None = None
 
     @property
     def is_gpu(self) -> bool:
@@ -101,7 +126,45 @@ def load_config() -> SidecarConfig:
         model_cache_dir=_require("MODEL_CACHE_DIR"),
         log_level=os.environ.get(_ENV_PREFIX + "LOG_LEVEL", "info"),
         cpu_budget_percent=int(os.environ.get(_ENV_PREFIX + "CPU_BUDGET_PERCENT", "50")),
+        vl_server=_read_vl_server(),
     )
+
+
+def _read_vl_server() -> VlServerSettings | None:
+    """The inference server the backend started for us, if it started one.
+
+    Absent on every fast worker, and on an accurate one whose server failed to start. The
+    backend decides and falls back on its own; the sidecar never second-guesses it, or the
+    two halves would disagree about which engine actually ran.
+
+    Both halves are required together: a URL with no backend name would be silently ignored
+    by PaddleOCR, which is exactly the kind of misconfiguration that looks like a performance
+    bug months later.
+    """
+    backend = os.environ.get(_ENV_PREFIX + "VL_BACKEND") or None
+    url = os.environ.get(_ENV_PREFIX + "VL_SERVER_URL") or None
+    if backend is None and url is None:
+        return None
+    if backend is None or url is None:
+        raise ConfigError(
+            f"{_ENV_PREFIX}VL_BACKEND and {_ENV_PREFIX}VL_SERVER_URL must be set together"
+        )
+    return VlServerSettings(
+        backend=backend,
+        url=url,
+        max_concurrency=_optional_int(_ENV_PREFIX + "VL_MAX_CONCURRENCY"),
+    )
+
+
+def _optional_int(name: str) -> int | None:
+    """Read an integer that may be absent, without turning a typo into a silent default."""
+    raw = os.environ.get(name)
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError as error:
+        raise ConfigError(f"{name} must be an integer, got {raw!r}") from error
 
 
 def apply_paddle_environment(config: SidecarConfig) -> None:

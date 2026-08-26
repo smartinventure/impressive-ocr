@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import threading
 
-from ..core.config import Device, EngineProfile
+from ..core.config import Device, EngineProfile, VlServerSettings
 from ..core.logging import get_logger
 from ..core.protocol import EngineModules
 from .base import OcrEngine
@@ -19,14 +19,18 @@ def create_engine(
     profile: EngineProfile,
     device: Device,
     modules: EngineModules | None = None,
+    vl_server: VlServerSettings | None = None,
 ) -> OcrEngine:
     """Build (but do not load) the engine for a profile/device pair.
 
     The module toggles are needed here, not just at predict time: PP-StructureV3 downloads
     and instantiates its sub-models in its constructor.
+
+    `vl_server` only reaches the accurate profile -- PP-StructureV3 has no language model to
+    serve, so the setting is meaningless for it rather than merely unused.
     """
     if profile == "accurate":
-        return VlEngine(device=device, modules=modules)
+        return VlEngine(device=device, modules=modules, vl_server=vl_server)
     return StructureEngine(device=device, modules=modules)
 
 
@@ -44,9 +48,11 @@ class EngineCache:
         profile: EngineProfile,
         device: Device,
         modules: EngineModules | None = None,
+        vl_server: VlServerSettings | None = None,
     ) -> None:
         self._profile = profile
         self._device = device
+        self._vl_server = vl_server
         # Fixed for the process's lifetime. A job asking for a different set gets the loaded
         # engine anyway — changing them would mean reloading gigabytes of weights mid-queue,
         # so the backend starts a separate worker instead.
@@ -74,7 +80,7 @@ class EngineCache:
             cached = self._engine
             if cached is not None:
                 return cached
-            engine = create_engine(self._profile, self._device, self._modules)
+            engine = create_engine(self._profile, self._device, self._modules, self._vl_server)
             _logger.info(
                 "Loading engine",
                 extra={"engine": engine.name, "profile": self._profile, "device": self._device},

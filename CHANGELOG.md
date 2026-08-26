@@ -14,6 +14,24 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ### Added
 
+- **The accurate profile is roughly 28x faster, and now runs without a graphics card.**
+  Measured on a dense magazine page: 56.4 s/page to 2.0 s/page on a desktop GPU, and 10.6 s
+  on a CPU where it was previously not offered at all — at the same accuracy, on the same
+  model, using less than half the video memory.
+
+  The engine never was the problem. PaddleOCR's own backend pins the language model to a
+  batch size of one, so every layout region on a page re-streams all 0.9 B of weights; a
+  dense page has 23 of them. The identical weights behind a local `llama-server`, which
+  batches those regions eight at a time, do the same work in a fortieth of the time. What
+  changed is how the model is driven, not what it is.
+
+  Installed alongside the Python runtime and quantised on the machine from PaddlePaddle's
+  official BF16 release — about four seconds, once — so the only weights that ever run are
+  the ones they published. Falls back to the built-in backend whenever the server is missing
+  or will not start: slower, but never broken, and the reason is logged.
+- Two settings for it, under **OCR engine**: whether to use the fast inference engine at all,
+  and how many page regions it recognises at once. Eight measured fastest; sixteen and
+  twenty-four were slower, because more slots divide the same memory between them.
 - Linux desktop builds are published again: AppImage and deb, x64, with stable `latest`
   download links alongside Windows and macOS.
 - A first-run screen: the Terms and Conditions, the Privacy Policy and a plain summary of
@@ -42,6 +60,15 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ### Fixed
 
+- The README's accuracy table published a character-similarity column that cannot be
+  reproduced from the outputs it was derived from — it rated a visibly scrambled page at
+  ~95% and a well-ordered one at 48.6%, and no variant of that metric yields both published
+  figures. The whole "reads the letters and misplaces them" framing rested on it. Replaced
+  with word accuracy (order-sensitive edit distance) and bag recall (order-blind), whose
+  difference measures reading-order damage directly. The word column was sound and survives
+  unchanged at 98.3%.
+- The README's speed figures were stale: the accurate engine is ~56 s/page on the reference
+  machine, not ~80, and the fast engine ~3.5 s/page, not ~5. Both now also state CPU cost.
 - The release workflow built every platform and then failed to publish: `download-artifact`
   could not fetch the artifacts the six build jobs had just uploaded. GitHub is force-running
   actions that target Node 20 on Node 24, and the pinned `@v4` was one of them. Every action

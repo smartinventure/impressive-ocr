@@ -18,10 +18,12 @@ import { createAuthToken } from './infra/ids';
 import { RotatingLogFile } from './infra/log-file';
 import { ResourceMonitor } from './modules/runtime/resource-usage';
 import { createLogger, type Logger } from './infra/logger';
-import { resolveAppPaths, type AppPaths } from './infra/paths';
+import { resolveAppPaths, vlServerPaths, type AppPaths } from './infra/paths';
 import { ensureCertificate } from './infra/tls/self-signed';
 import { EventBus } from './modules/events/event-bus';
 import { SidecarPool } from './modules/ocr/sidecar-pool';
+import { isInstalled, resolveVlServer } from './modules/ocr/vl-server-availability';
+import { QUANTISATION } from './modules/ocr/vl-server-index';
 import { PipelineRepository } from './modules/pipelines/pipeline-repository';
 import { PipelineService } from './modules/pipelines/pipeline-service';
 import { JobExecutor } from './modules/queue/job-executor';
@@ -151,11 +153,16 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     logger,
     venvDir: paths.venvDir,
     uvBinary,
+    // Checked on every call rather than cached: it becomes true partway through an install,
+    // and a stale `false` would keep offering the Accurate profile as unavailable after it
+    // had in fact arrived.
+    isVlServerInstalled: () => isInstalled(vlServerPaths(paths.vlServerDir, QUANTISATION)),
     installer: new RuntimeInstaller({
       uvBinary,
       venvDir: paths.venvDir,
       modelCacheDir: paths.modelCacheDir,
       sidecarProjectDir: options.sidecarDir ?? defaultSidecarDir(),
+      vlServerDir: paths.vlServerDir,
       logger,
     }),
   });
@@ -172,6 +179,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     // sidecar rather than needing a restart.
     cpuBudgetPercent: () => settingsService.get().cpuBudgetPercent,
     idleMinutes: () => settingsService.get().sidecarIdleMinutes,
+    // Read fresh for the same reason: turning the fast backend off, or installing it from
+    // the System page, applies to the next worker rather than needing a restart.
+    vlServer: () =>
+      resolveVlServer(
+        settingsService.get(),
+        runtime.getHardware(),
+        paths.vlServerDir,
+        logger,
+      ).options,
     logger,
   });
 

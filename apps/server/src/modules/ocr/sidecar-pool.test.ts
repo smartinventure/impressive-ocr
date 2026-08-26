@@ -42,6 +42,9 @@ function pool(idleMinutes = 0): SidecarPool {
     logLevel: 'info',
     cpuBudgetPercent: () => 50,
     idleMinutes: () => idleMinutes,
+    // The native backend, which is what these tests are about: worker lifecycle is the same
+    // either way, and starting a real inference server here would make them integration tests.
+    vlServer: () => null,
     logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as never,
   });
 }

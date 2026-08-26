@@ -58,18 +58,22 @@ export function resolveDevice(
   if (device === 'gpu') {
     parts.push(`${describeUnavailableGpu(hardware)} Falling back to the CPU.`);
   }
-  if (profile === 'accurate') {
+  // The Accurate profile runs on a CPU now, but only through the batching inference engine.
+  // Without it PaddleOCR recognises one layout region at a time, which on a CPU is not slow
+  // so much as stalled -- so its absence, not the missing GPU, is what forces Fast here.
+  if (profile === 'accurate' && !hardware.canRunAccurateOnCpu) {
     if (parts.length === 0 && device === 'auto') {
       parts.push(describeUnavailableGpu(hardware));
     }
-    parts.push('The Accurate profile needs a GPU, so the Fast profile was used instead.');
+    parts.push(
+      'The Accurate profile needs the fast inference engine to run on a CPU; the Fast profile was used instead.',
+    );
+    return { device: 'cpu', profile: 'fast', fallbackReason: parts.join(' ') };
   }
 
   return {
     device: 'cpu',
-    // The Accurate profile is a vision-language model; on a CPU it is not slow but
-    // effectively stalled, so CPU always means the Fast profile.
-    profile: 'fast',
+    profile,
     fallbackReason: parts.length > 0 ? parts.join(' ') : null,
   };
 }

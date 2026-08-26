@@ -9,6 +9,7 @@ import { toUserMessage } from './progress-output';
 import { assertEnoughSpaceForInstall } from './disk-space';
 import { repairModelCache } from './model-cache';
 import { PreflightBlockedError, runPreflight } from './preflight';
+import { installVlServer } from './vl-server-installer';
 import { pipInstallArgs, selectWheel, type WheelSelection } from './wheel-index';
 
 /**
@@ -26,8 +27,19 @@ import { pipInstallArgs, selectWheel, type WheelSelection } from './wheel-index'
 /** Pinned so an upstream Python release cannot change behaviour under an existing install. */
 export const PYTHON_VERSION = '3.12';
 
-/** Pinned for the same reason; upgraded deliberately, with a runtime-version bump. */
-export const PADDLEOCR_REQUIREMENT = 'paddleocr[doc-parser]';
+/**
+ * Pinned for the same reason; upgraded deliberately, with a runtime-version bump.
+ *
+ * The comment above used to sit over an *unpinned* requirement installed with `--upgrade`,
+ * so two people installing a month apart got different inference stacks and the same version
+ * of this app. That was always untidy; it became a real hazard once the accurate profile
+ * started depending on specifics of PaddleOCR's backend selection — the names in
+ * `_SUPPORTED_VL_BACKENDS`, and a genai client that dispatches a page's regions concurrently.
+ * A silent minor upgrade could turn the fast path back into the slow one with nothing to see.
+ *
+ * 3.7.0 is the version every measurement in the README was taken against.
+ */
+export const PADDLEOCR_REQUIREMENT = 'paddleocr[doc-parser]==3.7.0';
 
 export interface InstallProgress {
   step: RuntimeStep;
@@ -40,6 +52,8 @@ export interface RuntimeInstallerOptions {
   venvDir: string;
   modelCacheDir: string;
   sidecarProjectDir: string;
+  /** Where `llama-server` and the accurate profile's weights are installed. */
+  vlServerDir: string;
   logger: Logger;
 }
 
@@ -72,21 +86,24 @@ export interface InstallResult {
  */
 const STEP_WEIGHTS: Record<RuntimeStep, number> = {
   'probe-hardware': 2,
-  'install-python': 8,
-  'create-venv': 3,
-  'install-paddle': 45,
-  'install-paddleocr': 22,
-  'download-models': 15,
-  verify: 5,
+  'install-python': 6,
+  'create-venv': 2,
+  'install-paddle': 35,
+  'install-paddleocr': 18,
+  'download-models': 13,
+  // ~1.9 GB of archives and weights, plus the quantisation pass. Second only to Paddle.
+  'download-vl-server': 20,
+  verify: 4,
 };
 
-const STEP_ORDER: readonly RuntimeStep[] = [
+export const STEP_ORDER: readonly RuntimeStep[] = [
   'probe-hardware',
   'install-python',
   'create-venv',
   'install-paddle',
   'install-paddleocr',
   'download-models',
+  'download-vl-server',
   'verify',
 ];
 
@@ -187,6 +204,37 @@ export class RuntimeInstaller {
       await this.warmModels(python, onProgress, signal);
     });
 
+    // Last, and deliberately not fatal. Everything above is required to OCR anything at all;
+    // this only decides whether the accurate profile is fast, and the pool already falls back
+    // to PaddleOCR's own backend when it is missing. Failing the whole install here would
+    // trade a working slow setup for no setup.
+    await this.step(
+      'download-vl-server',
+      onProgress,
+      'Downloading the fast inference engine',
+      async () => {
+        try {
+          await installVlServer({
+            vlServerDir: this.options.vlServerDir,
+            hardware,
+            onMessage: (message: string) =>
+              onProgress({
+                step: 'download-vl-server',
+                percent: progressBefore('download-vl-server'),
+                message,
+              }),
+            signal,
+            logger: this.options.logger,
+          });
+        } catch (error) {
+          this.options.logger.warn(
+            { err: error },
+            'Could not install the fast inference engine; the accurate profile will use the built-in backend',
+          );
+        }
+      },
+    );
+
     const versions = await this.step('verify', onProgress, 'Verifying the installation', () =>
       this.verify(python, signal),
     );
@@ -242,6 +290,34 @@ export class RuntimeInstaller {
    * the venv already satisfactory. `--no-deps` because Paddle is several gigabytes and is not
    * what changed - this has to be the cheap repair, or nobody will run it.
    */
+  /**
+   * Install the inference engine into a runtime that already exists.
+   *
+   * Needed because an installation set up before this engine existed is `ready`, so the
+   * installer never runs again and it would otherwise be stuck on the slow backend forever
+   * -- with nothing to indicate why. Separate from `install` for the same reason
+   * `reinstallSidecar` is: nobody reruns a multi-gigabyte Python setup to pick up one
+   * component.
+   *
+   * Throws, unlike the install step, which swallows failures. There the engine is a bonus on
+   * top of a working runtime; here it is the only thing the user asked for, so a failure has
+   * to reach them.
+   */
+  async installVlServerOnly(request: InstallRequest): Promise<void> {
+    await installVlServer({
+      vlServerDir: this.options.vlServerDir,
+      hardware: request.hardware,
+      onMessage: (message: string) =>
+        request.onProgress({
+          step: 'download-vl-server',
+          percent: progressBefore('download-vl-server'),
+          message,
+        }),
+      signal: request.signal,
+      logger: this.options.logger,
+    });
+  }
+
   async reinstallSidecar(signal?: AbortSignal): Promise<RuntimeVersions> {
     const python = venvPython(this.options.venvDir);
 

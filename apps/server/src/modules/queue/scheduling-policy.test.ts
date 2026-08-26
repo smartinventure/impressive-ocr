@@ -43,6 +43,7 @@ function hardware(overrides: Partial<HardwareCapabilities> = {}): HardwareCapabi
     gpuUnavailableReason: 'no-nvidia-driver',
     canUseGpu: false,
     availableProfiles: ['fast'],
+    canRunAccurateOnCpu: false,
     probedAt: '2026-08-19T00:00:00.000Z',
     ...overrides,
   };
@@ -109,13 +110,25 @@ describe('resolveDevice', () => {
     });
   });
 
-  it('demotes Accurate to Fast when no GPU is available', () => {
-    // Running a 0.9B VLM on a CPU is not a graceful degradation, it is a hang.
+  it('demotes Accurate to Fast on a CPU without the fast inference engine', () => {
+    // Driven by PaddleOCR's own backend a 0.9B VLM on a CPU is not a graceful degradation,
+    // it is a hang: one layout region at a time, re-streaming the weights for each.
     const result = resolveDevice(withEngine('accurate', 'auto'), hardware());
 
     expect(result.device).toBe('cpu');
     expect(result.profile).toBe('fast');
-    expect(result.fallbackReason).toContain('Accurate profile needs a GPU');
+    expect(result.fallbackReason).toContain('needs the fast inference engine');
+  });
+
+  it('keeps Accurate on a CPU once the fast inference engine is installed', () => {
+    // Measured at ~11 s/page against ~103 s for Fast on the same machine, so demoting here
+    // would hand the user the slower *and* less accurate option.
+    const capable = hardware({ canRunAccurateOnCpu: true });
+
+    const result = resolveDevice(withEngine('accurate', 'auto'), capable);
+
+    expect(result.device).toBe('cpu');
+    expect(result.profile).toBe('accurate');
   });
 
   it('explains an explicit GPU request that could not be met', () => {
@@ -135,11 +148,14 @@ describe('resolveDevice', () => {
     expect(resolveDevice(withEngine('fast', 'cpu'), gpuAvailable).fallbackReason).toBeNull();
   });
 
-  it('still demotes the profile when CPU is chosen explicitly with Accurate', () => {
+  it('demotes Accurate on an explicit CPU choice when the engine is not installed', () => {
+    // The dangerous combination: a card good enough for Accurate says nothing about whether
+    // the CPU can run it, and routing it there on the native backend is the slowest path in
+    // the product.
     const result = resolveDevice(withEngine('accurate', 'cpu'), gpuAvailable);
 
     expect(result.profile).toBe('fast');
-    expect(result.fallbackReason).toContain('needs a GPU');
+    expect(result.fallbackReason).toContain('needs the fast inference engine');
   });
 
   it('stays quiet when auto lands on the CPU and nothing was overridden', () => {

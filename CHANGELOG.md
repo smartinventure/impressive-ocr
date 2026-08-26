@@ -50,6 +50,12 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ### Changed
 
+- The fast profile renders pages at 150 DPI rather than 200. Measured across thirteen pages of
+  tables, formulas, fine print and body text against each page's own text layer, 150 and 200
+  are *identical* at 87.9% word accuracy and 150 is 23% faster. 100 DPI is faster again and
+  does finally cost accuracy, so 150 is the floor rather than a step on the way down. Higher
+  does not help either: 300 DPI is slower and no more accurate, including on the small print
+  it is supposed to be for.
 - The licence summary on the first-run screen now states that the AGPL grant is for private
   use, and directs commercial users to speedbits.io for a paid licence.
 
@@ -64,6 +70,13 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ### Fixed
 
+- Dense pages silently lost text in accurate mode. Each inference slot held 2048 tokens, and
+  a slot has to fit a layout region's image *plus* everything written back about it, so a
+  full-width block of small print — a page of photo credits, a wall of terms — simply stopped
+  mid-sentence. One page scored 37% word accuracy against its own text layer, having dropped
+  555 words of 901; at 4096 tokens it scores 94%. Peak video memory moved by about 150 MB.
+  Found by benchmarking real pages rather than generated ones, which is the whole argument for
+  having them.
 - The README's accuracy table published a character-similarity column that cannot be
   reproduced from the outputs it was derived from — it rated a visibly scrambled page at
   ~95% and a well-ordered one at 48.6%, and no variant of that metric yields both published

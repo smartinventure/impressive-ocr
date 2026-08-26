@@ -65,7 +65,7 @@ class AdvancedEngineOptions(BaseModel):
 class EngineOptions(BaseModel):
     profile: Literal["accurate", "fast"] = "fast"
     device: Literal["auto", "gpu", "cpu"] = "auto"
-    raster_dpi: int = Field(default=200, alias="rasterDpi")
+    raster_dpi: int = Field(default=150, alias="rasterDpi")
     max_pages_per_document: int = Field(default=0, alias="maxPagesPerDocument")
     modules: EngineModules = Field(default_factory=EngineModules)
     #: Defaulted, so a backend predating this field keeps working unchanged.

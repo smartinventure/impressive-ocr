@@ -76,3 +76,24 @@ Telemetry
 None. This program makes no network request about a user's documents. Model
 weights are downloaded once at install time from the configured model source;
 everything after that runs locally.
+
+================================================================================
+Benchmark material (samples/)
+================================================================================
+
+Not part of the application, and not distributed with it. These files exist so
+the OCR measurements in the README can be reproduced, and they carry their own
+licences.
+
+Light and Matter (physics textbook) ... CC BY-SA 3.0 ... Benjamin Crowell
+    https://www.lightandmatter.com/
+    Pages excerpted into samples/pdfs-with-text/ and samples/pdfs-with-graphics/
+    for the table, formula and fine-print benchmarks. Licensed under the
+    Creative Commons Attribution-ShareAlike 3.0 licence,
+    http://creativecommons.org/licenses/by-sa/3.0/ -- excluding photographs and
+    drawings the author did not create, as listed in that book's photo credits.
+
+stamp-seal.png ....................... see samples/README.md
+    Seal artwork used for the seal-recogniser benchmark, with the transcribed
+    text in samples/seal-truth.json.
+

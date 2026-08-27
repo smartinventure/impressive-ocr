@@ -3,6 +3,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { AdvancedEngineOptions } from '@impressive-ocr/shared';
+import InfoHint from '../../../components/info-hint.vue';
 
 /**
  * The expert overrides, kept out of the editor for two reasons.
@@ -184,7 +185,9 @@ function resetAll(): void {
       :hint="t('expert.ignoreLabelsHint')"
       persistent-hint
       @update:model-value="setLabels($event)"
-    />
+    >
+      <template #append><InfoHint topic="expertIgnoreLabels" /></template>
+    </v-combobox>
 
     <v-btn
       variant="text"

@@ -16,6 +16,7 @@ import { pipelinesApi } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 import FolderPickerField from '../../../components/folder-picker-field.vue';
 import ExpertSettingsPanel from '../components/expert-settings-panel.vue';
+import InfoHint from '../../../components/info-hint.vue';
 
 /**
  * The pipeline editor — around thirty settings across eight groups.
@@ -217,6 +218,7 @@ onMounted(async () => {
               role="input"
               :label="t('editor.inputFolder')"
               :hint="t('editor.inputFolderHint')"
+              help-topic="editorInputFolder"
               :external-error="fieldErrors['source.inputPath'] ?? null"
               class="mb-4"
             />
@@ -225,19 +227,25 @@ onMounted(async () => {
               :label="t('editor.recursive')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorRecursive" /></template>
+            </v-switch>
             <v-switch
               v-model="options.source.mirrorFolderStructure"
               :label="t('editor.mirror')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorMirror" /></template>
+            </v-switch>
             <v-switch
               v-model="options.source.skipDuplicates"
               :label="t('editor.skipDuplicates')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorSkipDuplicates" /></template>
+            </v-switch>
             <v-select
               v-model="options.source.watchMode"
               :items="[
@@ -248,7 +256,9 @@ onMounted(async () => {
               :hint="t('editor.watchModeHint')"
               persistent-hint
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorWatchMode" /></template>
+            </v-select>
           </v-expansion-panel-text>
         </v-expansion-panel>
 
@@ -276,7 +286,9 @@ onMounted(async () => {
               ]"
               :label="t('editor.profile')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorProfile" /></template>
+            </v-select>
 
             <v-select
               v-model="options.engine.device"
@@ -287,7 +299,9 @@ onMounted(async () => {
               ]"
               :label="t('editor.device')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorDevice" /></template>
+            </v-select>
 
             <v-select
               v-model="options.engine.rasterDpi"
@@ -296,7 +310,9 @@ onMounted(async () => {
               :hint="t('editor.dpiHint')"
               persistent-hint
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorDpi" /></template>
+            </v-select>
 
             <v-select
               v-model="options.textLayerStrategy"
@@ -309,9 +325,14 @@ onMounted(async () => {
               :hint="t('editor.textLayerHint')"
               persistent-hint
               class="mb-5"
-            />
+            >
+              <template #append><InfoHint topic="editorTextLayer" /></template>
+            </v-select>
 
-            <div class="editor__modules-title">{{ t('editor.modules') }}</div>
+            <div class="editor__modules-title">
+              {{ t('editor.modules') }}
+              <InfoHint topic="editorModules" />
+            </div>
             <div v-for="module in MODULES" :key="module.key" class="editor__module">
               <v-switch
                 v-model="options.engine.modules[module.key]"
@@ -339,12 +360,16 @@ onMounted(async () => {
               role="output"
               :label="t('editor.outputFolder')"
               :hint="t('editor.outputFolderHint')"
+              help-topic="editorOutputFolder"
               :must-exist="false"
               :external-error="fieldErrors['output.outputPath'] ?? null"
               class="mb-4"
             />
 
-            <div class="editor__modules-title">{{ t('editor.formats') }}</div>
+            <div class="editor__modules-title">
+              {{ t('editor.formats') }}
+              <InfoHint topic="editorFormats" />
+            </div>
             <div class="editor__formats">
               <!-- No `model-value` here, deliberately. On VChip that prop is the chip's own
                    visibility: `isActive.value && createVNode(...)`, so binding it to "is this
@@ -374,7 +399,9 @@ onMounted(async () => {
               :hint="t('editor.namingTemplateHint')"
               persistent-hint
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorNamingTemplate" /></template>
+            </v-text-field>
 
             <v-select
               v-model="options.output.collisionPolicy"
@@ -385,7 +412,9 @@ onMounted(async () => {
               ]"
               :label="t('editor.collision')"
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorCollision" /></template>
+            </v-select>
 
             <!-- Only meaningful when a .txt is actually being written; no other writer reads
                  it. Shown unconditionally it would be a setting that silently does nothing. -->
@@ -401,7 +430,9 @@ onMounted(async () => {
               :hint="t('editor.encodingHint')"
               persistent-hint
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorEncoding" /></template>
+            </v-select>
           </v-expansion-panel-text>
         </v-expansion-panel>
 
@@ -422,12 +453,15 @@ onMounted(async () => {
               ]"
               :label="t('editor.onSuccess')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorOnSuccess" /></template>
+            </v-select>
             <FolderPickerField
               v-if="options.postProcessing.onSuccess === 'move-to-archive'"
               v-model="options.postProcessing.archivePath as string"
               role="output"
               :label="t('editor.archiveFolder')"
+              help-topic="editorArchiveFolder"
               :must-exist="false"
               :external-error="fieldErrors['postProcessing.archivePath'] ?? null"
             />
@@ -446,18 +480,23 @@ onMounted(async () => {
               type="number"
               :label="t('editor.maxAttempts')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorMaxAttempts" /></template>
+            </v-text-field>
             <v-text-field
               v-model.number="options.reliability.concurrency"
               type="number"
               :label="t('editor.concurrency')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorConcurrency" /></template>
+            </v-text-field>
             <FolderPickerField
               v-model="options.reliability.quarantinePath as string"
               role="output"
               :label="t('editor.quarantineFolder')"
               :hint="t('editor.quarantineHint')"
+              help-topic="editorQuarantineFolder"
               :must-exist="false"
               :external-error="fieldErrors['reliability.quarantinePath'] ?? null"
             />
@@ -479,13 +518,17 @@ onMounted(async () => {
               thumb-label
               :label="t('editor.priority')"
               class="mb-2"
-            />
+            >
+              <template #append><InfoHint topic="editorPriority" /></template>
+            </v-slider>
             <v-switch
               v-model="options.schedule.activeHoursEnabled"
               :label="t('editor.activeHours')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorActiveHours" /></template>
+            </v-switch>
             <div v-if="options.schedule.activeHoursEnabled" class="d-flex ga-3 mt-2">
               <v-text-field
                 v-model="options.schedule.activeFrom"

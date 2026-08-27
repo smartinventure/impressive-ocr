@@ -138,13 +138,13 @@
     "watchEvents": "Filesystem events (local drives)",
     "watchPolling": "Polling (network shares)",
     "profile": "Engine profile",
-    "fastHint": "Runs on CPU. Good for everyday documents.",
-    "accurateHint": "Needs a GPU. Best on complex tables and messy scans.",
-    "accurateUnavailable": "The Accurate profile needs a compatible GPU, which this machine does not have. Jobs will run on the CPU using the Fast profile.",
-    "accurateNeedsVram": "The Accurate profile needs a {required} GB card or larger; this GPU has {vram}. Jobs will run on the GPU using the Fast profile.",
+    "fastHint": "Specialised table, formula, chart and seal recognisers.",
+    "accurateHint": "Faster and better at reading order. Recommended.",
+    "accurateUnavailable": "The Accurate profile needs the inference engine, which is not installed yet. Add it on the System page, or use Fast in the meantime.",
+    "accurateNeedsVram": "Without the inference engine the Accurate profile needs a {required} GB card or larger, and this GPU has {vram}. Installing the inference engine on the System page removes that requirement.",
     "device": "Device",
     "dpi": "Scan resolution",
-    "dpiHint": "Higher is slower and mostly helps with small print.",
+    "dpiHint": "Only affects the Fast engine. Higher is slower and mostly helps with small print.",
     "textLayer": "PDFs that already contain text",
     "textLayerHint": "Reusing an existing text layer is far faster and usually more accurate than re-running OCR.",
     "textHybrid": "Hybrid — OCR only the pages without text",
@@ -406,8 +406,8 @@
     "profileLabel": "Recognition engine",
     "profileFast": "Fast — good on everyday documents",
     "profileAccurate": "Accurate — best on columns, tables and messy scans",
-    "profileHint": "Accurate reads layout far better on magazine and newspaper pages, and is several times slower per page.",
-    "profileHintNoGpu": "Accurate needs a GPU with enough memory, which this machine does not have.",
+    "profileHint": "Accurate is the faster and the more reliable of the two on this machine. Fast keeps the table, formula, chart and seal recognisers.",
+    "profileHintNoGpu": "Accurate needs the inference engine, which is not installed yet. You can add it on the System page.",
     "settingsUsed": "Settings for this run:",
     "summaryEngine": "Engine: {value}",
     "summaryDevice": "Requested: {value}",
@@ -419,7 +419,8 @@
     "engineAccurateShort": "Accurate",
     "strategyHybridShort": "Hybrid",
     "strategySkipShort": "Skip if text",
-    "strategyAlwaysShort": "Always OCR"
+    "strategyAlwaysShort": "Always OCR",
+    "downloadFiles": "Individual files ({count})"
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",
@@ -490,23 +491,25 @@
     "trigger": "Which engine should I choose?",
     "title": "Choosing an OCR engine",
     "fastTitle": "Fast",
-    "fastFor": "Letters, invoices, forms, reports — anything laid out in a single column. The right choice for watched folders, where hundreds of documents matter more than any one of them.",
+    "fastFor": "Letters, invoices, forms and reports — anything laid out in a single column. It also carries table, formula, chart and seal recognisers that the accurate engine has no equivalent for, and it is the smaller install.",
     "fastLimit": "It reads characters well but reconstructs page structure poorly. On a magazine or newspaper page it can interleave columns, break a drop capital away from its word, and turn a headline into an anagram — output that looks plausible and is not usable.",
     "accurateTitle": "Accurate",
     "accurateFor": "Magazines, newspapers, multi-column layouts, tables, and any scan you intend to read or publish. It reconstructs reading order, so columns and drop capitals come out in the order a person would read them.",
-    "accurateLimit": "Needs a GPU with enough memory, and takes far longer per page. On a large backlog that difference is hours, not seconds.",
-    "measuredTitle": "Measured on one dense magazine page",
-    "measuredIntro": "A single-page German magazine article, processed on a desktop GPU and compared against a hand-checked transcript.",
+    "accurateLimit": "It is now the faster of the two as well as the more accurate, on a graphics card and on the processor alone. It needs about 2 GB more disk for the inference engine, which is installed with the runtime.",
+    "measuredTitle": "Measured on a dense magazine page",
+    "measuredIntro": "A single-page German magazine article — two columns, a drop capital, a photograph, 637 words — against a hand-checked transcript. Times are from a desktop graphics card and a 16-core processor.",
     "colSetting": "Setting",
     "colSpeed": "Per page",
     "colQuality": "Matched the transcript",
-    "rowFastGpu": "Fast, GPU",
-    "rowAccurateGpu": "Accurate, GPU",
-    "rowFastCpu": "Fast, CPU",
-    "fastGpuSpeed": "~5 s",
-    "accurateGpuSpeed": "~80 s",
-    "fastCpuSpeed": "~114 s",
-    "qualityNote": "Both engines read almost the same characters. The gap is structure: Fast placed much of the text in the wrong order on this layout, which is what the percentage measures.",
+    "rowFastGpu": "Fast, graphics card",
+    "rowAccurateGpu": "Accurate, graphics card",
+    "rowFastCpu": "Fast, processor only",
+    "rowAccurateCpu": "Accurate, processor only",
+    "fastGpuSpeed": "~3.5 s",
+    "accurateGpuSpeed": "~2 s",
+    "fastCpuSpeed": "~100 s",
+    "accurateCpuSpeed": "~11 s",
+    "qualityNote": "Both engines read almost the same characters — 97.2% against 98.7% of the words are present in either output. The gap in the table is reading order: Fast placed some of them in the wrong sequence on this layout, which is what the percentage measures.",
     "hardwareNote": "Times depend on your hardware and on the page. Model loading adds ten to twenty seconds to the first document only, after which the engine stays warm."
   },
   "updateBadge": {
@@ -536,6 +539,156 @@
       "size": "It is a few gigabytes and downloads once. The right build for your hardware is chosen automatically.",
       "open": "Open the System page",
       "later": "Later"
+    }
+  },
+  "infoHint": {
+    "aria": "More about {subject}"
+  },
+  "help": {
+    "quickSource": {
+      "title": "Which files to process",
+      "body": "Pick files already sitting on the machine running Impressive OCR, or upload them from the computer you are looking at. Both accept PDFs and images.",
+      "detail": "Server files are read in place and the results are written to a folder you choose. Uploads are processed in a temporary folder and handed back as a download, because there is no folder on your own computer the server could write to."
+    },
+    "quickOutputFolder": {
+      "title": "Where the results go",
+      "body": "The folder that receives the converted files. It does not have to exist yet — it will be created.",
+      "detail": "One file is written per document and per format, named after the source document."
+    },
+    "quickFormats": {
+      "title": "Output formats",
+      "body": "Every format you pick is written for every document, so choosing three formats gives you three files per document. At least one has to stay selected.",
+      "detail": "Markdown keeps headings, tables and reading order, and is the best choice if you intend to read or edit the result. JSON carries the full structure including the position of every text block. TXT is plain text with no structure. DOCX and XLSX open in Word and Excel. Searchable PDF keeps the original page image and lays the recognised text invisibly on top, so the document still looks exactly like the original but can be searched and copied."
+    },
+    "quickProfile": {
+      "title": "Which OCR engine reads the pages",
+      "body": "Accurate is both the faster and the better engine on current hardware — about 2 seconds a page on a graphics card and about 11 on the processor alone, against roughly 3.5 and 100 for Fast. Choose it unless you have a reason not to.",
+      "detail": "Fast is still worth having for two things: its dedicated table recogniser places cells slightly more precisely on ruled, invoice-style tables, and it carries formula, chart and seal recognisers that Accurate has no equivalent for. It is also the smaller install, for a machine where the inference engine is not wanted. Where the two really differ is structure: on a multi-column page Fast can interleave the columns, producing text that reads as nonsense even though every character was recognised correctly."
+    },
+    "quickDevice": {
+      "title": "Which processor does the work",
+      "body": "Automatic uses the graphics card when there is a usable one and falls back to the processor otherwise. That is the right setting almost always.",
+      "detail": "Force GPU or CPU when you want to measure the difference on your own documents. Forcing GPU on a machine without a usable one does not fail — it quietly falls back — so the setting is safe to experiment with."
+    },
+    "quickTextLayer": {
+      "title": "PDFs that already contain text",
+      "body": "Many PDFs are not scans at all and already carry perfect text. This decides what happens to them.",
+      "detail": "Hybrid, the default, keeps the existing text where a page has it and OCRs only the pages that need it — fastest and most accurate on mixed documents. Skip if text passes the whole document through untouched as soon as any text is found, which is wrong for a scan carrying a stray text watermark. Always OCR ignores the existing text entirely; use it when you suspect the embedded text is bad."
+    },
+    "editorProfile": {
+      "title": "Which OCR engine reads the pages",
+      "body": "Accurate is both faster and better on current hardware — about 2 seconds a page on a graphics card, about 11 on the processor alone, against roughly 3.5 and 100 for Fast. For a watched folder that difference compounds over every document.",
+      "detail": "Fast keeps a dedicated table recogniser that is marginally more precise on ruled tables, plus formula, chart and seal recognisers that Accurate has no equivalent for. Accurate's advantage is reading order: on multi-column pages Fast can interleave the columns."
+    },
+    "editorDevice": {
+      "title": "Which processor does the work",
+      "body": "Automatic uses the graphics card when one is usable and the processor otherwise. Forcing a device is for measuring, or for leaving the graphics card free for something else.",
+      "detail": "A pipeline forced to GPU on a machine without one falls back rather than failing, so nothing gets stuck."
+    },
+    "editorDpi": {
+      "title": "Rendering resolution",
+      "body": "How finely a PDF page is rendered to an image before the Fast engine reads it. 150 is the default and is enough for ordinary print; higher resolutions cost time on every page.",
+      "detail": "This only affects the Fast engine. Accurate is handed the PDF itself and works out its own page geometry — rendering to an image first actively hurts it, because it costs reading order. Raise it to 300 only for genuinely small print, such as footnotes or fine-print references."
+    },
+    "editorTextLayer": {
+      "title": "PDFs that already contain text",
+      "body": "Hybrid keeps existing text where a page has it and OCRs only the pages that need it. Skip if text passes the document through as soon as any text is found. Always OCR ignores embedded text entirely.",
+      "detail": "Hybrid is the right default for a watched folder that receives a mix of scans and born-digital PDFs. Choose Always OCR when the embedded text is known to be unreliable, for example from a poor third-party converter."
+    },
+    "editorModules": {
+      "title": "Recognition modules",
+      "body": "Extra recognisers the Fast engine can run alongside the text. Each one costs time on every page, so switch on only what your documents actually contain.",
+      "detail": "Table recognition finds ruled tables and reconstructs their cells. Formula recognition converts typeset mathematics to LaTeX. Chart recognition reads data out of graphs. Seal recognition finds round stamps and reads their curved text. Orientation and unwarping straighten pages that were scanned crooked or photographed off a curved book."
+    },
+    "editorInputFolder": {
+      "title": "The watched folder",
+      "body": "Documents dropped into this folder are picked up and processed automatically. It must already exist and must be inside an allowed folder.",
+      "detail": "The folder is watched continuously while the pipeline is running, and files already in it when you start are picked up too."
+    },
+    "editorRecursive": {
+      "title": "Include subfolders",
+      "body": "Watch the whole tree beneath the input folder, not only its top level.",
+      "detail": "Leave it off when the input folder contains other folders you do not want processed, such as an archive of documents already handled."
+    },
+    "editorMirror": {
+      "title": "Mirror the folder structure",
+      "body": "Recreate each document's subfolder path under the output folder, instead of writing every result flat into one directory.",
+      "detail": "Only meaningful together with Include subfolders. It is what keeps a large archive navigable after processing."
+    },
+    "editorSkipDuplicates": {
+      "title": "Skip files already processed",
+      "body": "Remember each file by its contents and ignore it if it turns up again, even under a different name.",
+      "detail": "Worth switching off only when you deliberately want to reprocess the same documents, for example after changing the engine."
+    },
+    "editorWatchMode": {
+      "title": "How new files are noticed",
+      "body": "Events asks the operating system to report changes and reacts within moments. Polling checks the folder on a timer instead.",
+      "detail": "Use Polling for network drives and mapped shares, where change notifications are unreliable or not delivered at all. It costs a little more work and notices files a few seconds later."
+    },
+    "editorOutputFolder": {
+      "title": "Where the results go",
+      "body": "The folder that receives the converted files. It does not have to exist yet.",
+      "detail": "Do not point it inside the watched input folder — the results would be picked up as new input."
+    },
+    "editorFormats": {
+      "title": "Output formats",
+      "body": "Every format is written for every document. Markdown preserves structure, JSON carries full layout data, TXT is plain text, DOCX and XLSX open in Office, and searchable PDF keeps the original page image with the text laid invisibly on top.",
+      "detail": "Each additional format adds a little writing time but no recognition time — the page is only read once."
+    },
+    "editorNamingTemplate": {
+      "title": "How result files are named",
+      "body": "A pattern for the output file name. Placeholders in braces are replaced per document, and the file extension is added automatically.",
+      "detail": "Keep the document name in the pattern. Without it, two documents processed in the same run collide and the collision policy decides which one survives."
+    },
+    "editorCollision": {
+      "title": "When a result file already exists",
+      "body": "Add a suffix keeps both by numbering the new one. Overwrite replaces the old file. Skip leaves the old file and discards the new result.",
+      "detail": "Add a suffix is the safe default: nothing is ever lost, at the cost of a folder that can accumulate numbered variants."
+    },
+    "editorEncoding": {
+      "title": "Text file encoding",
+      "body": "How the plain .txt output is written. UTF-8 is correct for anything modern.",
+      "detail": "UTF-8 with BOM helps older Windows tools, notably Excel, recognise the encoding. Latin-1 is for legacy systems only and cannot represent characters outside Western European scripts — anything else is lost."
+    },
+    "editorOnSuccess": {
+      "title": "What happens to the original",
+      "body": "After a document has been processed successfully its original file can be left alone, deleted, or moved out of the watched folder.",
+      "detail": "Moving is safer than deleting and stops the same document being seen again. Deleting is irreversible — the file is removed, not sent to the recycle bin."
+    },
+    "editorArchiveFolder": {
+      "title": "Where originals are moved",
+      "body": "Processed originals are moved here. Keep it outside the watched folder, or they will be picked up again immediately.",
+      "detail": "The folder is created if it does not exist."
+    },
+    "editorMaxAttempts": {
+      "title": "Retries before giving up",
+      "body": "How many times a failing document is retried before it is set aside. Failures are often transient — a file still being copied, a device briefly busy.",
+      "detail": "Three is a sensible default. Setting it to one means a single hiccup quarantines the document."
+    },
+    "editorConcurrency": {
+      "title": "Documents at once",
+      "body": "How many documents this pipeline processes in parallel. More is not always faster: the engine is limited by the graphics card or the processor, and beyond that point the work simply queues.",
+      "detail": "One is right for a single graphics card. Raise it only on a machine with capacity to spare, and after measuring that it actually helps."
+    },
+    "editorQuarantineFolder": {
+      "title": "Where failed documents go",
+      "body": "A document that fails every attempt is moved here rather than blocking the queue or being retried forever.",
+      "detail": "Worth checking occasionally: a growing quarantine folder usually means one malformed source, not a broken pipeline."
+    },
+    "editorPriority": {
+      "title": "Order against other pipelines",
+      "body": "When several pipelines have work waiting, the one with the higher priority is served first.",
+      "detail": "Only matters when pipelines compete for the same hardware. With a single pipeline running it has no effect."
+    },
+    "editorActiveHours": {
+      "title": "Restrict to certain hours",
+      "body": "Only process during a window of the day — an overnight run on a shared workstation, for example.",
+      "detail": "Documents arriving outside the window are not lost; they wait in the queue until the window opens."
+    },
+    "expertIgnoreLabels": {
+      "title": "Layout regions to discard",
+      "body": "Named regions the layout detector finds but you do not want in the output — page headers, footers, page numbers.",
+      "detail": "Discarding running heads and footers usually makes a converted book far more readable. Be careful with anything that might hold real content."
     }
   }
 }

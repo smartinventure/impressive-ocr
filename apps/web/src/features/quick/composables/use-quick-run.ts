@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { quickOptionsSchema, type QuickOptions, type QuickRun } from '@impressive-ocr/shared';
+import {
+  quickOptionsSchema,
+  type QuickOptions,
+  type QuickRun,
+  type QuickRunFile,
+} from '@impressive-ocr/shared';
 import { ApiRequestError } from '../../../api/client';
 import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
 import { useLiveStore } from '../../../stores/live-store';
@@ -191,6 +196,34 @@ export function useQuickRun() {
     downloadUrl.value === '' ? '' : new URL(downloadUrl.value, window.location.origin).toString(),
   );
 
+  /**
+   * The individual results, offered alongside the ZIP.
+   *
+   * Fetched once the run is finished rather than polled: the list cannot change afterwards,
+   * and asking for it on every progress tick would be a request per second for a value that
+   * is constant.
+   */
+  const files = ref<QuickRunFile[]>([]);
+
+  async function loadFiles(): Promise<void> {
+    // Gated on `canDownload`, not merely on being finished: a server run wrote straight into
+    // the user's own output folder, and a list of download links to files they already have
+    // on disk would only invite them to fetch second copies into their browser's downloads.
+    if (run.value === null || !canDownload.value) return;
+    try {
+      files.value = await quickApi.files(run.value.pipelineId);
+    } catch {
+      // The ZIP button is unaffected, so a failure here costs a convenience rather than the
+      // results themselves. Nothing worth interrupting the user for.
+      files.value = [];
+    }
+  }
+
+  /** A file's own URL, for a direct link per row. */
+  function fileUrl(file: QuickRunFile): string {
+    return run.value === null ? '' : quickApi.fileUrl(run.value.pipelineId, file.index);
+  }
+
   async function start(): Promise<void> {
     if (!canStart.value) return;
 
@@ -244,6 +277,7 @@ export function useQuickRun() {
    * gone; only the results remain, and they expire on their own.
    */
   function reset(): void {
+    files.value = [];
     rememberRun(null);
     run.value = null;
     progress.value = null;
@@ -256,7 +290,12 @@ export function useQuickRun() {
     if (run.value === null) return;
     try {
       progress.value = await quickApi.progress(run.value.pipelineId);
-      if (!isRunning.value) stopPolling();
+      if (!isRunning.value) {
+        stopPolling();
+        // The results are fixed the moment the run stops, so this is the one moment worth
+        // asking for them.
+        void loadFiles();
+      }
     } catch {
       // A transient failure mid-run is not worth tearing the screen down for; the next tick
       // will either succeed or the user will cancel.
@@ -319,6 +358,9 @@ export function useQuickRun() {
     canDownload,
     downloadUrl,
     absoluteDownloadUrl,
+    files,
+    fileUrl,
+    loadFiles,
     start,
     cancel,
     reset,

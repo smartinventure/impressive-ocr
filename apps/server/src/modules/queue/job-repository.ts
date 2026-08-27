@@ -9,7 +9,7 @@ import {
   type JobRow,
   type NewJobRow,
 } from '@impressive-ocr/db';
-import type { Job, JobEvent, JobState, PipelineStats } from '@impressive-ocr/shared';
+import type { Job, JobEvent, JobState, OutputFormat, PipelineStats } from '@impressive-ocr/shared';
 import { createId } from '../../infra/ids';
 
 /**
@@ -23,6 +23,15 @@ export interface ClaimCriteria {
   /** Pipelines currently eligible — enabled, not paused, inside their active hours. */
   pipelineIds: readonly string[];
   now: Date;
+}
+
+/** One produced file, with enough about it to offer as its own download. */
+export interface QuickOutputRow {
+  path: string;
+  /** Source document without its extension, so results group by document. */
+  documentName: string;
+  format: OutputFormat;
+  bytes: number;
 }
 
 export class JobRepository {
@@ -240,9 +249,21 @@ export class JobRepository {
    * Used to build the Quick Mode download; the document name groups a run's files so four
    * formats across three documents do not arrive as twelve interleaved entries.
    */
-  outputsForPipeline(pipelineId: string): { path: string; documentName: string }[] {
+  /**
+   * Every file a Quick Mode run produced, in the order they were made.
+   *
+   * Carries the format and size as well as the path, because the results list offers each
+   * file individually and a row reading only "output.md" tells the user nothing about
+   * whether it is the one they wanted.
+   */
+  outputsForPipeline(pipelineId: string): QuickOutputRow[] {
     return this.db
-      .select({ path: jobOutputs.path, documentName: jobs.fileName })
+      .select({
+        path: jobOutputs.path,
+        documentName: jobs.fileName,
+        format: jobOutputs.format,
+        bytes: jobOutputs.bytes,
+      })
       .from(jobOutputs)
       .innerJoin(jobs, eq(jobOutputs.jobId, jobs.id))
       .where(eq(jobs.pipelineId, pipelineId))
@@ -253,6 +274,8 @@ export class JobRepository {
         // Group by the source document without its extension: `invoice.pdf` produces
         // `invoice/invoice.md`, not `invoice.pdf/invoice.md`.
         documentName: row.documentName.replace(/\.[^.]+$/, ''),
+        format: row.format,
+        bytes: row.bytes,
       }));
   }
 

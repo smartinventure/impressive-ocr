@@ -3,6 +3,7 @@ import type {
   AppSettings,
   QuickOptions,
   QuickRun,
+  QuickRunFile,
   FolderRole,
   FolderValidation,
   AuthStatus,
@@ -189,6 +190,19 @@ export const quickApi = {
 
   progress: (pipelineId: string, signal?: AbortSignal): Promise<QuickRunProgress> =>
     api.get(`/quick/runs/${pipelineId}`, signal),
+
+  /** Everything the run produced, so each file can be offered on its own. */
+  files: (pipelineId: string, signal?: AbortSignal): Promise<QuickRunFile[]> =>
+    api.get(`/quick/runs/${pipelineId}/files`, signal),
+
+  /**
+   * A single result, addressed by its position in the server's list.
+   *
+   * Not a path: the client never names a file on disk, which is what keeps a download button
+   * from becoming a traversal.
+   */
+  fileUrl: (pipelineId: string, index: number): string =>
+    `/api/quick/runs/${pipelineId}/files/${index}`,
 
   cancel: (pipelineId: string): Promise<{ cancelled: number }> =>
     api.post(`/quick/runs/${pipelineId}/cancel`),

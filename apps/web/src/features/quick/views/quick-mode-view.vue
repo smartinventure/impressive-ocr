@@ -9,6 +9,7 @@ import FileSourcePicker from '../components/file-source-picker.vue';
 import FolderPickerField from '../../../components/folder-picker-field.vue';
 import RunSettingsSummary from '../components/run-settings-summary.vue';
 import EngineHelp from '../components/engine-help.vue';
+import InfoHint from '../../../components/info-hint.vue';
 
 /**
  * Quick Mode: OCR a handful of files once.
@@ -24,12 +25,24 @@ const quick = useQuickRun();
 
 /** The formats worth offering without a pipeline. The editor exposes the rest. */
 /** Offering GPU on a machine that cannot use one would only produce a silent fallback. */
+/**
+ * Result files run from a few kilobytes of Markdown to a searchable PDF of many megabytes, so
+ * the unit has to follow the number rather than being fixed at GB like the hardware readouts.
+ */
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 ** 2) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1024 ** 2).toFixed(1)} MB`;
+}
+
 const gpuAvailable = computed(() => store.system?.hardware.canUseGpu ?? false);
 
 /**
- * Whether the vision-language engine can run here at all. It needs a GPU with enough VRAM, so
- * on most machines `fast` is the only real choice and the control says so rather than
- * offering something that would be refused.
+ * Whether the vision-language engine can run here at all.
+ *
+ * It no longer needs a graphics card — the inference engine runs it on a processor at about
+ * 11 s a page — but it does need that engine installed, so this stays false until it is,
+ * rather than offering a profile that would be refused.
  */
 const accurateAvailable = computed(
   () => store.system?.hardware.availableProfiles.includes('accurate') ?? false,
@@ -83,7 +96,10 @@ function toggleFormat(format: OutputFormat): void {
     <!-- Setup, until a run starts -->
     <template v-if="quick.run.value === null">
       <v-card class="pa-5 mb-4">
-        <h2 class="text-subtitle-1 font-weight-medium mb-3">{{ t('quick.filesTitle') }}</h2>
+        <h2 class="text-subtitle-1 font-weight-medium mb-3">
+          {{ t('quick.filesTitle') }}
+          <InfoHint topic="quickSource" />
+        </h2>
         <FileSourcePicker
           v-model:source="quick.source.value"
           v-model:server-files="quick.serverFiles.value"
@@ -93,7 +109,9 @@ function toggleFormat(format: OutputFormat): void {
       </v-card>
 
       <v-card class="pa-5 mb-4">
-        <h2 class="text-subtitle-1 font-weight-medium mb-3">{{ t('quick.outputTitle') }}</h2>
+        <h2 class="text-subtitle-1 font-weight-medium mb-3">
+          {{ t('quick.outputTitle') }}
+        </h2>
 
         <!-- Uploads come back as a download; there is no server folder the user could open. -->
         <FolderPickerField
@@ -104,12 +122,17 @@ function toggleFormat(format: OutputFormat): void {
           :label="t('quick.outputFolder')"
           :hint="t('quick.outputFolderHint')"
           :disabled="quick.busy.value"
+          help-topic="quickOutputFolder"
           class="mb-4"
         />
         <v-alert v-else type="info" variant="tonal" density="compact" class="mb-4">
           {{ t('quick.downloadNotice') }}
         </v-alert>
 
+        <div class="quick__formats-label">
+          {{ t('editor.formats') }}
+          <InfoHint topic="quickFormats" />
+        </div>
         <div class="quick__formats">
           <v-chip
             v-for="format in FORMATS"
@@ -144,7 +167,9 @@ function toggleFormat(format: OutputFormat): void {
           variant="outlined"
           class="mb-4"
           :disabled="quick.busy.value"
-        />
+        >
+          <template #append><InfoHint topic="quickProfile" /></template>
+        </v-select>
 
         <!-- The two engines fail differently, not merely at different speeds, and the
              consequence of choosing wrong is a batch reprocessed. Explained next to the
@@ -169,7 +194,9 @@ function toggleFormat(format: OutputFormat): void {
           variant="outlined"
           class="mb-4"
           :disabled="quick.busy.value"
-        />
+        >
+          <template #append><InfoHint topic="quickDevice" /></template>
+        </v-select>
 
         <v-select
           v-model="quick.options.value.textLayerStrategy"
@@ -185,7 +212,9 @@ function toggleFormat(format: OutputFormat): void {
           variant="outlined"
           class="mb-4"
           :disabled="quick.busy.value"
-        />
+        >
+          <template #append><InfoHint topic="quickTextLayer" /></template>
+        </v-select>
 
         <v-switch
           v-model="quick.options.value.tableRecognition"
@@ -375,6 +404,33 @@ function toggleFormat(format: OutputFormat): void {
         </v-btn>
       </div>
 
+      <!-- Each result on its own, beside the ZIP.
+           A ten-document run in four formats is forty files, and someone who came for the
+           Markdown of one of them should not have to take the other thirty-nine. -->
+      <div v-if="quick.files.value.length > 0" class="quick__files mt-5">
+        <div class="text-subtitle-2 mb-2">
+          {{ t('quick.downloadFiles', { count: quick.files.value.length }) }}
+        </div>
+        <v-list density="compact" class="quick__file-list" rounded="md">
+          <v-list-item
+            v-for="file in quick.files.value"
+            :key="file.index"
+            :href="quick.fileUrl(file)"
+            download
+            prepend-icon="description"
+          >
+            <v-list-item-title class="text-body-2">{{ file.fileName }}</v-list-item-title>
+            <v-list-item-subtitle class="text-caption">
+              {{ file.documentName }} &middot; {{ file.format }} &middot;
+              {{ formatBytes(file.bytes) }}
+            </v-list-item-subtitle>
+            <template #append>
+              <v-icon icon="download" size="small" class="quick__file-download" />
+            </template>
+          </v-list-item>
+        </v-list>
+      </div>
+
       <!-- The same link, copyable. The button is a one-shot; this survives a reload and can be
            pasted somewhere, which is what "I will fetch it later" actually needs. -->
       <div v-if="quick.canDownload.value" class="quick__link mt-4">
@@ -391,6 +447,30 @@ function toggleFormat(format: OutputFormat): void {
 </template>
 
 <style scoped>
+.quick__formats-label {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.8125rem;
+  opacity: 0.7;
+}
+
+.quick__files {
+  max-width: 720px;
+}
+
+/* Bordered rather than floating: it is a list of links inside a card, and without an edge it
+   reads as part of the paragraph above it. */
+.quick__file-list {
+  border: 1px solid rgb(var(--v-theme-outline-variant, 200, 200, 200));
+  padding: 0;
+}
+
+.quick__file-download {
+  opacity: 0.5;
+}
+
 .quick__header {
   margin-bottom: 20px;
 }

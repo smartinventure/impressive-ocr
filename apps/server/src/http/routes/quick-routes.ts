@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { createWriteStream } from 'node:fs';
-import { join } from 'node:path';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { basename, join } from 'node:path';
 import { pipeline as streamPipeline } from 'node:stream/promises';
 import { z } from 'zod';
 import {
   QUICK_UPLOAD_MAX_FILES,
   quickOptionsSchema,
   startQuickRunRequestSchema,
+  type QuickRunFile,
 } from '@impressive-ocr/shared';
+import { exists } from '../../infra/fs/file-ops';
 import { createId } from '../../infra/ids';
 import { QuickRunError } from '../../modules/quick/quick-run-service';
 import { archiveFileName, buildResultArchive } from '../../modules/quick/result-archive';
@@ -127,6 +129,52 @@ export function registerQuickRoutes(app: AppFastify, services: AppServices): voi
     const { pipelineId } = request.params as { pipelineId: string };
 
     return { cancelled: quick.cancel(pipelineId) };
+  });
+
+  /**
+   * Every file the run produced, so each can be fetched on its own.
+   *
+   * A ten-document run in four formats is forty files; someone who wants the Markdown for one
+   * of them should not have to take a ZIP of the other thirty-nine.
+   */
+  app.get('/api/quick/runs/:pipelineId/files', (request): QuickRunFile[] => {
+    const { pipelineId } = request.params as { pipelineId: string };
+
+    return quick.outputsFor(pipelineId).map((output, index) => ({
+      index,
+      documentName: output.documentName,
+      fileName: basename(output.path),
+      format: output.format,
+      bytes: output.bytes,
+    }));
+  });
+
+  /**
+   * One file from a run.
+   *
+   * Addressed by its position in the server's own list, never by a path from the client. The
+   * alternative -- accepting a filename and joining it to the results directory -- is the
+   * classic traversal, and there is no reason to take that risk for a download button.
+   */
+  app.get('/api/quick/runs/:pipelineId/files/:index', async (request, reply) => {
+    const { pipelineId, index } = request.params as { pipelineId: string; index: string };
+    const outputs = quick.outputsFor(pipelineId);
+    const position = Number(index);
+
+    if (!Number.isInteger(position) || position < 0 || position >= outputs.length) {
+      throw new HttpError(404, 'not-found', 'That file is not part of this run.');
+    }
+    const output = outputs[position];
+    if (output === undefined || !(await exists(output.path))) {
+      // Results are swept on a retention window, so a stale tab asking for one is expected
+      // rather than exceptional.
+      throw new HttpError(404, 'not-found', 'That file is no longer available.');
+    }
+
+    return reply
+      .header('content-type', 'application/octet-stream')
+      .header('content-disposition', `attachment; filename="${basename(output.path)}"`)
+      .send(createReadStream(output.path));
   });
 
   /**

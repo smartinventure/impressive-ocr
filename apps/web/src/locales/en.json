@@ -740,6 +740,12 @@
     "tierCommercial": "Commercial",
     "updatesUntil": "Automatic updates until {date}.",
     "updatesEnded": "Automatic updates ended on {date}. The software keeps working, with every feature.",
-    "unregistered": "This installation is not registered. It runs under the AGPL-3.0."
+    "unregistered": "This installation is not registered. It runs under the AGPL-3.0.",
+    "trial": "Not registered yet — {days} day(s) left to register.",
+    "trialBlocked": "Registration is required to keep processing documents. Everything already produced stays available.",
+    "offlineGrace": "The licence could not be confirmed recently. Connect to the internet within {days} day(s) to keep processing.",
+    "offlineBlocked": "The licence has not been confirmed for some time. Connect to the internet so it can be checked again.",
+    "registerNow": "Register",
+    "blockedTitle": "Registration required"
   }
 }

@@ -6,6 +6,7 @@ import {
   type LicenseStatus,
 } from '@impressive-ocr/shared';
 import type { AppServices } from '../../app-services';
+import type { Country } from '../../modules/license/license-client';
 import { LicenseActivationError } from '../../modules/license/license-service';
 import type { FastifyReply } from 'fastify';
 import type { AppFastify } from '../fastify-types';
@@ -20,6 +21,18 @@ import type { AppFastify } from '../fastify-types';
  */
 export function registerLicenseRoutes(app: AppFastify, services: AppServices): void {
   app.get('/api/license', (): LicenseStatus => services.license.status());
+
+  /**
+   * The countries registration accepts, proxied rather than fetched by the browser.
+   *
+   * The page cannot call the licence server directly — a cross-origin request from a
+   * `file://`-ish Electron origin or from localhost is not something that server permits —
+   * and routing it through here also means one cache for every client rather than one per
+   * open tab. `null` tells the client to use its bundled list.
+   */
+  app.get('/api/license/countries', async (): Promise<Country[] | null> => {
+    return services.license.countries();
+  });
 
   app.post('/api/license/personal', async (request, reply) => {
     const body = registerPersonalRequestSchema.parse(request.body ?? {});

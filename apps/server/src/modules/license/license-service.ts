@@ -4,13 +4,15 @@ import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
 import {
   licenseRecordSchema,
   maskLicenseKey,
+  type LicenseGate,
   type ActivateLicenseRequest,
   type LicenseRecord,
   type LicenseStatus,
   type RegisterPersonalRequest,
 } from '@impressive-ocr/shared';
 import type { Logger } from '../../infra/logger';
-import { LicenseServerError, type LicenseClient } from './license-client';
+import { LicenseServerError, type Country, type LicenseClient } from './license-client';
+import { evaluateGate } from './license-gate';
 import { machineId } from './machine-id';
 
 /**
@@ -59,7 +61,12 @@ export interface LicenseServiceOptions {
   logger: Logger;
 }
 
+/** A day. The list of countries is not a fast-moving target. */
+const COUNTRY_CACHE_MS = 24 * 60 * 60 * 1000;
+
 export class LicenseService {
+  private countryCache: { countries: Country[]; fetchedAt: number } | null = null;
+
   constructor(private readonly options: LicenseServiceOptions) {}
 
   status(): LicenseStatus {
@@ -76,7 +83,71 @@ export class LicenseService {
       seatsUsed: record.seatsUsed,
       seatsAllowed: record.seatsAllowed,
       message: record.message,
+      gate: evaluateGate(record, new Date()),
     };
+  }
+
+  /** Whether new OCR work may start. The queue asks this and nothing else asks anything. */
+  gate(): LicenseGate {
+    return evaluateGate(this.read(), new Date());
+  }
+
+  /**
+   * Start the trial clock, once, on first start.
+   *
+   * Recorded rather than derived from a file date or an install timestamp, both of which move
+   * for reasons that have nothing to do with the user — a reinstall, a restore from backup, a
+   * copied directory. Written only when absent, so restarting the app never extends it and
+   * never shortens it either.
+   */
+  noteStarted(): void {
+    const record = this.read();
+    if (record.firstSeenAt === null) {
+      this.store({ ...record, firstSeenAt: new Date().toISOString() });
+    }
+  }
+
+  /**
+   * Re-confirm an activation with the licence server.
+   *
+   * Called at startup. Failure is deliberately quiet: the offline allowance exists precisely
+   * so that an unreachable server is not the user's problem, and logging a warning is the
+   * right volume for something that will resolve itself the next time there is a network.
+   */
+  async revalidate(): Promise<void> {
+    const record = this.read();
+    const { tier, email, licenseKey } = record;
+    if (record.state !== 'active' || tier === null || email === null || licenseKey === null) {
+      return;
+    }
+
+    try {
+      const result = await this.options.client.activate({
+        tier,
+        email,
+        licenseKey,
+        machineId: record.machineId ?? (await machineId(this.options.dataDir)),
+      });
+      if (!result.accepted) {
+        // The server now refuses this licence — revoked, or its seat cleared. Recorded as
+        // invalid rather than silently kept, but the local record keeps the credentials so
+        // the user can see what was refused.
+        this.store({ ...record, state: 'invalid', message: result.message });
+        return;
+      }
+
+      this.store({
+        ...record,
+        lastValidatedAt: new Date().toISOString(),
+        licenseExpires: result.licenseExpires,
+        updatesUntil: result.updatesUntil,
+        updateAccessExpired: result.updateAccessExpired,
+        seatsUsed: result.seatsUsed,
+        seatsAllowed: result.seatsAllowed,
+      });
+    } catch (error) {
+      this.options.logger.warn({ err: error }, 'Could not re-confirm the licence; within grace');
+    }
   }
 
   /**
@@ -138,13 +209,16 @@ export class LicenseService {
       });
     }
 
+    const now = new Date().toISOString();
     return this.store({
+      ...this.read(),
       state: 'active',
       tier: request.tier,
       email: request.email,
       licenseKey,
       machineId: machine,
-      activatedAt: new Date().toISOString(),
+      activatedAt: now,
+      lastValidatedAt: now,
       licenseExpires: result.licenseExpires,
       updatesUntil: result.updatesUntil,
       updateAccessExpired: result.updateAccessExpired,
@@ -225,6 +299,29 @@ export class LicenseService {
     }
 
     return this.store(licenseRecordSchema.parse({}));
+  }
+
+  /**
+   * The countries registration will accept.
+   *
+   * Cached for a day, because the list changes about as often as the world does and the
+   * registration form should not wait on a network round trip to render a dropdown. A
+   * failure serves the previous answer if there is one, and null otherwise — the web layer
+   * then uses its bundled list, which is what keeps the form usable offline.
+   */
+  async countries(): Promise<Country[] | null> {
+    const now = Date.now();
+    if (this.countryCache !== null && now - this.countryCache.fetchedAt < COUNTRY_CACHE_MS) {
+      return this.countryCache.countries;
+    }
+
+    const countries = await this.options.client.countries();
+    if (countries === null) {
+      return this.countryCache?.countries ?? null;
+    }
+
+    this.countryCache = { countries, fetchedAt: now };
+    return countries;
   }
 
   /** True once a key has been activated. For the first-run flow, and nothing else. */

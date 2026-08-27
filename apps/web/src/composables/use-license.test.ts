@@ -16,6 +16,7 @@ import { useLicense } from './use-license';
 // const would not exist yet when the factory runs.
 const licenseApi = vi.hoisted(() => ({
   get: vi.fn(),
+  countries: vi.fn(),
   registerPersonal: vi.fn(),
   activate: vi.fn(),
   release: vi.fn(),
@@ -36,6 +37,12 @@ function status(overrides: Partial<LicenseStatus> = {}): LicenseStatus {
     seatsUsed: null,
     seatsAllowed: null,
     message: null,
+    gate: {
+      state: 'trial' as const,
+      canProcess: true,
+      daysRemaining: 30,
+      gracePeriodEndsAt: null,
+    },
     ...overrides,
   };
 }
@@ -43,6 +50,9 @@ function status(overrides: Partial<LicenseStatus> = {}): LicenseStatus {
 beforeEach(() => {
   vi.clearAllMocks();
   licenseApi.get.mockResolvedValue(status());
+  // Null is the honest default here: the licence server's country endpoint is what the
+  // bundled fallback exists for, and most of these tests are not about it.
+  licenseApi.countries.mockResolvedValue(null);
 });
 
 describe('useLicense', () => {
@@ -186,12 +196,39 @@ describe('useLicense', () => {
     expect(licence.screen.value).toBe('choose');
   });
 
-  it('offers countries by name in the current language', () => {
+  it('falls back to platform names when the licence server cannot be asked', () => {
     const licence = useLicense();
     const german = licence.countryOptions('de');
 
     expect(german.find((option) => option.value === 'DE')?.title).toBe('Deutschland');
     expect(licence.countryOptions('en').find((o) => o.value === 'DE')?.title).toBe('Germany');
+  });
+
+  it('prefers the spellings the licence server itself records', async () => {
+    // Its names are what it records. It does not derive them from ICU, because CLDR renames
+    // regions between releases and the same country would end up filed under two names.
+    licenseApi.countries.mockResolvedValue([
+      { code: 'CZ', name: 'Czechia' },
+      { code: 'TR', name: 'Türkiye' },
+    ]);
+
+    const licence = useLicense();
+    await licence.load();
+    await Promise.resolve();
+
+    const options = licence.countryOptions('en');
+    expect(options).toHaveLength(2);
+    expect(options.find((o) => o.value === 'TR')?.title).toBe('Türkiye');
+  });
+
+  it('keeps the form usable when the country list request fails', async () => {
+    licenseApi.countries.mockRejectedValue(new Error('offline'));
+
+    const licence = useLicense();
+    await licence.load();
+    await Promise.resolve();
+
+    expect(licence.countryOptions('en').length).toBeGreaterThan(200);
   });
 
   it('sorts countries by their translated name, not by code', () => {

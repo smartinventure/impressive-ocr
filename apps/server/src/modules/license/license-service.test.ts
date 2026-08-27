@@ -51,6 +51,12 @@ class FakeLicenseClient implements LicenseClient {
   };
   failure: Error | null = null;
 
+  countryList: { code: string; name: string }[] | null = [{ code: 'DE', name: 'Germany' }];
+
+  async countries(): Promise<{ code: string; name: string }[] | null> {
+    return this.countryList;
+  }
+
   async register(request: RegisterRequest): Promise<void> {
     this.registrations.push(request);
     if (this.failure !== null) throw this.failure;

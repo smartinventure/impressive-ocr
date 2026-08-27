@@ -34,12 +34,27 @@ export function useLicense() {
   const country = ref('');
   const licenseKey = ref('');
 
+  /** The licence server's own list, once fetched. Null until then, or if it cannot be had. */
+  const serverCountries = ref<{ code: string; name: string }[] | null>(null);
+
   /**
-   * Country names in the user's own language, from the platform rather than from a
-   * translation file. `Intl.DisplayNames` is in every browser and Electron build we support;
-   * the fallback is the bare code, which is still selectable and still correct.
+   * Countries to offer, preferring the licence server's list.
+   *
+   * Its spellings are authoritative because they are what it *records*: it deliberately does
+   * not derive them from ICU, since CLDR renames regions between releases — one Node calls
+   * CZ "Czechia", an older one "Czech Republic" — and a list that shifted under an upgrade
+   * would file one country under two names.
+   *
+   * The bundled fallback keeps the form usable when that request fails, and it is safe here
+   * for a reason that does not hold on the server: what gets *sent* is the two-letter code,
+   * never the name, so a drifting label changes what a user reads and nothing that is stored.
    */
   function countryOptions(locale: string): { value: string; title: string }[] {
+    const fromServer = serverCountries.value;
+    if (fromServer !== null) {
+      return fromServer.map((country) => ({ value: country.code, title: country.name }));
+    }
+
     let names: Intl.DisplayNames | null = null;
     try {
       names = new Intl.DisplayNames([locale], { type: 'region' });
@@ -69,6 +84,25 @@ export function useLicense() {
   const canActivate = computed(() => isEmail(email.value) && licenseKey.value.trim().length >= 8);
 
   async function load(): Promise<void> {
+    // Not awaited together with the status: the country list is only needed if the user picks
+    // the personal tier, and a slow licence server should not hold up the screen.
+    //
+    // Wrapped rather than only `.catch`-ed, because this runs inside `onMounted` for two
+    // components and a *synchronous* throw there aborts the whole page render — a country
+    // list is not worth a blank screen under any circumstances.
+    try {
+      void licenseApi
+        .countries()
+        .then((countries) => {
+          serverCountries.value = countries;
+        })
+        .catch(() => {
+          serverCountries.value = null;
+        });
+    } catch {
+      serverCountries.value = null;
+    }
+
     try {
       status.value = await licenseApi.get();
       // Prefilled so someone returning to finish activation does not retype the address the
@@ -161,6 +195,7 @@ export function useLicense() {
     canRegister,
     canActivate,
     countryOptions,
+    serverCountries,
     load,
     choose,
     reconsider,

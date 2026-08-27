@@ -241,6 +241,14 @@ export interface QuickRunProgress {
 export const licenseApi = {
   get: (): Promise<LicenseStatus> => api.get('/license'),
 
+  /**
+   * The countries registration accepts.
+   *
+   * Null when the licence server could not be asked, which is the signal to use the bundled
+   * list rather than render an empty dropdown.
+   */
+  countries: (): Promise<{ code: string; name: string }[] | null> => api.get('/license/countries'),
+
   /** Personal tier. Returns with the state `awaiting-key`: the key arrives by email. */
   registerPersonal: (body: RegisterPersonalRequest): Promise<LicenseStatus> =>
     api.post('/license/personal', body),

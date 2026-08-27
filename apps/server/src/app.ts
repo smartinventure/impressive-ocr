@@ -266,6 +266,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     hardware: () => runtime.getHardware(),
     isRuntimeReady: () => runtime.isReady(),
     isGloballyPaused,
+    // The licence gate. Computed per tick from stored state and the clock, with no network
+    // call, so an unreachable licence server can never stall the queue.
+    canProcess: () => licenseService.gate().canProcess,
     maxConcurrentDocuments: () => settingsService.get().maxConcurrentDocuments,
     executor: new JobExecutor({
       jobs,
@@ -365,6 +368,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
         throw error;
       }
       await watchers.sync();
+
+      // Start the trial clock if this is the first run, then re-confirm an existing
+      // activation. Not awaited: the licence server is somebody else's uptime, and a slow
+      // one must not delay the moment this installation starts answering requests. The gate
+      // reads stored state, so the queue is correct either way and simply becomes more
+      // correct once the check lands.
+      licenseService.noteStarted();
+      void licenseService.revalidate();
+
       scheduler.start();
 
       // Housekeeping, on one timer rather than one per concern. Runs immediately so a server

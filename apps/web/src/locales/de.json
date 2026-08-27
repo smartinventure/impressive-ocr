@@ -740,6 +740,12 @@
     "tierCommercial": "Kommerziell",
     "updatesUntil": "Automatische Updates bis {date}.",
     "updatesEnded": "Automatische Updates endeten am {date}. Die Software läuft mit allen Funktionen weiter.",
-    "unregistered": "Diese Installation ist nicht registriert. Sie läuft unter der AGPL-3.0."
+    "unregistered": "Diese Installation ist nicht registriert. Sie läuft unter der AGPL-3.0.",
+    "trial": "Noch nicht registriert — {days} Tag(e) verbleiben.",
+    "trialBlocked": "Für die weitere Verarbeitung ist eine Registrierung erforderlich. Alles bereits Erstellte bleibt verfügbar.",
+    "offlineGrace": "Die Lizenz konnte zuletzt nicht bestätigt werden. Stellen Sie innerhalb von {days} Tag(en) eine Internetverbindung her, um weiterzuarbeiten.",
+    "offlineBlocked": "Die Lizenz wurde längere Zeit nicht bestätigt. Stellen Sie eine Internetverbindung her, damit sie erneut geprüft werden kann.",
+    "registerNow": "Registrieren",
+    "blockedTitle": "Registrierung erforderlich"
   }
 }

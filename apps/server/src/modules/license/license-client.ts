@@ -134,7 +134,16 @@ export interface UpdateEligibility {
   updateAccessExpired: boolean;
 }
 
+export interface Country {
+  /** ISO 3166-1 alpha-2. */
+  code: string;
+  /** The licence server's canonical spelling, which is what it records. */
+  name: string;
+}
+
 export interface LicenseClient {
+  /** The countries the licence server will accept, or null when it cannot be asked. */
+  countries(signal?: AbortSignal): Promise<Country[] | null>;
   /** Personal tier only. The key arrives by email once the address is verified. */
   register(request: RegisterRequest, signal?: AbortSignal): Promise<void>;
   activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult>;
@@ -174,6 +183,47 @@ export class HttpLicenseClient implements LicenseClient {
     private readonly logger: Logger,
     private readonly timeoutMs = DEFAULT_TIMEOUT_MS,
   ) {}
+
+  /**
+   * Fetch the accepted countries.
+   *
+   * Returns null rather than throwing on any failure, because a country list is not worth a
+   * broken registration form: the caller falls back to the bundled list, which is the whole
+   * reason that list exists.
+   *
+   * The server's names are preferred over anything derived locally because they are what it
+   * *records*. It deliberately does not build them from ICU at runtime — CLDR renames regions
+   * between releases, so the same country could be written two ways in its own database.
+   */
+  async countries(signal?: AbortSignal): Promise<Country[] | null> {
+    try {
+      const response = await fetch(`${this.config.baseUrl}/api/countries`, {
+        headers: { accept: 'application/json' },
+        signal: signal ?? AbortSignal.timeout(this.timeoutMs),
+      });
+      if (!response.ok) {
+        return null;
+      }
+
+      const payload: unknown = await response.json();
+      const rows = Array.isArray(payload)
+        ? payload
+        : (payload as { countries?: unknown } | null)?.countries;
+
+      if (!Array.isArray(rows)) {
+        return null;
+      }
+
+      const countries = rows.flatMap((row) => {
+        const code = asString((row as Record<string, unknown>).code);
+        const name = asString((row as Record<string, unknown>).name);
+        return code !== null && name !== null ? [{ code: code.toUpperCase(), name }] : [];
+      });
+      return countries.length > 0 ? countries : null;
+    } catch {
+      return null;
+    }
+  }
 
   async register(request: RegisterRequest, signal?: AbortSignal): Promise<void> {
     await this.post(

@@ -8,6 +8,7 @@ import { APP_VERSION } from '@impressive-ocr/shared';
 import { useLiveStore } from './stores/live-store';
 import UpdateBadge from './components/update-badge.vue';
 import FirstRunDialog from './components/first-run-dialog.vue';
+import LicenseBanner from './components/license-banner.vue';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
 import { setLocale, type AppLocale } from './plugins/i18n';
 
@@ -166,6 +167,8 @@ onBeforeUnmount(() => store.stop());
     <!-- Only past the login screen: agreeing to terms is not something to ask of someone
          who has not yet proved they may use this installation at all. -->
     <FirstRunDialog v-if="showChrome" />
+    <!-- Only visible when the licence needs attention, which is rarely. -->
+    <LicenseBanner v-if="showChrome" />
   </v-app>
 </template>
 

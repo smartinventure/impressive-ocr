@@ -40,6 +40,26 @@ export const COMMERCIAL_LICENCE_URL = 'https://speedbits.io/infinity-license-com
  */
 export const PERSONAL_SEAT_LIMIT = 3;
 
+/**
+ * Days a new installation may be used before it has to be registered.
+ *
+ * Counted from first start rather than from install, because that is the moment the software
+ * can observe. Generous on purpose: the point is to give someone time to evaluate and to get
+ * their key out of an inbox, not to catch anybody out.
+ */
+export const REGISTRATION_GRACE_DAYS = 30;
+
+/**
+ * Days an activated installation keeps working when the licence server cannot be reached.
+ *
+ * A separate, longer allowance from the one above, and it exists because the two failures are
+ * nothing alike. An unregistered copy has not been paid for or claimed; a registered one has,
+ * and its owner has done everything asked of them. Blocking that user because a server was
+ * down — or because their laptop spent a fortnight offline — would punish the wrong person
+ * for someone else's outage.
+ */
+export const REVALIDATION_GRACE_DAYS = 60;
+
 export const licenseTierSchema = z.enum(['personal', 'commercial']);
 export type LicenseTier = z.infer<typeof licenseTierSchema>;
 
@@ -61,6 +81,34 @@ export const licenseStateSchema = z.enum([
   'invalid',
 ]);
 export type LicenseState = z.infer<typeof licenseStateSchema>;
+
+/**
+ * Whether this installation may currently process documents.
+ *
+ * - `licensed` — activated, and confirmed within the revalidation window.
+ * - `trial` — not registered yet, still inside the initial grace period.
+ * - `offline-grace` — activated, but the licence server has not been reachable lately.
+ * - `blocked` — the grace period ran out.
+ *
+ * **`blocked` stops new OCR work and nothing else.** Every screen stays reachable, results
+ * already produced stay downloadable, settings stay editable, and registration is obviously
+ * still possible — a gate that prevented someone registering would be a bug that locks the
+ * user out of the very thing it is asking them to do.
+ */
+export const licenseGateStateSchema = z.enum(['licensed', 'trial', 'offline-grace', 'blocked']);
+export type LicenseGateState = z.infer<typeof licenseGateStateSchema>;
+
+export const licenseGateSchema = z.object({
+  state: licenseGateStateSchema,
+  /** True when new documents may be processed. The one thing callers usually want. */
+  canProcess: z.boolean(),
+  /** Whole days left in the current grace period; null when nothing is counting down. */
+  daysRemaining: z.number().int().min(0).nullable(),
+  /** When the grace period ends, for a screen that wants to say a date. */
+  gracePeriodEndsAt: isoTimestampSchema.nullable(),
+});
+
+export type LicenseGate = z.infer<typeof licenseGateSchema>;
 
 export const licenseStatusSchema = z.object({
   state: licenseStateSchema,
@@ -100,9 +148,13 @@ export const licenseStatusSchema = z.object({
   seatsAllowed: z.number().int().min(1).nullable(),
   /** Why the last attempt failed, for the user. Never a raw server error. */
   message: z.string().nullable(),
+  /** Whether work may proceed, and how long is left if it is on a clock. */
+  gate: licenseGateSchema,
 });
 
 export type LicenseStatus = z.infer<typeof licenseStatusSchema>;
+
+
 
 /**
  * Ask for a free personal licence.
@@ -166,6 +218,16 @@ export const licenseRecordSchema = z.object({
   /** This machine's identifier as the server knows it, so a release can name it. */
   machineId: z.string().nullable().default(null),
   activatedAt: isoTimestampSchema.nullable().default(null),
+  /**
+   * When this installation was first seen, which is when the trial period starts.
+   *
+   * Defaulted rather than required so an installation that predates this field is treated as
+   * new rather than as already expired — the harsher reading of a missing value would block
+   * someone on the strength of a schema change.
+   */
+  firstSeenAt: isoTimestampSchema.nullable().default(null),
+  /** Last time the licence server confirmed this activation. Starts the offline allowance. */
+  lastValidatedAt: isoTimestampSchema.nullable().default(null),
   licenseExpires: isoTimestampSchema.nullable().default(null),
   updatesUntil: isoTimestampSchema.nullable().default(null),
   updateAccessExpired: z.boolean().default(false),

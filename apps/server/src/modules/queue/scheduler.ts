@@ -27,6 +27,19 @@ export interface SchedulerOptions {
   hardware: () => HardwareCapabilities;
   isRuntimeReady: () => boolean;
   isGloballyPaused: () => boolean;
+  /**
+   * Whether the licence permits new work to start.
+   *
+   * Checked here rather than at the HTTP routes because this is the only place *all* work
+   * begins: a watched folder enqueues without anyone calling an endpoint, so a route-level
+   * check would let every pipeline through and stop only Quick Mode.
+   *
+   * It withholds nothing that already exists. Jobs stay queued rather than failing, results
+   * already produced stay downloadable, and every screen — registration above all — stays
+   * reachable. Read fresh each tick, so activating a licence starts the queue moving without
+   * a restart.
+   */
+  canProcess: () => boolean;
   /** Documents allowed in flight at once. Each costs a warm model set in RAM. */
   maxConcurrentDocuments: () => number;
 }
@@ -117,6 +130,12 @@ export class Scheduler {
   }
 
   private async fillCapacity(): Promise<void> {
+    // Nothing is claimed while the licence gate is closed. Deliberately before any other
+    // work: claiming a job and handing it back counts an attempt against it.
+    if (!this.options.canProcess()) {
+      return;
+    }
+
     const hardware = this.options.hardware();
     // Read fresh each tick, so changing the limit in Settings takes effect immediately
     // rather than at the next restart.

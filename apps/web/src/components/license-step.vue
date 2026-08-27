@@ -2,7 +2,11 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { COMMERCIAL_LICENCE_URL, PERSONAL_SEAT_LIMIT } from '@impressive-ocr/shared';
+import {
+  COMMERCIAL_LICENCE_URL,
+  PERSONAL_SEAT_LIMIT,
+  REGISTRATION_GRACE_DAYS,
+} from '@impressive-ocr/shared';
 import { useLicense } from '../composables/use-license';
 
 /**
@@ -28,6 +32,11 @@ onMounted(licence.load);
 
 const countries = computed(() => licence.countryOptions(locale.value));
 
+/** Which tier the key form is being used for: the stored one, else what was chosen. */
+const isCommercial = computed(
+  () => (licence.status.value?.tier ?? licence.chosenTier.value) === 'commercial',
+);
+
 async function activate(): Promise<void> {
   await licence.activate();
   if (licence.status.value?.state === 'active') emit('done');
@@ -37,7 +46,12 @@ async function activate(): Promise<void> {
 <template>
   <div class="licence">
     <v-alert v-if="licence.error.value" type="error" density="compact" class="mb-4">
-      {{ licence.error.value }}
+      <div>{{ licence.error.value }}</div>
+      <!-- The code, quoted verbatim. The sentence above tells the user what to do; this is
+           what they paste into a support email when it does not. -->
+      <div v-if="licence.errorCode.value" class="text-caption ocr-mono mt-1">
+        {{ licence.errorCode.value }}
+      </div>
     </v-alert>
 
     <!-- Which licence, and it is a real question rather than an upsell: the free tier is
@@ -57,6 +71,9 @@ async function activate(): Promise<void> {
           {{ t('licence.commercialTitle') }}
         </div>
         <p class="text-body-2 text-medium-emphasis mb-2">{{ t('licence.commercialBody') }}</p>
+        <p class="text-body-2 text-medium-emphasis mb-2">
+          {{ t('licence.commercialTrial', { days: REGISTRATION_GRACE_DAYS }) }}
+        </p>
         <a
           :href="COMMERCIAL_LICENCE_URL"
           target="_blank"
@@ -131,7 +148,17 @@ async function activate(): Promise<void> {
     <!-- Entering a key: the same form for a community key that arrived by email and a
          commercial one that came with a purchase. -->
     <template v-else-if="licence.screen.value === 'activate'">
-      <p class="mb-4">{{ t('licence.activateIntro') }}</p>
+      <p class="mb-2">{{ t('licence.activateIntro') }}</p>
+      <!-- Commercial keys are not self-served: the licence server no longer lets anyone
+           register for one, so the only way to have a key is to have bought it. Saying so
+           here saves someone hunting for a sign-up form that does not exist. -->
+      <p v-if="isCommercial" class="text-body-2 text-medium-emphasis mb-4">
+        {{ t('licence.commercialPurchase') }}
+        <a :href="COMMERCIAL_LICENCE_URL" target="_blank" rel="noopener noreferrer">
+          {{ t('licence.commercialBuy') }}
+        </a>
+      </p>
+      <div v-else class="mb-4" />
 
       <v-text-field
         v-model="licence.email.value"

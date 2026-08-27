@@ -747,6 +747,9 @@
     "offlineBlocked": "Die Lizenz wurde längere Zeit nicht bestätigt. Stellen Sie eine Internetverbindung her, damit sie erneut geprüft werden kann.",
     "registerNow": "Registrieren",
     "blockedTitle": "Registrierung erforderlich",
-    "nonCommercial": "Nicht-kommerzielle Version"
+    "nonCommercial": "Nicht-kommerzielle Version",
+    "commercialTrial": "Sie können Impressive OCR {days} Tage lang testen, bevor Sie einen Schlüssel eingeben.",
+    "commercialPurchase": "Kommerzielle Lizenzen gibt es nicht zur Selbstregistrierung — den Schlüssel erhalten Sie mit Ihrem Kauf.",
+    "commercialBuy": "Lizenz kaufen"
   }
 }

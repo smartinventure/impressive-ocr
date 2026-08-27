@@ -747,6 +747,9 @@
     "offlineBlocked": "The licence has not been confirmed for some time. Connect to the internet so it can be checked again.",
     "registerNow": "Register",
     "blockedTitle": "Registration required",
-    "nonCommercial": "Non-commercial version"
+    "nonCommercial": "Non-commercial version",
+    "commercialTrial": "You can try Impressive OCR for {days} days before entering a key.",
+    "commercialPurchase": "Commercial licences are not self-service — a key comes with your purchase.",
+    "commercialBuy": "Buy a licence"
   }
 }

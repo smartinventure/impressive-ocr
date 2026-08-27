@@ -51,6 +51,7 @@ vi.mock('../../../api/endpoints', () => ({
       tier: null,
       email: null,
       maskedKey: null,
+      code: null,
       gate: { state: 'trial', canProcess: true, daysRemaining: 30, gracePeriodEndsAt: null },
     }),
     countries: vi.fn().mockResolvedValue(null),

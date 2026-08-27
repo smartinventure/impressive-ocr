@@ -60,9 +60,15 @@ async function withActivationErrors(
     if (error instanceof LicenseActivationError) {
       // 503 for something worth retrying, 402 for a licence the server declined — the one
       // status code that says "this is about payment or entitlement, not about your request".
-      return reply
-        .status(error.retryable ? 503 : 402)
-        .send({ code: 'license-not-activated', message: error.message });
+      //
+      // The licence server's own code is passed through rather than replaced. Flattening
+      // everything to `license-not-activated` made `NO_SEATS_AVAILABLE` and
+      // `VALIDATION_FAILED` indistinguishable on screen, and those need different actions
+      // from the user and different answers from support.
+      return reply.status(error.retryable ? 503 : 402).send({
+        code: error.code ?? 'license-not-activated',
+        message: error.message,
+      });
     }
     throw error;
   }

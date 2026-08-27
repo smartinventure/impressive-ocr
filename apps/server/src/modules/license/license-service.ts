@@ -41,6 +41,8 @@ export class LicenseActivationError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
+    /** The licence server's own code, so the screen can show what it actually said. */
+    readonly code: string | null = null,
   ) {
     super(message);
     this.name = 'LicenseActivationError';
@@ -83,6 +85,7 @@ export class LicenseService {
       seatsUsed: record.seatsUsed,
       seatsAllowed: record.seatsAllowed,
       message: record.message,
+      code: record.code,
       gate: evaluateGate(record, new Date()),
     };
   }
@@ -211,6 +214,7 @@ export class LicenseService {
         tier: request.tier,
         email: request.email,
         message: result.message ?? 'That licence key was not accepted.',
+        code: result.code,
       });
     }
 
@@ -230,6 +234,7 @@ export class LicenseService {
       seatsUsed: result.seatsUsed,
       seatsAllowed: result.seatsAllowed,
       message: null,
+      code: null,
     });
   }
 
@@ -340,7 +345,7 @@ export class LicenseService {
     } catch (error) {
       if (error instanceof LicenseServerError) {
         this.options.logger.warn({ code: error.code }, 'The licence server refused a request');
-        throw new LicenseActivationError(error.message, error.retryable);
+        throw new LicenseActivationError(error.message, error.retryable, error.code);
       }
       this.options.logger.error({ err: error }, 'Licence activation failed unexpectedly');
       throw new LicenseActivationError('The licence could not be checked right now.', true);

@@ -148,6 +148,17 @@ export const licenseStatusSchema = z.object({
   seatsAllowed: z.number().int().min(1).nullable(),
   /** Why the last attempt failed, for the user. Never a raw server error. */
   message: z.string().nullable(),
+  /**
+   * The licence server's own code for the last attempt — `NO_SEATS_AVAILABLE`,
+   * `VALIDATION_FAILED`, `LICENSE_EXPIRED` — or null when nothing has been attempted.
+   *
+   * Shown rather than swallowed. The prose alone is often not enough to act on, and it is
+   * the code that a support conversation can be about: "it says my key is wrong" and
+   * "NO_SEATS_AVAILABLE" lead to entirely different answers. Kept beside `message` rather
+   * than replacing it, because the code is for whoever is helping and the sentence is for
+   * whoever is stuck.
+   */
+  code: z.string().nullable(),
   /** Whether work may proceed, and how long is left if it is on a clock. */
   gate: licenseGateSchema,
 });
@@ -234,6 +245,7 @@ export const licenseRecordSchema = z.object({
   seatsUsed: z.number().int().min(0).nullable().default(null),
   seatsAllowed: z.number().int().min(1).nullable().default(null),
   message: z.string().nullable().default(null),
+  code: z.string().nullable().default(null),
 });
 
 export type LicenseRecord = z.infer<typeof licenseRecordSchema>;

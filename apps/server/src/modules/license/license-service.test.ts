@@ -42,6 +42,7 @@ class FakeLicenseClient implements LicenseClient {
     updateAccessExpired: false,
     tierName: 'Impressive OCR',
     message: null,
+    code: null,
   };
   eligibility: UpdateEligibility = {
     updateAvailable: false,
@@ -208,6 +209,36 @@ describe('LicenseService', () => {
 
       expect(status.maskedKey).toBe('IMOC-••••-ZZZZ');
       expect(JSON.stringify(status)).not.toContain('9999');
+    });
+
+    it('keeps the error code the licence server sent', async () => {
+      // `NO_SEATS_AVAILABLE` and `VALIDATION_FAILED` need different actions from the user and
+      // different answers from support. Flattened to one generic code they are the same
+      // screen, and the person reading it cannot tell which problem they have.
+      client.result = {
+        ...client.result,
+        accepted: false,
+        code: 'NO_SEATS_AVAILABLE',
+        message: 'All three machines are in use.',
+      };
+
+      const status = await service.activate(COMMERCIAL);
+
+      expect(status.code).toBe('NO_SEATS_AVAILABLE');
+      expect(status.message).toBe('All three machines are in use.');
+    });
+
+    it('clears the code once a licence is accepted', async () => {
+      // A stale code beside a working licence reads as a problem that is still happening.
+      client.result = { ...client.result, accepted: false, code: 'VALIDATION_FAILED' };
+      await service.activate(COMMERCIAL);
+      expect(service.status().code).toBe('VALIDATION_FAILED');
+
+      client.result = { ...client.result, accepted: true, code: null };
+      const status = await service.activate(COMMERCIAL);
+
+      expect(status.code).toBeNull();
+      expect(status.state).toBe('active');
     });
 
     it("records a refusal with the server's own wording", async () => {

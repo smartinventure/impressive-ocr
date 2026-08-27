@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { computed, ref } from 'vue';
 import { COUNTRY_CODES, type LicenseStatus, type LicenseTier } from '@impressive-ocr/shared';
+import { ApiRequestError } from '../api/client';
 import { licenseApi } from '../api/endpoints';
 
 /**
@@ -24,6 +25,13 @@ export function useLicense() {
   const status = ref<LicenseStatus | null>(null);
   const busy = ref(false);
   const error = ref<string | null>(null);
+  /**
+   * The licence server's code for the last failure, shown beside the message.
+   *
+   * Separate from `error` because the two are for different readers: the sentence tells the
+   * person what to do, the code is what they quote when it does not help and they write in.
+   */
+  const errorCode = ref<string | null>(null);
 
   /** What the user picked before anything has been sent. Null until they choose. */
   const chosenTier = ref<LicenseTier | null>(null);
@@ -110,6 +118,12 @@ export function useLicense() {
       if (status.value.email !== null && email.value === '') {
         email.value = status.value.email;
       }
+      // A refusal recorded on a previous attempt is still the current state of this
+      // installation, so it is shown rather than cleared by a reload.
+      if (status.value.state === 'invalid') {
+        error.value = status.value.message;
+        errorCode.value = status.value.code;
+      }
     } catch {
       // A failed read must not block the screen. Treated as unregistered, which asks.
       status.value = null;
@@ -157,6 +171,7 @@ export function useLicense() {
         // The server accepted the request and refused the licence, so its own wording is the
         // explanation — there is nothing better this could say.
         error.value = status.value.message;
+        errorCode.value = status.value.code;
       }
     });
   }
@@ -174,10 +189,14 @@ export function useLicense() {
     if (busy.value) return;
     busy.value = true;
     error.value = null;
+    errorCode.value = null;
     try {
       await action();
     } catch (cause) {
       error.value = cause instanceof Error ? cause.message : String(cause);
+      // `ApiRequestError` carries the licence server's code through the HTTP layer. Anything
+      // else is a transport failure, which has no code worth showing.
+      errorCode.value = cause instanceof ApiRequestError ? cause.code : null;
     } finally {
       busy.value = false;
     }
@@ -188,6 +207,7 @@ export function useLicense() {
     screen,
     busy,
     error,
+    errorCode,
     email,
     country,
     licenseKey,

@@ -37,6 +37,7 @@ function status(overrides: Partial<LicenseStatus> = {}): LicenseStatus {
     seatsUsed: null,
     seatsAllowed: null,
     message: null,
+    code: null,
     gate: {
       state: 'trial' as const,
       canProcess: true,
@@ -247,5 +248,98 @@ describe('useLicense', () => {
     await licence.load();
 
     expect(licence.screen.value).toBe('choose');
+  });
+});
+
+/**
+ * The licence server's own error codes, carried to the screen.
+ *
+ * `NO_SEATS_AVAILABLE` and `VALIDATION_FAILED` need different actions from the user and
+ * different answers from support. Flattened to one generic code they are the same screen, and
+ * nobody reading it can tell which problem they have.
+ */
+describe('useLicense error codes', () => {
+  it('shows the code the server returned with a refusal', async () => {
+    licenseApi.activate.mockResolvedValue(
+      status({
+        state: 'invalid',
+        message: 'This licence is already in use on the maximum number of machines.',
+        code: 'NO_SEATS_AVAILABLE',
+      }),
+    );
+
+    const licence = useLicense();
+    await licence.load();
+    licence.choose('commercial');
+    licence.email.value = 'me@example.com';
+    licence.licenseKey.value = 'IMP-1234-ABCD';
+    await licence.activate();
+
+    expect(licence.errorCode.value).toBe('NO_SEATS_AVAILABLE');
+    expect(licence.error.value).toContain('maximum number of machines');
+  });
+
+  it('carries the code out of a thrown API error too', async () => {
+    // The other route to the screen: the server refused with a 402 rather than reporting the
+    // refusal inside a 200, and the code arrives on the exception instead of in the body.
+    const { ApiRequestError } = await import('../api/client');
+    licenseApi.activate.mockRejectedValue(
+      new ApiRequestError(402, 'LICENSE_EXPIRED', 'This licence has expired.'),
+    );
+
+    const licence = useLicense();
+    await licence.load();
+    licence.choose('commercial');
+    licence.email.value = 'me@example.com';
+    licence.licenseKey.value = 'IMP-1234-ABCD';
+    await licence.activate();
+
+    expect(licence.errorCode.value).toBe('LICENSE_EXPIRED');
+  });
+
+  it('shows no code for a plain transport failure', async () => {
+    // No network is not a licence decision, and inventing a code for it would be noise in a
+    // support mail.
+    licenseApi.activate.mockRejectedValue(new Error('Failed to fetch'));
+
+    const licence = useLicense();
+    await licence.load();
+    licence.choose('commercial');
+    licence.email.value = 'me@example.com';
+    licence.licenseKey.value = 'IMP-1234-ABCD';
+    await licence.activate();
+
+    expect(licence.error.value).toContain('Failed to fetch');
+    expect(licence.errorCode.value).toBeNull();
+  });
+
+  it('clears the code once an attempt succeeds', async () => {
+    // A stale code beside a working licence reads as a problem that is still happening.
+    licenseApi.activate.mockResolvedValue(status({ state: 'invalid', code: 'VALIDATION_FAILED' }));
+    const licence = useLicense();
+    await licence.load();
+    licence.choose('commercial');
+    licence.email.value = 'me@example.com';
+    licence.licenseKey.value = 'IMP-1234-ABCD';
+    await licence.activate();
+    expect(licence.errorCode.value).toBe('VALIDATION_FAILED');
+
+    licenseApi.activate.mockResolvedValue(status({ state: 'active', tier: 'commercial' }));
+    await licence.activate();
+
+    expect(licence.errorCode.value).toBeNull();
+    expect(licence.screen.value).toBe('done');
+  });
+
+  it('still shows a refusal recorded on a previous run', async () => {
+    // The installation is still in that state; a reload must not make the reason vanish.
+    licenseApi.get.mockResolvedValue(
+      status({ state: 'invalid', message: 'That key has been revoked.', code: 'LICENSE_INACTIVE' }),
+    );
+
+    const licence = useLicense();
+    await licence.load();
+
+    expect(licence.errorCode.value).toBe('LICENSE_INACTIVE');
   });
 });

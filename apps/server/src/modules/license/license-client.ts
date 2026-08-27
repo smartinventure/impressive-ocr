@@ -104,6 +104,8 @@ export interface ActivationResult {
   /** Product name, for display. */
   tierName: string | null;
   message: string | null;
+  /** The server's own code when it refused inside a 200 response. */
+  code: string | null;
 }
 
 export interface ReleaseRequest {
@@ -307,6 +309,7 @@ export class HttpLicenseClient implements LicenseClient {
       updateAccessExpired: payload.update_access_expired === true,
       tierName: asString(payload.tier_name),
       message: asString(payload.message),
+      code: asString(payload.error_code) ?? asString(payload.error),
     };
   }
 

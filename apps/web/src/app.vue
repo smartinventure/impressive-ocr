@@ -9,6 +9,7 @@ import { useLiveStore } from './stores/live-store';
 import UpdateBadge from './components/update-badge.vue';
 import FirstRunDialog from './components/first-run-dialog.vue';
 import LicenseBanner from './components/license-banner.vue';
+import { useLicense } from './composables/use-license';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
 import { setLocale, type AppLocale } from './plugins/i18n';
 
@@ -32,6 +33,28 @@ const theme = useTheme();
 /** The login screen stands alone: no navigation to offer someone who cannot use it yet. */
 const showChrome = computed(() => route.name !== 'login');
 const { t, locale } = useI18n();
+
+const licence = useLicense();
+onMounted(licence.load);
+
+/**
+ * The edition label in the header, or null for a commercial licence.
+ *
+ * Shown for the community tier *and* for an unregistered installation, because both are the
+ * non-commercial grant — one has been claimed and the other has not, which is a registration
+ * detail rather than a difference in what the software may be used for.
+ *
+ * Null for a paying customer on purpose. Someone who has bought a licence should not be
+ * looking at a permanent label about the free one, and a header that said "Commercial" would
+ * be decoration: they know.
+ */
+const edition = computed(() => {
+  const state = licence.status.value;
+  if (state === null || state.tier === 'commercial') {
+    return null;
+  }
+  return t('licence.nonCommercial');
+});
 
 const nav = computed(() => [
   // Dashboard first: what the machine is doing and what it has got through. Quick Mode
@@ -146,6 +169,12 @@ onBeforeUnmount(() => store.stop());
     </v-navigation-drawer>
 
     <v-app-bar v-if="showChrome" flat height="60" color="surface" border="b">
+      <!-- Which edition this is, said plainly and permanently. An organisation running the
+           free build should be able to see that at a glance rather than having to open a
+           settings page — and someone who has paid should not be told they are on it. -->
+      <span v-if="edition !== null" class="shell__edition text-caption ml-4">
+        {{ edition }}
+      </span>
       <v-spacer />
       <v-btn
         :icon="theme.current.value.dark ? 'light_mode' : 'dark_mode'"
@@ -159,6 +188,9 @@ onBeforeUnmount(() => store.stop());
     </v-app-bar>
 
     <v-main>
+      <!-- Inside `v-main`, not beside it. As a direct child of `v-app` this sat outside the
+           layout entirely and the navigation drawer covered its first two hundred pixels. -->
+      <LicenseBanner v-if="showChrome" :status="licence.status.value" />
       <div :class="showChrome ? 'shell__content' : ''">
         <router-view />
       </div>
@@ -167,12 +199,19 @@ onBeforeUnmount(() => store.stop());
     <!-- Only past the login screen: agreeing to terms is not something to ask of someone
          who has not yet proved they may use this installation at all. -->
     <FirstRunDialog v-if="showChrome" />
-    <!-- Only visible when the licence needs attention, which is rarely. -->
-    <LicenseBanner v-if="showChrome" />
   </v-app>
 </template>
 
 <style scoped>
+/* Quiet, and it stays quiet: this is a persistent label, not a notice. Letter-spaced and
+   uppercase so it reads as a badge rather than as a sentence someone forgot to finish. */
+.shell__edition {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  white-space: nowrap;
+}
+
 .shell__brand {
   display: flex;
   align-items: center;

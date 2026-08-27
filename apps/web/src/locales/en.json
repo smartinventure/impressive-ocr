@@ -746,6 +746,7 @@
     "offlineGrace": "The licence could not be confirmed recently. Connect to the internet within {days} day(s) to keep processing.",
     "offlineBlocked": "The licence has not been confirmed for some time. Connect to the internet so it can be checked again.",
     "registerNow": "Register",
-    "blockedTitle": "Registration required"
+    "blockedTitle": "Registration required",
+    "nonCommercial": "Non-commercial version"
   }
 }

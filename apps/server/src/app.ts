@@ -166,14 +166,28 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
         // server. Gating startup on a licence variable would make a missing build flag look
         // like a broken application.
         personal: {
-          productCode:
-            process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL ?? 'impressiveocrcommunity',
-          installerApiKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL ?? '',
+          productCode: licenseSetting(
+            'IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL',
+            'personalProduct',
+            'impressiveocrcommunity',
+          ),
+          installerApiKey: licenseSetting(
+            'IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL',
+            'personalKey',
+            '',
+          ),
         },
         commercial: {
-          productCode:
-            process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL ?? 'impressiveocrcommercial',
-          installerApiKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL ?? '',
+          productCode: licenseSetting(
+            'IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL',
+            'commercialProduct',
+            'impressiveocrcommercial',
+          ),
+          installerApiKey: licenseSetting(
+            'IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL',
+            'commercialKey',
+            '',
+          ),
         },
         appVersion: APP_VERSION,
       },
@@ -188,10 +202,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   // whether this build has them, which is the part that goes wrong.
   logger.info(
     {
-      personal: process.env.IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL ? 'configured' : 'missing',
-      commercial: process.env.IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL ? 'configured' : 'missing',
+      personal: licenseSetting('IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL', 'personalKey', '')
+        ? 'configured'
+        : 'missing',
+      commercial: licenseSetting('IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL', 'commercialKey', '')
+        ? 'configured'
+        : 'missing',
     },
-    'Licence build configuration',
+    'Licence configuration',
   );
 
   const events = new EventBus();
@@ -465,4 +483,42 @@ function writeGloballyPaused(db: ReturnType<typeof createDatabase>['db'], paused
     .values({ key: APP_STATE_KEYS.globallyPaused, value: paused, updatedAt })
     .onConflictDoUpdate({ target: appState.key, set: { value: paused, updatedAt } })
     .run();
+}
+
+/**
+ * Values compiled into the bundle at build time, or undefined in a source run.
+ *
+ * Declared rather than imported because esbuild substitutes it as a literal and there is no
+ * module to import it from. Reading it through `typeof` is what keeps a development run —
+ * where nothing was substituted — from throwing a ReferenceError.
+ */
+declare const __LICENSE_BUILD__:
+  | {
+      personalProduct?: string;
+      personalKey?: string;
+      commercialProduct?: string;
+      commercialKey?: string;
+    }
+  | undefined;
+
+/**
+ * One licence setting, from the environment, then the build, then a default.
+ *
+ * The order is the whole point. The container sets these as `ENV`, so the environment has to
+ * win or an image could never be pointed at a staging licence server. The headless tarball
+ * has no environment to set — it is unpacked and run — so it needs the values compiled in.
+ * Both artifacts come off the same bundle, which is why neither mechanism can be the only one.
+ */
+function licenseSetting(
+  variable: string,
+  baked: 'personalProduct' | 'personalKey' | 'commercialProduct' | 'commercialKey',
+  fallback: string,
+): string {
+  const fromEnvironment = process.env[variable];
+  if (fromEnvironment !== undefined && fromEnvironment !== '') {
+    return fromEnvironment;
+  }
+
+  const build = typeof __LICENSE_BUILD__ === 'undefined' ? undefined : __LICENSE_BUILD__;
+  return build?.[baked] ?? fallback;
 }

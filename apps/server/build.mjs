@@ -28,6 +28,29 @@ const watch = process.argv.includes('--watch');
 const external = ['better-sqlite3'];
 
 /**
+ * Licence values to compile in, as an esbuild `define` for `__LICENSE_BUILD__`.
+ *
+ * Emitted only when something is actually set, so a local build leaves the symbol undefined
+ * and `app.ts` falls through to its own defaults. `typeof` on an undeclared identifier is
+ * legal JavaScript, which is what makes the absent case safe rather than a ReferenceError.
+ */
+function licenseBuildDefaults() {
+  const values = {
+    personalProduct: process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL,
+    personalKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL,
+    commercialProduct: process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL,
+    commercialKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL,
+  };
+
+  const present = Object.fromEntries(
+    Object.entries(values).filter(([, value]) => (value ?? '') !== ''),
+  );
+  return Object.keys(present).length === 0
+    ? {}
+    : { __LICENSE_BUILD__: JSON.stringify(present) };
+}
+
+/**
  * CommonJS, matching the Electron bundle.
  *
  * `infra/module-paths.ts` branches on `__dirname` versus `import.meta.url` precisely so one
@@ -49,6 +72,14 @@ const options = {
   external,
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
+    // Licence configuration, compiled in as a *fallback* rather than over `process.env`.
+    //
+    // The headless tarball has nowhere else to get it: it is unpacked and run, with no image
+    // to carry `ENV` and no operator who should have to be told two secret variables. The
+    // container has the opposite need — its values come from `ENV` and must stay overridable,
+    // which is why this is a separate symbol and not a substitution of the env read itself.
+    // Defining `process.env.…` directly would freeze the container's values at build time.
+    ...licenseBuildDefaults(),
   },
   logOverride: {
     // `module-paths.ts` keeps both branches deliberately. In this CJS bundle `__dirname`

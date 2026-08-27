@@ -36,10 +36,10 @@ const external = ['better-sqlite3'];
  */
 function licenseBuildDefaults() {
   const values = {
-    personalProduct: process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL,
-    personalKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL,
-    commercialProduct: process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL,
-    commercialKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL,
+    personalProduct: process.env.IMPRESSIVE_OCR_PRODUCT_COMMUNITY,
+    personalKey: process.env.IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY,
+    commercialProduct: process.env.IMPRESSIVE_OCR_PRODUCT_COMMERCIAL,
+    commercialKey: process.env.IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL,
   };
 
   const present = Object.fromEntries(

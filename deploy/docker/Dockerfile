@@ -104,15 +104,15 @@ ENV NODE_ENV=production \
 # anywhere else: /data is the mounted volume, so the value survives `docker run` again.
 # Derived from the hostname instead it would change on every recreate, because Docker sets the
 # hostname to the container id — and a three-seat licence would be spent by the third restart.
-ARG LICENSE_PRODUCT_PERSONAL=impressiveocrcommunity
-ARG LICENSE_KEY_PERSONAL=""
-ARG LICENSE_PRODUCT_COMMERCIAL=impressiveocrcommercial
-ARG LICENSE_KEY_COMMERCIAL=""
+ARG PRODUCT_COMMUNITY=impressiveocrcommunity
+ARG INSTALLER_KEY_COMMUNITY=""
+ARG PRODUCT_COMMERCIAL=impressiveocrcommercial
+ARG INSTALLER_KEY_COMMERCIAL=""
 
-ENV IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL=$LICENSE_PRODUCT_PERSONAL \
-    IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL=$LICENSE_KEY_PERSONAL \
-    IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL=$LICENSE_PRODUCT_COMMERCIAL \
-    IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL=$LICENSE_KEY_COMMERCIAL
+ENV IMPRESSIVE_OCR_PRODUCT_COMMUNITY=$PRODUCT_COMMUNITY \
+    IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY=$INSTALLER_KEY_COMMUNITY \
+    IMPRESSIVE_OCR_PRODUCT_COMMERCIAL=$PRODUCT_COMMERCIAL \
+    IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL=$INSTALLER_KEY_COMMERCIAL
 
 # A container that binds loopback is unreachable even from its own host, so there would be no
 # way to open the UI. Exposure is the operator's decision, made with the port mapping:

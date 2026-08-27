@@ -152,9 +152,14 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
    * call carries an email address, a licence key and a machine id, and a licence key is a
    * bearer credential. Only an explicit environment variable can downgrade that.
    *
-   * The product codes and the installer key are per-build values that differ between the
-   * free and paid products. They are read from the environment so a release can set them
-   * without a code change, and so a test never reaches the real server.
+   * The **installer API keys** identify the *build*, one per product, and are the same for
+   * every customer on a release. They are not a customer's licence key — that arrives by
+   * email and is typed into the app. Both travel together on every call, and the names here
+   * say `INSTALLER_KEY` rather than `LICENSE_KEY` because the earlier spelling read as the
+   * customer credential and was understood as one.
+   *
+   * Read from the environment so a release can set them without a code change, and so a test
+   * never reaches the real server.
    */
   const licenseService = new LicenseService({
     db,
@@ -167,24 +172,24 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
         // like a broken application.
         personal: {
           productCode: licenseSetting(
-            'IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL',
+            'IMPRESSIVE_OCR_PRODUCT_COMMUNITY',
             'personalProduct',
             'impressiveocrcommunity',
           ),
           installerApiKey: licenseSetting(
-            'IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL',
+            'IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY',
             'personalKey',
             '',
           ),
         },
         commercial: {
           productCode: licenseSetting(
-            'IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL',
+            'IMPRESSIVE_OCR_PRODUCT_COMMERCIAL',
             'commercialProduct',
             'impressiveocrcommercial',
           ),
           installerApiKey: licenseSetting(
-            'IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL',
+            'IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL',
             'commercialKey',
             '',
           ),
@@ -202,10 +207,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   // whether this build has them, which is the part that goes wrong.
   logger.info(
     {
-      personal: licenseSetting('IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL', 'personalKey', '')
+      personal: licenseSetting('IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY', 'personalKey', '')
         ? 'configured'
         : 'missing',
-      commercial: licenseSetting('IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL', 'commercialKey', '')
+      commercial: licenseSetting('IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL', 'commercialKey', '')
         ? 'configured'
         : 'missing',
     },

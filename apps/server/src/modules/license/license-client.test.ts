@@ -116,15 +116,22 @@ describe('HttpLicenseClient', () => {
 
       await client().register({
         email: 'me@example.com',
+        country: 'DE',
         acceptedTerms: true,
         acceptedPrivacy: true,
+        acceptedLicense: true,
       });
 
+      // `country` and `accepted_license` are documented as optional and are not: registering
+      // without either is refused. Pinned here so a future tidy-up cannot drop them again.
       expect(bodyOf(fetchMock)).toEqual({
         email: 'me@example.com',
+        country: 'DE',
         short_code: 'impressiveocrcommunity',
         accepted_terms: true,
         accepted_privacy: true,
+        accepted_license: true,
+        accepted_matomo: false,
       });
     });
   });

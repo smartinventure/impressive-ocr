@@ -113,6 +113,16 @@ export type LicenseStatus = z.infer<typeof licenseStatusSchema>;
  */
 export const registerPersonalRequestSchema = z.object({
   email: z.string().email().max(254),
+  /**
+   * ISO 3166-1 alpha-2, e.g. `DE`.
+   *
+   * Required, despite the licence server's API reference listing it as optional — a
+   * registration without it is rejected with `"country" is required`. Documented here rather
+   * than discovered again by the next person, and collected by the form rather than guessed
+   * from a locale: a browser's locale says what language someone reads, not where they are,
+   * and this ends up on a licence record.
+   */
+  country: z.string().length(2).toUpperCase(),
 });
 
 export type RegisterPersonalRequest = z.infer<typeof registerPersonalRequestSchema>;

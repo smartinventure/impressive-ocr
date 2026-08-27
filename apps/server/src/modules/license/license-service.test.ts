@@ -126,7 +126,7 @@ describe('LicenseService', () => {
       // The Speedbits flow emails a verification link, and the key itself arrives in a second
       // email afterwards. Recording this as registered would leave the user with no idea a
       // further step exists, staring at a screen that looks finished.
-      const status = await service.registerPersonal({ email: 'me@example.com' });
+      const status = await service.registerPersonal({ email: 'me@example.com', country: 'DE' });
 
       expect(status.state).toBe('awaiting-key');
       expect(status.email).toBe('me@example.com');
@@ -135,12 +135,17 @@ describe('LicenseService', () => {
     });
 
     it('tells the server both consents were given, since it requires them', async () => {
-      await service.registerPersonal({ email: 'me@example.com' });
+      await service.registerPersonal({ email: 'me@example.com', country: 'DE' });
 
+      // All three consents, plus the country. Every one of them is required by the licence
+      // server, and two of them are documented as optional — a registration missing either is
+      // rejected outright.
       expect(client.registrations[0]).toMatchObject({
         email: 'me@example.com',
+        country: 'DE',
         acceptedTerms: true,
         acceptedPrivacy: true,
+        acceptedLicense: true,
       });
     });
   });

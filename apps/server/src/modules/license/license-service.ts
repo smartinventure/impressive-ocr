@@ -91,8 +91,10 @@ export class LicenseService {
     await this.callServer(() =>
       this.options.client.register({
         email: request.email,
+        country: request.country,
         acceptedTerms: true,
         acceptedPrivacy: true,
+        acceptedLicense: true,
       }),
     );
 

@@ -69,9 +69,18 @@ export interface ProductCredentials {
 
 export interface RegisterRequest {
   email: string;
-  /** The server records both, and both are required. Sent from the consent the user gave. */
+  /** ISO 3166-1 alpha-2. Required by the server, whatever its API reference says. */
+  country: string;
+  /**
+   * The consents the licence server records.
+   *
+   * `acceptedLicense` is required too, and is also documented as optional — a registration
+   * without it comes back `"accepted_license" is required`. All three are given together on
+   * the first-run screen, which is what makes sending them honest rather than assumed.
+   */
   acceptedTerms: boolean;
   acceptedPrivacy: boolean;
+  acceptedLicense: boolean;
 }
 
 export interface ActivationRequest {
@@ -171,9 +180,14 @@ export class HttpLicenseClient implements LicenseClient {
       '/api/register',
       {
         email: request.email,
+        country: request.country,
         short_code: this.config.personal.productCode,
         accepted_terms: request.acceptedTerms,
         accepted_privacy: request.acceptedPrivacy,
+        accepted_license: request.acceptedLicense,
+        // Explicitly declined. There is no telemetry in this product and adding an analytics
+        // opt-in on someone's behalf would contradict that promise.
+        accepted_matomo: false,
       },
       signal,
     );

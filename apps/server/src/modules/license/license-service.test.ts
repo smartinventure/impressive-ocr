@@ -13,6 +13,8 @@ import {
   type ActivationResult,
   type LicenseClient,
   type RegisterRequest,
+  type ReleaseRequest,
+  type ReleaseResult,
   type UpdateEligibility,
 } from './license-client';
 import { LicenseService } from './license-service';
@@ -28,6 +30,8 @@ class FakeLicenseClient implements LicenseClient {
   registrations: RegisterRequest[] = [];
   activations: ActivationRequest[] = [];
   updateChecks: { licenseKey: string; machineId: string }[] = [];
+  releases: ReleaseRequest[] = [];
+  releaseResult: ReleaseResult = { released: true, seatsUsed: 0, seatsAllowed: 3 };
 
   result: ActivationResult = {
     accepted: true,
@@ -56,6 +60,12 @@ class FakeLicenseClient implements LicenseClient {
     this.activations.push(request);
     if (this.failure !== null) throw this.failure;
     return this.result;
+  }
+
+  async releaseSeat(request: ReleaseRequest): Promise<ReleaseResult> {
+    this.releases.push(request);
+    if (this.failure !== null) throw this.failure;
+    return this.releaseResult;
   }
 
   async checkUpdate(licenseKey: string, machineId: string): Promise<UpdateEligibility> {
@@ -275,26 +285,53 @@ describe('LicenseService', () => {
     });
   });
 
-  describe('forgetting a licence', () => {
-    it('clears the local record', async () => {
+  describe('releasing a seat', () => {
+    it('tells the server and clears the local record', async () => {
       await service.activate(PERSONAL);
 
-      const status = service.forget();
+      const status = await service.releaseSeat();
 
+      expect(client.releases[0]).toMatchObject({
+        tier: 'personal',
+        email: 'me@example.com',
+        licenseKey: 'IMOC-1234-ABCD',
+      });
       expect(status.state).toBe('unregistered');
-      expect(status.email).toBeNull();
       expect(status.maskedKey).toBeNull();
     });
 
-    it('does not pretend to release the seat', async () => {
-      // The Speedbits API has no endpoint for handing a seat back. Naming this `forget`
-      // rather than `release` is the whole point, and no server call is made.
+    it('releases against the product the licence belongs to', async () => {
+      // Each product has its own installer key, so releasing a commercial seat with the
+      // community credentials would be refused.
+      await service.activate(COMMERCIAL);
+
+      await service.releaseSeat();
+
+      expect(client.releases[0]?.tier).toBe('commercial');
+    });
+
+    it('clears locally even when the server cannot be reached', async () => {
+      // Someone releasing a seat is usually decommissioning a machine, which is exactly when
+      // connectivity is going away. Refusing to clear would leave them with an installation
+      // still claiming a licence they have moved on from.
       await service.activate(PERSONAL);
-      const before = client.activations.length;
+      client.failure = new LicenseServerError('unreachable', true);
 
-      service.forget();
+      expect((await service.releaseSeat()).state).toBe('unregistered');
+    });
 
-      expect(client.activations).toHaveLength(before);
+    it('is a success when this machine held no seat', async () => {
+      // The endpoint is idempotent: running an uninstaller twice must not report a failure
+      // to someone who is removing the software anyway.
+      client.releaseResult = { released: false, seatsUsed: 0, seatsAllowed: 3 };
+      await service.activate(PERSONAL);
+
+      expect((await service.releaseSeat()).state).toBe('unregistered');
+    });
+
+    it('asks nothing of the server when there is no licence to release', async () => {
+      await service.releaseSeat();
+      expect(client.releases).toHaveLength(0);
     });
   });
 

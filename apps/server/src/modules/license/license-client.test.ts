@@ -196,6 +196,56 @@ describe('HttpLicenseClient', () => {
     });
   });
 
+  describe('releasing a seat', () => {
+    it('sends the same four credentials as activation', async () => {
+      // Deliberately the same set, so an uninstaller can reuse what the installer already has.
+      const fetchMock = respondWith(200, { success: true, released: true });
+
+      await client().releaseSeat({
+        tier: 'commercial',
+        email: 'buyer@example.com',
+        licenseKey: 'IMP-ABCD',
+        machineId: 'a'.repeat(32),
+      });
+
+      expect(bodyOf(fetchMock)).toEqual({
+        email: 'buyer@example.com',
+        license_key: 'IMP-ABCD',
+        machine_id: 'a'.repeat(32),
+        api_key: 'IMP_test',
+      });
+    });
+
+    it('uses the community key when releasing a community seat', async () => {
+      const fetchMock = respondWith(200, { success: true, released: true });
+
+      await client().releaseSeat({
+        tier: 'personal',
+        email: 'me@example.com',
+        licenseKey: 'IMC-1234',
+        machineId: 'a'.repeat(32),
+      });
+
+      expect(bodyOf(fetchMock).api_key).toBe('IMC_test');
+    });
+
+    it('treats "held no seat" as a success rather than an error', async () => {
+      // The endpoint is idempotent by design. An uninstaller run twice must not report a
+      // failure to someone who is removing the software anyway.
+      respondWith(200, { success: true, released: false, seats_total: 3, seats_remaining: 3 });
+
+      const result = await client().releaseSeat({
+        tier: 'personal',
+        email: 'me@example.com',
+        licenseKey: 'IMC-1234',
+        machineId: 'a'.repeat(32),
+      });
+
+      expect(result.released).toBe(false);
+      expect(result.seatsUsed).toBe(0);
+    });
+  });
+
   describe('update entitlement', () => {
     it('reports the window closing without needing an update to exist', async () => {
       respondWith(200, {

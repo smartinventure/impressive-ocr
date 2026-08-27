@@ -564,7 +564,10 @@ onMounted(async () => {
               :label="t('editor.priority')"
               class="mb-2"
             >
-              <template #append><InfoHint topic="editorPriority" /></template>
+              <template #append>
+                <span class="editor__slider-value ocr-mono">{{ options.schedule.priority }}</span>
+                <InfoHint topic="editorPriority" />
+              </template>
             </v-slider>
             <v-switch
               v-model="options.schedule.activeHoursEnabled"
@@ -612,6 +615,15 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Same reason as the settings sliders: a value that only appears while dragging tells you
+   nothing about a form you are reading. */
+.editor__slider-value {
+  min-width: 1.5rem;
+  text-align: right;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
 .editor {
   max-width: 860px;
 }

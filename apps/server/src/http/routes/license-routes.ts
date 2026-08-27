@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import {
   activateLicenseRequestSchema,
-  forgetLicenseRequestSchema,
+  releaseSeatRequestSchema,
   registerPersonalRequestSchema,
   type LicenseStatus,
 } from '@impressive-ocr/shared';
@@ -31,10 +31,9 @@ export function registerLicenseRoutes(app: AppFastify, services: AppServices): v
     return withActivationErrors(reply, () => services.license.activate(body));
   });
 
-  /** Local only: the licence server has no endpoint for handing a seat back. */
-  app.post('/api/license/forget', (request): LicenseStatus => {
-    forgetLicenseRequestSchema.parse(request.body ?? {});
-    return services.license.forget();
+  app.post('/api/license/release', async (request, reply) => {
+    releaseSeatRequestSchema.parse(request.body ?? {});
+    return withActivationErrors(reply, () => services.license.releaseSeat());
   });
 }
 

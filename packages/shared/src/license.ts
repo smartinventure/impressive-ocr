@@ -134,19 +134,18 @@ export const activateLicenseRequestSchema = z.object({
 export type ActivateLicenseRequest = z.infer<typeof activateLicenseRequestSchema>;
 
 /**
- * Forget the licence on this machine.
+ * Hand this machine's seat back.
  *
- * Named `forget`, not `release`, and the distinction is not pedantry: the Speedbits API has
- * no endpoint for handing a seat back, so this clears the local record and the seat stays
- * claimed until an administrator clears the activation. Calling it a release would promise
- * something that does not happen.
+ * Releases the seat on the licence server *and* clears the local record, so the machine can
+ * be decommissioned and its seat used elsewhere. Idempotent on the server side: a machine
+ * that holds no seat is a success, not an error.
  */
-export const forgetLicenseRequestSchema = z.object({
+export const releaseSeatRequestSchema = z.object({
   /** Guards against a stray click: the caller has to say it means it. */
   confirm: z.literal(true),
 });
 
-export type ForgetLicenseRequest = z.infer<typeof forgetLicenseRequestSchema>;
+export type ReleaseSeatRequest = z.infer<typeof releaseSeatRequestSchema>;
 
 /** What is persisted locally. The status above is derived from it. */
 export const licenseRecordSchema = z.object({

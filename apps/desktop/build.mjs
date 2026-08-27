@@ -46,8 +46,43 @@ const shared = {
   logLevel: 'info',
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
+    // Licence configuration, compiled in at build time.
+    //
+    // It cannot be read from the environment at runtime: the server reads `process.env` when
+    // it starts, and that happens on the *user's* machine, where none of these are set. A
+    // packaged desktop app has no environment to inherit, so the values have to travel inside
+    // the bundle — which is what `define` does, substituting them as literals.
+    //
+    // Empty in a local build, which is a working app whose registration screen reports only
+    // that it cannot reach the licence server. The release workflow supplies the real values
+    // from repository secrets; they are never committed, because a key in a public repository
+    // is scraped and revoked before the release it belongs to ships.
+    ...licenseDefines(),
   },
 };
+
+/**
+ * The licence variables, as esbuild `define` entries.
+ *
+ * Only the ones that are actually set are emitted. Defining a variable to `undefined` would
+ * replace every read with the literal `undefined` and defeat the `??` fallbacks in `app.ts`,
+ * turning an unset key into a *broken* default rather than an absent one.
+ */
+function licenseDefines() {
+  const names = [
+    'IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL',
+    'IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL',
+    'IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL',
+    'IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL',
+    'IMPRESSIVE_OCR_LICENSE_URL',
+  ];
+
+  return Object.fromEntries(
+    names
+      .filter((name) => (process.env[name] ?? '') !== '')
+      .map((name) => [`process.env.${name}`, JSON.stringify(process.env[name])]),
+  );
+}
 
 const targets = [
   {

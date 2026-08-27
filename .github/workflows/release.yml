@@ -112,6 +112,14 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+      # Licence configuration, injected at build time and never committed. These identify the
+      # build rather than a customer and are public once the app ships -- the licence server
+      # can revoke them, and they are rotated per release -- but a key committed to a public
+      # repository is scraped and burned before the release it belongs to is out.
+      IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL: impressiveocrcommunity
+      IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL: impressiveocrcommercial
+      IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL: ${{ secrets.LICENSE_KEY_PERSONAL }}
+      IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL: ${{ secrets.LICENSE_KEY_COMMERCIAL }}
     strategy:
       fail-fast: false
       matrix:
@@ -304,6 +312,15 @@ jobs:
           # Windows note above describes: the image would build and then fail at inference,
           # which is worse than not publishing it.
           platforms: linux/amd64
+          # Baked into the image rather than required at `docker run`: an operator pulling
+          # the published image should get a working registration screen without having to
+          # be told two more environment variables. Empty secrets produce an image that runs
+          # and simply reports it cannot reach the licence server.
+          build-args: |
+            LICENSE_PRODUCT_PERSONAL=impressiveocrcommunity
+            LICENSE_PRODUCT_COMMERCIAL=impressiveocrcommercial
+            LICENSE_KEY_PERSONAL=${{ secrets.LICENSE_KEY_PERSONAL }}
+            LICENSE_KEY_COMMERCIAL=${{ secrets.LICENSE_KEY_COMMERCIAL }}
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

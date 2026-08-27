@@ -97,6 +97,26 @@ export interface ActivationResult {
   message: string | null;
 }
 
+export interface ReleaseRequest {
+  tier: LicenseTier;
+  email: string;
+  licenseKey: string;
+  machineId: string;
+}
+
+export interface ReleaseResult {
+  /**
+   * False when this machine held no seat — not an error.
+   *
+   * The endpoint is idempotent by design, so an uninstaller that runs twice, or one that runs
+   * after the customer already cleared the seat from the portal, gets a 200 rather than a
+   * failure reported to someone who is removing the software anyway.
+   */
+  released: boolean;
+  seatsUsed: number | null;
+  seatsAllowed: number | null;
+}
+
 export interface UpdateEligibility {
   updateAvailable: boolean;
   latestVersion: string | null;
@@ -109,6 +129,8 @@ export interface LicenseClient {
   /** Personal tier only. The key arrives by email once the address is verified. */
   register(request: RegisterRequest, signal?: AbortSignal): Promise<void>;
   activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult>;
+  /** Hand this machine's seat back so another can take it. */
+  releaseSeat(request: ReleaseRequest, signal?: AbortSignal): Promise<ReleaseResult>;
   checkUpdate(
     licenseKey: string,
     machineId: string,
@@ -197,6 +219,41 @@ export class HttpLicenseClient implements LicenseClient {
       updateAccessExpired: payload.update_access_expired === true,
       tierName: asString(payload.tier_name),
       message: asString(payload.message),
+    };
+  }
+
+  /**
+   * Release this machine's seat.
+   *
+   * Takes the same four credentials as activation, so an uninstaller can reuse what it
+   * already has. It works on expired and revoked licences too — refusing there would strand
+   * the seat on exactly the licences someone is most likely to be uninstalling — and it does
+   * not consume one of the licence's transfers.
+   */
+  async releaseSeat(request: ReleaseRequest, signal?: AbortSignal): Promise<ReleaseResult> {
+    const product = this.credentials(request.tier);
+
+    const payload = await this.post(
+      '/api/installer/release-seat',
+      {
+        email: request.email,
+        license_key: request.licenseKey,
+        machine_id: request.machineId,
+        api_key: product.installerApiKey,
+      },
+      signal,
+    );
+
+    const seatsTotal = asNumber(payload.seats_total);
+    const seatsRemaining = asNumber(payload.seats_remaining);
+
+    return {
+      released: payload.released === true,
+      seatsAllowed: seatsTotal === null || seatsTotal < 0 ? null : seatsTotal,
+      seatsUsed:
+        seatsTotal === null || seatsTotal < 0 || seatsRemaining === null
+          ? null
+          : seatsTotal - seatsRemaining,
     };
   }
 

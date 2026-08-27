@@ -186,15 +186,42 @@ export class LicenseService {
   }
 
   /**
-   * Forget the licence on this machine.
+   * Hand this machine's seat back and forget the licence locally.
    *
-   * **Local only.** The Speedbits API has no endpoint for handing a seat back, so this
-   * releases nothing server-side: the seat stays claimed until an administrator clears the
-   * activation. The wording shown to the user has to say that rather than implying a seat was
-   * freed, and a `POST /api/installer/release-seat` on the licence server would remove the
-   * need for a support ticket every time someone replaces a computer.
+   * Both halves, in that order, and the order matters: the seat is released while the record
+   * still holds the credentials needed to do it.
+   *
+   * **The local record is cleared even when the server call fails.** Someone releasing a seat
+   * is usually decommissioning a machine, which is exactly when connectivity is going away —
+   * refusing to clear locally because the server was unreachable would leave them with an
+   * installation that still claims a licence they have moved on from. The seat is then
+   * stranded server-side, which is the lesser harm and the one an administrator can fix.
+   *
+   * A machine that held no seat comes back as `released: false` on a 200 rather than an
+   * error, so running this twice is not a failure.
    */
-  forget(): LicenseStatus {
+  async releaseSeat(): Promise<LicenseStatus> {
+    const record = this.read();
+    // Destructured before the guard so narrowing survives into the call below. Reading the
+    // fields off `record` afterwards would widen them back to nullable.
+    const { tier, email, licenseKey } = record;
+
+    if (tier !== null && email !== null && licenseKey !== null) {
+      try {
+        await this.options.client.releaseSeat({
+          tier,
+          email,
+          licenseKey,
+          machineId: record.machineId ?? (await machineId(this.options.dataDir)),
+        });
+      } catch (error) {
+        this.options.logger.warn(
+          { err: error },
+          'Could not release the seat; clearing the local record anyway',
+        );
+      }
+    }
+
     return this.store(licenseRecordSchema.parse({}));
   }
 

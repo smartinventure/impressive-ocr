@@ -48,6 +48,14 @@ export class LicenseActivationError extends Error {
 export interface LicenseServiceOptions {
   db: Database_;
   client: LicenseClient;
+  /**
+   * Where the fallback machine identifier is kept when the OS has none.
+   *
+   * The data directory rather than anywhere else because in a container it is the mounted
+   * volume, and an identifier that does not outlive the container claims a new seat on every
+   * restart. See `machine-id.ts`.
+   */
+  dataDir: string;
   logger: Logger;
 }
 
@@ -107,7 +115,7 @@ export class LicenseService {
   async activate(request: ActivateLicenseRequest): Promise<LicenseStatus> {
     // Users paste these out of emails, so they arrive with stray spaces and mixed case.
     const licenseKey = request.licenseKey.trim().toUpperCase();
-    const machine = await machineId();
+    const machine = await machineId(this.options.dataDir);
 
     const result = await this.callServer(() =>
       this.options.client.activate({
@@ -160,7 +168,7 @@ export class LicenseService {
     try {
       const eligibility = await this.options.client.checkUpdate(
         record.licenseKey,
-        record.machineId ?? (await machineId()),
+        record.machineId ?? (await machineId(this.options.dataDir)),
       );
       // Written back so the System page can say when updates lapse without calling out again.
       this.store({

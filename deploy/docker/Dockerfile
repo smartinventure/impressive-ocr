@@ -91,6 +91,29 @@ ENV NODE_ENV=production \
     IMPRESSIVE_OCR_DATA_DIR=/data \
     IMPRESSIVE_OCR_PORT=8084
 
+# Licence configuration, supplied at build time by the release workflow.
+#
+# Build arguments rather than committed values: an installer key in the repository is scraped
+# and revoked long before the release it belongs to ships. They are not secrets once the image
+# exists — this project's source is published, so anything compiled in is public, and the API
+# documentation treats these as build tags the server can revoke rather than as credentials.
+# Empty by default, which is a working image whose registration screen reports only that it
+# cannot reach the licence server.
+#
+# The identifier that claims a seat is written to /data, and that matters here more than
+# anywhere else: /data is the mounted volume, so the value survives `docker run` again.
+# Derived from the hostname instead it would change on every recreate, because Docker sets the
+# hostname to the container id — and a three-seat licence would be spent by the third restart.
+ARG LICENSE_PRODUCT_PERSONAL=impressiveocrcommunity
+ARG LICENSE_KEY_PERSONAL=""
+ARG LICENSE_PRODUCT_COMMERCIAL=impressiveocrcommercial
+ARG LICENSE_KEY_COMMERCIAL=""
+
+ENV IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL=$LICENSE_PRODUCT_PERSONAL \
+    IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL=$LICENSE_KEY_PERSONAL \
+    IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL=$LICENSE_PRODUCT_COMMERCIAL \
+    IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL=$LICENSE_KEY_COMMERCIAL
+
 # A container that binds loopback is unreachable even from its own host, so there would be no
 # way to open the UI. Exposure is the operator's decision, made with the port mapping:
 # publish to 127.0.0.1 on the host, or put a reverse proxy in front. The server logs a

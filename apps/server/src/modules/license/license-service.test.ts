@@ -70,8 +70,11 @@ let close: () => void;
 let client: FakeLicenseClient;
 let service: LicenseService;
 
+let dataDir: string;
+
 beforeEach(async () => {
   const root = await mkdtemp(join(tmpdir(), 'impressive-ocr-license-'));
+  dataDir = root;
   const database = createDatabase({
     filePath: join(root, 'test.db'),
     migrationsFolder: defaultMigrationsDir(),
@@ -82,6 +85,7 @@ beforeEach(async () => {
   service = new LicenseService({
     db,
     client,
+    dataDir,
     logger: createLogger({ level: 'silent', pretty: false }),
   });
 });

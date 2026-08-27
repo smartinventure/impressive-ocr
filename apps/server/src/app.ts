@@ -161,19 +161,25 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     client: new HttpLicenseClient(
       {
         baseUrl: process.env.IMPRESSIVE_OCR_LICENSE_URL ?? DEFAULT_LICENSE_URL,
-        installerApiKey: process.env.IMPRESSIVE_OCR_LICENSE_API_KEY ?? '',
         // Defaulted rather than required: an installation with no licence configuration
         // still starts and works, and only registration reports that it cannot reach the
-        // server. Gating startup on a licence variable would make a missing build flag
-        // look like a broken application.
-        personalProductCode:
-          process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL ?? 'impressiveocr',
-        commercialProductCode:
-          process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL ?? 'impressiveocrcommercial',
+        // server. Gating startup on a licence variable would make a missing build flag look
+        // like a broken application.
+        personal: {
+          productCode:
+            process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL ?? 'impressiveocrcommunity',
+          installerApiKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL ?? '',
+        },
+        commercial: {
+          productCode:
+            process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL ?? 'impressiveocrcommercial',
+          installerApiKey: process.env.IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL ?? '',
+        },
         appVersion: APP_VERSION,
       },
       logger,
     ),
+    dataDir: paths.dataDir,
     logger,
   });
 

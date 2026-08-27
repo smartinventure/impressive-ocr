@@ -15,9 +15,8 @@ import { HttpLicenseClient, LicenseServerError, type LicenseServerConfig } from 
 
 const CONFIG: LicenseServerConfig = {
   baseUrl: 'https://license.example.com',
-  installerApiKey: 'IMP_test',
-  personalProductCode: 'impressiveocr',
-  commercialProductCode: 'impressiveocrcommercial',
+  personal: { productCode: 'impressiveocrcommunity', installerApiKey: 'IMC_test' },
+  commercial: { productCode: 'impressiveocrcommercial', installerApiKey: 'IMP_test' },
   appVersion: '1.0.1',
 };
 
@@ -62,14 +61,16 @@ describe('HttpLicenseClient', () => {
       });
     });
 
-    it('guards a personal key with the personal product code', async () => {
-      // Without `product_edition` a key for one product activates against the other, and the
-      // wrong tier is recorded silently.
+    it('uses the community product AND its own key for a personal activation', async () => {
+      // The two products have separate installer keys. Sending the commercial key against
+      // the community product is refused as INVALID_API_KEY, which reads to the user like a
+      // broken licence rather than a wrong build flag.
       const fetchMock = respondWith(200, { success: true, valid: true });
 
       await client().activate({ ...ACTIVATION, tier: 'personal' });
 
-      expect(bodyOf(fetchMock).product_edition).toBe('impressiveocr');
+      expect(bodyOf(fetchMock).product_edition).toBe('impressiveocrcommunity');
+      expect(bodyOf(fetchMock).api_key).toBe('IMC_test');
     });
 
     it('converts seats remaining into seats used', async () => {
@@ -121,7 +122,7 @@ describe('HttpLicenseClient', () => {
 
       expect(bodyOf(fetchMock)).toEqual({
         email: 'me@example.com',
-        short_code: 'impressiveocr',
+        short_code: 'impressiveocrcommunity',
         accepted_terms: true,
         accepted_privacy: true,
       });

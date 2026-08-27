@@ -44,18 +44,27 @@ export interface LicenseServerConfig {
    */
   baseUrl: string;
   /**
-   * Installer API key for the product. Identifies the *build*, not the customer.
+   * The two products on the licence server, each with its own installer API key.
    *
-   * Note for this product specifically: Impressive OCR's source is published, so this key is
-   * public no matter where it is stored. It is not a secret and must not be treated as one —
-   * it is a build tag the server can revoke. Rotate it per release, as the API docs advise.
+   * One key per product, not one per application: the licence server issues them per product
+   * and rejects a key used against the other with `INVALID_API_KEY`. Sending the commercial
+   * key for a community registration would fail in a way that reads like a broken licence
+   * rather than a wrong build flag.
+   *
+   * Neither key is a secret in this product, and it is worth being blunt about that: the
+   * source is published, so anything compiled into it is public. They identify the *build*,
+   * the server can revoke them, and they should be rotated per release.
    */
-  installerApiKey: string;
-  /** `short_code` of the free personal product, e.g. `impressiveocr`. */
-  personalProductCode: string;
-  /** `short_code` of the paid commercial product. */
-  commercialProductCode: string;
+  personal: ProductCredentials;
+  commercial: ProductCredentials;
   appVersion: string;
+}
+
+export interface ProductCredentials {
+  /** `short_code` on the licence server, e.g. `impressiveocrcommunity`. */
+  productCode: string;
+  /** Installer API key for that product, e.g. `IMC_…`. */
+  installerApiKey: string;
 }
 
 export interface RegisterRequest {
@@ -140,7 +149,7 @@ export class HttpLicenseClient implements LicenseClient {
       '/api/register',
       {
         email: request.email,
-        short_code: this.config.personalProductCode,
+        short_code: this.config.personal.productCode,
         accepted_terms: request.acceptedTerms,
         accepted_privacy: request.acceptedPrivacy,
       },
@@ -148,11 +157,13 @@ export class HttpLicenseClient implements LicenseClient {
     );
   }
 
+  /** Which product a tier maps to. The two differ in code *and* in API key. */
+  private credentials(tier: LicenseTier): ProductCredentials {
+    return tier === 'personal' ? this.config.personal : this.config.commercial;
+  }
+
   async activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult> {
-    const productCode =
-      request.tier === 'personal'
-        ? this.config.personalProductCode
-        : this.config.commercialProductCode;
+    const product = this.credentials(request.tier);
 
     const payload = await this.post(
       '/api/installer/validate-license',
@@ -161,10 +172,10 @@ export class HttpLicenseClient implements LicenseClient {
         license_key: request.licenseKey,
         machine_id: request.machineId,
         version: this.config.appVersion,
-        api_key: this.config.installerApiKey,
+        api_key: product.installerApiKey,
         // Guards against activating a commercial key against the free product, and the other
         // way round — which would otherwise succeed and silently record the wrong tier.
-        product_edition: productCode,
+        product_edition: product.productCode,
       },
       signal,
     );

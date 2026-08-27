@@ -34,7 +34,12 @@ function formatDate(iso: string): string {
 </script>
 
 <template>
-  <v-card class="pa-5 mb-4">
+  <v-card
+    id="licence"
+    class="pa-5 mb-4"
+    :class="{ 'licence-card--attention': !isActive }"
+    :variant="isActive ? undefined : 'outlined'"
+  >
     <h2 class="text-h6 mb-4">{{ t('licence.title') }}</h2>
 
     <template v-if="isActive && licence.status.value !== null">
@@ -96,3 +101,18 @@ function formatDate(iso: string): string {
     </template>
   </v-card>
 </template>
+
+<style scoped>
+/*
+ * An outline, only while something is wanted.
+ *
+ * The System page is a column of cards that all look alike, and the banner sends people here
+ * to do one specific thing — arriving to a wall of identical panels is how someone gives up
+ * on a task they had already agreed to. Once registered the card drops back to the ordinary
+ * styling: a permanent highlight is just a card that shouts.
+ */
+.licence-card--attention {
+  border-color: rgb(var(--v-theme-succeeded));
+  border-width: 2px;
+}
+</style>

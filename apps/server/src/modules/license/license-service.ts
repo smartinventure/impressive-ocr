@@ -187,7 +187,12 @@ export class LicenseService {
    */
   async activate(request: ActivateLicenseRequest): Promise<LicenseStatus> {
     // Users paste these out of emails, so they arrive with stray spaces and mixed case.
-    const licenseKey = request.licenseKey.trim().toUpperCase();
+    //
+    // Every whitespace character is removed, not only the ends: a key copied from a wrapped
+    // email line arrives with a newline through the middle of it, and one copied from a PDF
+    // often carries non-breaking spaces that look exactly like nothing at all. A licence key
+    // has no internal whitespace, so there is nothing legitimate to lose.
+    const licenseKey = stripWhitespace(request.licenseKey).toUpperCase();
     const machine = await machineId(this.options.dataDir);
 
     const result = await this.callServer(() =>
@@ -363,4 +368,19 @@ export class LicenseService {
     const parsed = licenseRecordSchema.safeParse(row?.value ?? {});
     return parsed.success ? parsed.data : licenseRecordSchema.parse({});
   }
+}
+
+/**
+ * Remove every whitespace character a pasted key might carry.
+ *
+ * JavaScript's `\s` is more generous than it looks: it already matches the
+ * non-breaking space and the byte-order mark that arrive when a key is copied out of a
+ * PDF or a rendered email, which is exactly where keys get copied from. (Python's does
+ * not, which is a good way to end up writing a character class nobody needs.)
+ *
+ * The one it misses is the zero-width space, so that is named explicitly — it is invisible
+ * in every editor and turns a correct key into a rejected one for no visible reason.
+ */
+function stripWhitespace(value: string): string {
+  return value.replace(/[\s\u200b]+/g, '');
 }

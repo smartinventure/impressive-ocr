@@ -182,6 +182,20 @@ describe('LicenseService', () => {
       expect(client.activations[0]?.licenseKey).toBe('IMOC-9999-ZZZZ');
     });
 
+    it('survives a key copied across a wrapped line', async () => {
+      // A key copied out of an email is as likely to carry a newline through the middle as a
+      // space at the end, and neither is something the user can see.
+      await service.activate({ ...COMMERCIAL, licenseKey: 'IMOC-9999\n-ZZZZ' });
+      expect(client.activations[0]?.licenseKey).toBe('IMOC-9999-ZZZZ');
+    });
+
+    it('survives non-breaking spaces, which look like nothing at all', async () => {
+      // What a key copied out of a PDF or a rendered email arrives with. `\s` does not match
+      // U+00A0, so trimming alone leaves the key invalid for a reason nobody can see.
+      await service.activate({ ...COMMERCIAL, licenseKey: '\u00a0IMOC-9999-ZZZZ\u00a0' });
+      expect(client.activations[0]?.licenseKey).toBe('IMOC-9999-ZZZZ');
+    });
+
     it('passes the tier through, so the server can refuse the wrong product', async () => {
       await service.activate(COMMERCIAL);
       expect(client.activations[0]?.tier).toBe('commercial');

@@ -203,6 +203,46 @@ describe('HttpLicenseClient', () => {
     });
   });
 
+  describe('when the build carries no licence key', () => {
+    it('refuses before asking, with a message that names the real problem', async () => {
+      // The licence server answers `"api_key" is not allowed to be empty`, which names a
+      // field the user has never heard of on a screen where they typed a licence key — so it
+      // reads as "your key is wrong" when the key is fine and the build is misconfigured.
+      const unconfigured = new HttpLicenseClient(
+        { ...CONFIG, commercial: { productCode: 'x', installerApiKey: '' } },
+        createLogger({ level: 'silent', pretty: false }),
+      );
+      const fetchMock = respondWith(200, { success: true });
+
+      await expect(unconfigured.activate(ACTIVATION)).rejects.toMatchObject({
+        code: 'MISSING_API_KEY',
+        retryable: false,
+      });
+      // And does not waste a round trip proving what it already knows.
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it('still registers, which needs no key', async () => {
+      // Registration is a public endpoint. An unconfigured build can still get someone a
+      // licence emailed to them, even though it cannot then activate it.
+      const unconfigured = new HttpLicenseClient(
+        { ...CONFIG, personal: { productCode: 'impressiveocrcommunity', installerApiKey: '' } },
+        createLogger({ level: 'silent', pretty: false }),
+      );
+      respondWith(200, { success: true });
+
+      await expect(
+        unconfigured.register({
+          email: 'me@example.com',
+          country: 'DE',
+          acceptedTerms: true,
+          acceptedPrivacy: true,
+          acceptedLicense: true,
+        }),
+      ).resolves.toBeUndefined();
+    });
+  });
+
   describe('releasing a seat', () => {
     it('sends the same four credentials as activation', async () => {
       // Deliberately the same set, so an uninstaller can reuse what the installer already has.

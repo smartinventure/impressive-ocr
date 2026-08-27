@@ -48,7 +48,9 @@ const message = computed(() => {
   <v-alert v-if="visible" :type="tone" variant="tonal" density="compact" rounded="0">
     <div class="d-flex align-center justify-space-between flex-wrap ga-3">
       <span class="text-body-2">{{ message }}</span>
-      <v-btn size="small" variant="text" :to="{ name: 'system' }">
+      <!-- Named, not just the page: the System page carries several cards and landing at the
+           top leaves someone hunting for the one they were sent to use. -->
+      <v-btn size="small" variant="text" :to="{ name: 'system', hash: '#licence' }">
         {{ t('licence.registerNow') }}
       </v-btn>
     </div>

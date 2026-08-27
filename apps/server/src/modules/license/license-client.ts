@@ -248,8 +248,32 @@ export class HttpLicenseClient implements LicenseClient {
     return tier === 'personal' ? this.config.personal : this.config.commercial;
   }
 
+  /**
+   * Refuse to send an empty installer key.
+   *
+   * The licence server answers `"api_key" is not allowed to be empty`, which is accurate and
+   * completely unhelpful in front of a user: it names a field they have never heard of, on a
+   * screen where the only field they filled in was a licence key — so it reads as "your key
+   * is wrong" when the key is fine and the *build* is misconfigured.
+   *
+   * Thrown as non-retryable, because no amount of trying again adds a key that was never
+   * compiled in. This is what a development build without `dev/dev.env` looks like, and what
+   * a release built without its repository secrets would look like.
+   */
+  private requireApiKey(product: ProductCredentials): void {
+    if (product.installerApiKey.trim() === '') {
+      throw new LicenseServerError(
+        'This build has no licence configuration, so it cannot activate a licence. ' +
+          'If you built it yourself, set the installer API keys; otherwise please report this.',
+        false,
+        'MISSING_API_KEY',
+      );
+    }
+  }
+
   async activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult> {
     const product = this.credentials(request.tier);
+    this.requireApiKey(product);
 
     const payload = await this.post(
       '/api/installer/validate-license',
@@ -296,6 +320,7 @@ export class HttpLicenseClient implements LicenseClient {
    */
   async releaseSeat(request: ReleaseRequest, signal?: AbortSignal): Promise<ReleaseResult> {
     const product = this.credentials(request.tier);
+    this.requireApiKey(product);
 
     const payload = await this.post(
       '/api/installer/release-seat',

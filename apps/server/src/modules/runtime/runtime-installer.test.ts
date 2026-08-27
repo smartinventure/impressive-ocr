@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { STEP_ORDER, progressAfter, progressBefore } from './runtime-installer';
+import { STEP_ORDER, progressAfter, progressBefore, within } from './runtime-installer';
 
 /**
  * The progress weighting is what makes a five-minute install feel honest rather than stuck,
@@ -50,5 +50,24 @@ describe('install progress weighting', () => {
       }
       expect(progressBefore(step)).toBe(progressAfter(previous));
     }
+  });
+
+  it('moves the bar inside a step rather than parking it at the start', () => {
+    // A step reporting only `progressBefore` freezes the bar for its whole duration. The
+    // engine download did exactly that: six minutes motionless at 76%, reported as a hang.
+    const start = progressBefore('download-vl-server');
+    const end = progressAfter('download-vl-server');
+
+    expect(within('download-vl-server', 0)).toBe(start);
+    expect(within('download-vl-server', 1)).toBe(end);
+    expect(within('download-vl-server', 0.5)).toBeGreaterThan(start);
+    expect(within('download-vl-server', 0.5)).toBeLessThan(end);
+  });
+
+  it('never reports outside its own step, whatever fraction it is handed', () => {
+    // Bytes received over an estimated total can exceed one; the bar must not run past the
+    // step that owns it and start claiming another step's progress.
+    expect(within('download-vl-server', 5)).toBe(progressAfter('download-vl-server'));
+    expect(within('download-vl-server', -1)).toBe(progressBefore('download-vl-server'));
   });
 });

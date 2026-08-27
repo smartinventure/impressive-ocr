@@ -299,7 +299,12 @@ export class RuntimeService {
       await this.options.installer.installVlServerOnly({
         hardware,
         onProgress: (progress) =>
-          this.setStatus({ ...this.status, currentStep: progress.step, message: progress.message }),
+          this.setStatus({
+            ...this.status,
+            currentStep: progress.step,
+            progressPercent: progress.percent,
+            message: progress.message,
+          }),
       });
       this.setStatus({
         ...this.status,

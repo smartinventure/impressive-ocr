@@ -70,6 +70,18 @@ release checklist, because deciding what is worth telling users about is not aut
 
 ### Fixed
 
+- The installer never reported the sidecar version, so `sidecarVersion` was null on every
+  installation. Not just a dash on the System page: `engineOutdated` compares it against the
+  application version, so a permanent null meant the warning that the venv's Python is older
+  than the app **could never fire** — and that stale copy is exactly what silently ignores
+  new settings after an update. The probe imported the package and then printed everything
+  except its version, and the package defines no `__version__` to print, so the fix reads
+  `importlib.metadata` instead.
+- The install appeared to hang at 76%. The inference-engine step reported one fixed
+  percentage for its entire six-minute duration, which is indistinguishable from a stall. It
+  now reports bytes received against the size it already knows it is fetching.
+- The install finished with "Runtime ready" whether or not the fast inference engine had been
+  installed. It now says which, and points at the retry when it has not.
 - Dense pages silently lost text in accurate mode. Each inference slot held 2048 tokens, and
   a slot has to fit a layout region's image *plus* everything written back about it, so a
   full-width block of small print — a page of photo credits, a wall of terms — simply stopped

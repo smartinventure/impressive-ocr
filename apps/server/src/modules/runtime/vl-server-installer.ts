@@ -13,6 +13,7 @@ import {
   MODEL_ASSETS,
   QUANTISATION,
   selectVlServerBuild,
+  vlServerDownloadBytes,
   type VlServerBuild,
 } from '../ocr/vl-server-index';
 
@@ -33,7 +34,14 @@ const run = promisify(execFile);
 export interface VlServerInstallOptions {
   vlServerDir: string;
   hardware: HardwareCapabilities;
-  onMessage: (message: string) => void;
+  /**
+   * Called with a message and how far through this step we are, 0 to 1.
+   *
+   * The fraction matters more than it looks. This is the second-longest step and it used to
+   * report one fixed percentage for its whole duration, so the bar sat motionless at 76% for
+   * six minutes and read as a hang -- which is exactly what it was reported as.
+   */
+  onMessage: (message: string, fraction: number) => void;
   signal?: AbortSignal | undefined;
   logger: Logger;
 }
@@ -42,6 +50,18 @@ export async function installVlServer(options: VlServerInstallOptions): Promise<
   const { vlServerDir, hardware, onMessage, signal, logger } = options;
   const build = selectVlServerBuild(hardware);
   const binDir = join(vlServerDir, 'bin');
+
+  // Progress is measured in bytes actually received against what this build is known to
+  // weigh, rather than in steps completed. Quantisation is the only part that moves no bytes,
+  // so it is given the last sliver rather than its own share.
+  const totalBytes = vlServerDownloadBytes(build);
+  let received = 0;
+  const report = (message: string): void =>
+    onMessage(message, Math.min(0.99, received / totalBytes));
+  const onBytes = (chunk: number, message: string): void => {
+    received += chunk;
+    report(message);
+  };
 
   logger.info(
     { accelerator: build.accelerator, assets: build.assets.length },
@@ -53,9 +73,10 @@ export async function installVlServer(options: VlServerInstallOptions): Promise<
   await rm(vlServerDir, { recursive: true, force: true });
   await mkdir(binDir, { recursive: true });
 
-  await installBinaries(build, binDir, onMessage, signal, logger);
-  await installWeights(vlServerDir, onMessage, signal);
-  await quantise(vlServerDir, onMessage, signal, logger);
+  await installBinaries(build, binDir, report, onBytes, signal, logger);
+  await installWeights(vlServerDir, report, onBytes, signal);
+  await quantise(vlServerDir, report, signal, logger);
+  onMessage('The fast inference engine is ready', 1);
 }
 
 /**
@@ -68,13 +89,15 @@ async function installBinaries(
   build: VlServerBuild,
   binDir: string,
   onMessage: (message: string) => void,
+  onBytes: (chunk: number, message: string) => void,
   signal: AbortSignal | undefined,
   logger: Logger,
 ): Promise<void> {
   for (const [index, asset] of build.assets.entries()) {
-    onMessage(`Downloading ${build.description} (${index + 1}/${build.assets.length})`);
+    const label = `Downloading ${build.description} (${index + 1}/${build.assets.length})`;
+    onMessage(label);
     const archive = join(binDir, basename(asset));
-    await download(asset, archive, signal);
+    await download(asset, archive, signal, (chunk) => onBytes(chunk, label));
     await extract(archive, binDir, logger);
     await rm(archive, { force: true });
   }
@@ -87,13 +110,18 @@ async function installBinaries(
 async function installWeights(
   vlServerDir: string,
   onMessage: (message: string) => void,
+  onBytes: (chunk: number, message: string) => void,
   signal: AbortSignal | undefined,
 ): Promise<void> {
-  onMessage('Downloading the OCR language model (1.7 GB)');
-  await download(MODEL_ASSETS.weights, join(vlServerDir, 'model-bf16.gguf'), signal);
+  const model = 'Downloading the OCR language model';
+  onMessage(model);
+  await download(MODEL_ASSETS.weights, join(vlServerDir, 'model-bf16.gguf'), signal,
+    (chunk) => onBytes(chunk, model));
 
-  onMessage('Downloading the vision encoder');
-  await download(MODEL_ASSETS.projector, join(vlServerDir, 'mmproj.gguf'), signal);
+  const encoder = 'Downloading the vision encoder';
+  onMessage(encoder);
+  await download(MODEL_ASSETS.projector, join(vlServerDir, 'mmproj.gguf'), signal,
+    (chunk) => onBytes(chunk, encoder));
   await download(MODEL_ASSETS.chatTemplate, join(vlServerDir, 'chat_template.jinja'), signal);
 }
 
@@ -135,12 +163,20 @@ async function download(
   url: string,
   destination: string,
   signal: AbortSignal | undefined,
+  onChunk?: (bytes: number) => void,
 ): Promise<void> {
   const response = await fetch(url, { signal: signal ?? null, redirect: 'follow' });
   if (!response.ok || response.body === null) {
     throw new Error(`Download failed with status ${response.status}: ${url}`);
   }
-  await pipeline(Readable.fromWeb(response.body), createWriteStream(destination));
+
+  const body = Readable.fromWeb(response.body);
+  if (onChunk !== undefined) {
+    // Counted as it streams rather than from Content-Length, which these hosts do not always
+    // send once a redirect is followed.
+    body.on('data', (chunk: Buffer) => onChunk(chunk.length));
+  }
+  await pipeline(body, createWriteStream(destination));
 }
 
 /**

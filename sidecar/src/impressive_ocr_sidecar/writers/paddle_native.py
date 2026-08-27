@@ -19,6 +19,7 @@ from ..core.logging import get_logger
 from ..core.protocol import OutputFormat
 from ..engines.base import DocumentResult
 from .base import WriteContext, WrittenFile, measure
+from .docx_equations import embed_equations
 from .page_merge import merge_pages
 
 _logger = get_logger()
@@ -81,6 +82,15 @@ class PaddleNativeWriter:
         # Pages are recognised one at a time, so Paddle wrote one file per page. A six-page
         # scan asked to produce Word means one Word document, not six.
         files = merge_pages(self._collect_paths(target), context.output_stem)
+
+        # After the merge, so each formula is converted once rather than once per page, and
+        # so the pass sees the document the user will actually open. `save_to_word` writes
+        # its Markdown through verbatim, which leaves a correctly recognised formula sitting
+        # in the document as its own LaTeX source.
+        if self.format == "docx":
+            for path in files:
+                embed_equations(path)
+
         return [measure(path, self.format) for path in files]
 
     def _collect_paths(self, directory: Path) -> list[Path]:

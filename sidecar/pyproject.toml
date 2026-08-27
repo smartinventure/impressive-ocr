@@ -56,6 +56,11 @@ ignore = ["ANN401"]
 # as SIM112 suggests, silently disables the thread cap.
 "tests/test_resources.py" = ["SIM112"]
 "tests/*" = ["ANN"]
+# RUF001 flags characters that could be confused with ASCII. A table mapping \theta to the
+# Greek letter theta is where those characters are supposed to be, and the whole point is
+# that they are *not* the Latin lookalike.
+"src/impressive_ocr_sidecar/latex/symbols.py" = ["RUF001"]
+"src/impressive_ocr_sidecar/writers/docx_equations.py" = ["RUF001"]
 
 [tool.mypy]
 python_version = "3.11"

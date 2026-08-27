@@ -10,6 +10,7 @@ import {
   TERMS_URL,
 } from '@impressive-ocr/shared';
 import { useFirstRun } from '../composables/use-first-run';
+import LicenseStep from './license-step.vue';
 
 /**
  * What a fresh installation has to pass through: the terms, then a pointer at the engine.
@@ -25,7 +26,8 @@ import { useFirstRun } from '../composables/use-first-run';
 
 const { t } = useI18n();
 const router = useRouter();
-const { step, isOpen, accepting, error, load, accept, acknowledgeEngine } = useFirstRun();
+const { step, isOpen, accepting, error, load, accept, acknowledgeEngine, settleLicence } =
+  useFirstRun();
 
 onMounted(load);
 
@@ -97,7 +99,15 @@ function goToSystem(): void {
       </v-card-actions>
     </v-card>
 
-    <!-- Step two: nothing can be OCR'd until the engine is downloaded. -->
+    <!-- Step two: which licence this installation runs under. Skippable, always. -->
+    <v-card v-else-if="step === 'licence'" rounded="lg">
+      <v-card-title class="text-h6 pt-5 px-6">{{ t('licence.title') }}</v-card-title>
+      <v-card-text class="px-6 pb-5">
+        <LicenseStep show-skip @done="settleLicence" @skip="settleLicence" />
+      </v-card-text>
+    </v-card>
+
+    <!-- Step three: nothing can be OCR'd until the engine is downloaded. -->
     <v-card v-else-if="step === 'engine'" rounded="lg">
       <v-card-title class="text-h6 pt-5 px-6">{{ t('firstRun.engine.title') }}</v-card-title>
 

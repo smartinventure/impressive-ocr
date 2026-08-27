@@ -22,7 +22,8 @@
     "retry": "Wiederholen",
     "close": "Schließen",
     "loading": "Wird geladen…",
-    "of": "von"
+    "of": "von",
+    "back": "Zurück"
   },
   "status": {
     "queued": "In Warteschlange",
@@ -707,5 +708,38 @@
     "restartNeeded": "Starten Sie Impressive OCR neu, um den neuen Speicherort zu verwenden. Es wurde nichts verschoben — die Laufzeitumgebung wird dort neu installiert, und der alte Ordner kann gelöscht werden, sobald alles funktioniert.",
     "fromEnvironment": "Der Speicherort wird durch die Umgebungsvariable IMPRESSIVE_OCR_DATA_DIR festgelegt und kann hier nicht geändert werden.",
     "failed": "Der Speicherort konnte nicht geändert werden."
+  },
+  "licence": {
+    "chooseIntro": "Wie nutzen Sie Impressive OCR? Das entscheidet, welche Lizenz gilt — nicht, welche Funktionen Sie erhalten. Zurückgehalten wird in keinem Fall etwas.",
+    "personalTitle": "Privat oder persönlich",
+    "personalBody": "Kostenlos, auf bis zu {seats} eigenen Rechnern. Registrieren Sie eine E-Mail-Adresse, und wir senden Ihnen einen Lizenzschlüssel.",
+    "commercialTitle": "Unternehmen oder Organisation",
+    "commercialBody": "Eine kommerzielle Lizenz gilt unbefristet und enthält ein Jahr automatische Updates. Geben Sie den Schlüssel aus Ihrem Kauf ein.",
+    "commercialLink": "Lizenzbedingungen für Unternehmen lesen",
+    "registerIntro": "Wir senden Ihnen per E-Mail einen Lizenzschlüssel für bis zu {seats} Rechner. Ihre E-Mail-Adresse ist das Einzige, was wir erheben, und kein Dokument verlässt jemals diesen Computer.",
+    "email": "E-Mail-Adresse",
+    "emailHint": "Hierhin wird der Lizenzschlüssel geschickt.",
+    "country": "Land",
+    "register": "Lizenzschlüssel anfordern",
+    "sentTo": "Eine Bestätigungs-E-Mail ist unterwegs an {email}.",
+    "stepVerify": "Öffnen Sie diese E-Mail und klicken Sie auf den Bestätigungslink.",
+    "stepKey": "Danach kommt eine zweite E-Mail mit Ihrem Lizenzschlüssel.",
+    "stepEnter": "Kommen Sie hierher zurück und geben Sie ihn ein.",
+    "haveKey": "Ich habe meinen Lizenzschlüssel",
+    "later": "Später",
+    "activateIntro": "Geben Sie die E-Mail-Adresse ein, zu der die Lizenz gehört, sowie den Schlüssel.",
+    "key": "Lizenzschlüssel",
+    "keyHint": "Aus der E-Mail oder aus Ihrer Kaufbestätigung.",
+    "activate": "Aktivieren",
+    "activeFor": "Lizenziert für {email}.",
+    "seats": "{used} von {total} Rechnern belegt.",
+    "title": "Lizenz",
+    "release": "Diesen Rechner freigeben",
+    "releaseHint": "Gibt den Platz frei, damit ein anderer Rechner ihn nutzen kann. Diese Installation gilt danach als nicht registriert.",
+    "tierPersonal": "Privat",
+    "tierCommercial": "Kommerziell",
+    "updatesUntil": "Automatische Updates bis {date}.",
+    "updatesEnded": "Automatische Updates endeten am {date}. Die Software läuft mit allen Funktionen weiter.",
+    "unregistered": "Diese Installation ist nicht registriert. Sie läuft unter der AGPL-3.0."
   }
 }

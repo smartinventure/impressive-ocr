@@ -24,6 +24,11 @@ import type {
   UpdatePipelineRequest,
   UpdateSettingsRequest,
 } from '@impressive-ocr/shared';
+import type {
+  ActivateLicenseRequest,
+  LicenseStatus,
+  RegisterPersonalRequest,
+} from '@impressive-ocr/shared';
 import { api, uploadFiles } from './client';
 
 /**
@@ -226,6 +231,27 @@ export interface QuickRunProgress {
   };
   jobs: Job[];
 }
+
+/**
+ * Registration and entitlement.
+ *
+ * The status endpoint is safe to call from anywhere: it never returns the licence key, only a
+ * masked form of it.
+ */
+export const licenseApi = {
+  get: (): Promise<LicenseStatus> => api.get('/license'),
+
+  /** Personal tier. Returns with the state `awaiting-key`: the key arrives by email. */
+  registerPersonal: (body: RegisterPersonalRequest): Promise<LicenseStatus> =>
+    api.post('/license/personal', body),
+
+  /** Both tiers. The key came by email, or with a purchase. */
+  activate: (body: ActivateLicenseRequest): Promise<LicenseStatus> =>
+    api.post('/license/activate', body),
+
+  /** Hand this machine's seat back so another can take it. */
+  release: (): Promise<LicenseStatus> => api.post('/license/release', { confirm: true }),
+};
 
 /** The application log, for the in-app viewer. */
 export const logsApi = {

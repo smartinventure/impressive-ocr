@@ -12,6 +12,7 @@ import { useLiveStore } from '../../../stores/live-store';
 import PreflightCard from '../components/preflight-card.vue';
 import UpdateCard from '../components/update-card.vue';
 import DataLocationCard from '../components/data-location-card.vue';
+import LicenseCard from '../components/license-card.vue';
 
 /**
  * System status, and the place the OCR runtime gets installed.
@@ -318,6 +319,10 @@ onMounted(async () => {
         {{ hardware.explanation }}
       </div>
     </v-card>
+
+    <!-- Which licence this installation runs under. Reachable after first run, because that
+         step can be skipped and someone replacing a machine has to release its seat. -->
+    <LicenseCard />
 
     <!-- Where the ~8 GB runtime lives. Desktop only; the card hides itself in a browser. -->
     <DataLocationCard />

@@ -22,7 +22,8 @@
     "retry": "Retry",
     "close": "Close",
     "loading": "Loading…",
-    "of": "of"
+    "of": "of",
+    "back": "Back"
   },
   "status": {
     "queued": "Queued",
@@ -707,5 +708,38 @@
     "restartNeeded": "Restart Impressive OCR to use the new location. Nothing has been moved — the runtime will be installed again there, and the old folder can be deleted once it is working.",
     "fromEnvironment": "The location is set by the IMPRESSIVE_OCR_DATA_DIR environment variable, so it cannot be changed here.",
     "failed": "Could not change the location."
+  },
+  "licence": {
+    "chooseIntro": "How are you using Impressive OCR? This decides which licence applies — not which features you get. Nothing is held back either way.",
+    "personalTitle": "Personal or private use",
+    "personalBody": "Free, on up to {seats} of your own machines. Register an email address and we will send you a licence key.",
+    "commercialTitle": "A company or organisation",
+    "commercialBody": "A commercial licence is perpetual and includes one year of automatic updates. Enter the key from your purchase.",
+    "commercialLink": "Read the commercial licence terms",
+    "registerIntro": "We will email you a licence key for up to {seats} machines. Your email address is the only thing we collect, and no document ever leaves this computer.",
+    "email": "Email address",
+    "emailHint": "Where the licence key is sent.",
+    "country": "Country",
+    "register": "Send me a licence key",
+    "sentTo": "A verification email is on its way to {email}.",
+    "stepVerify": "Open that email and click the verification link.",
+    "stepKey": "A second email then arrives with your licence key.",
+    "stepEnter": "Come back here and enter it.",
+    "haveKey": "I have my licence key",
+    "later": "Skip for now",
+    "activateIntro": "Enter the email address the licence belongs to, and the key.",
+    "key": "Licence key",
+    "keyHint": "From the email, or from your purchase confirmation.",
+    "activate": "Activate",
+    "activeFor": "Licensed to {email}.",
+    "seats": "Using {used} of {total} machines.",
+    "title": "Licence",
+    "release": "Release this machine",
+    "releaseHint": "Frees the seat so another machine can use it. This installation returns to unregistered.",
+    "tierPersonal": "Personal",
+    "tierCommercial": "Commercial",
+    "updatesUntil": "Automatic updates until {date}.",
+    "updatesEnded": "Automatic updates ended on {date}. The software keeps working, with every feature.",
+    "unregistered": "This installation is not registered. It runs under the AGPL-3.0."
   }
 }

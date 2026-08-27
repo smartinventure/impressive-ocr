@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { CONSENT_TERMS_VERSION } from '@impressive-ocr/shared';
-import { consentApi, systemApi } from '../api/endpoints';
+import { consentApi, licenseApi, systemApi } from '../api/endpoints';
 import { useFirstRun } from './use-first-run';
 
 /**
@@ -13,11 +13,24 @@ import { useFirstRun } from './use-first-run';
 vi.mock('../api/endpoints', () => ({
   consentApi: { get: vi.fn(), accept: vi.fn() },
   systemApi: { runtime: vi.fn() },
+  licenseApi: { get: vi.fn() },
 }));
 
 const consentGet = vi.mocked(consentApi.get);
 const consentAccept = vi.mocked(consentApi.accept);
 const runtime = vi.mocked(systemApi.runtime);
+const licenceGet = vi.mocked(licenseApi.get);
+
+/**
+ * An already-registered installation, which is what most of these tests want: the licence
+ * step is not what they are about, and leaving it unregistered would put it between consent
+ * and the engine prompt in every one of them.
+ */
+function licenceStatus(state: 'unregistered' | 'active') {
+  return { state, tier: null, email: null } as unknown as Awaited<
+    ReturnType<typeof licenseApi.get>
+  >;
+}
 
 function status(accepted: boolean) {
   return {
@@ -36,6 +49,7 @@ function runtimeStatus(state: 'not-installed' | 'ready') {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  licenceGet.mockResolvedValue(licenceStatus('active'));
 });
 
 describe('useFirstRun', () => {
@@ -120,5 +134,70 @@ describe('useFirstRun', () => {
 
     expect(first.step.value).toBe('consent');
     expect(first.error.value).toContain('superseded');
+  });
+});
+
+/**
+ * The licence step sits between the terms and the engine prompt.
+ *
+ * It must never become a gate. An unregistered installation is running under the AGPL, which
+ * every recipient already holds — a screen that could not be passed would be a lock, and this
+ * product does not have one.
+ */
+describe('useFirstRun and the licence step', () => {
+  it('asks about the licence once the terms are agreed', async () => {
+    consentGet.mockResolvedValue(status(true));
+    licenceGet.mockResolvedValue(licenceStatus('unregistered'));
+
+    const firstRun = useFirstRun();
+    await firstRun.load();
+
+    expect(firstRun.step.value).toBe('licence');
+  });
+
+  it('never asks an installation that is already registered', async () => {
+    consentGet.mockResolvedValue(status(true));
+    licenceGet.mockResolvedValue(licenceStatus('active'));
+
+    const firstRun = useFirstRun();
+    await firstRun.load();
+
+    expect(firstRun.step.value).not.toBe('licence');
+  });
+
+  it('can always be skipped', async () => {
+    consentGet.mockResolvedValue(status(true));
+    licenceGet.mockResolvedValue(licenceStatus('unregistered'));
+
+    const firstRun = useFirstRun();
+    await firstRun.load();
+    firstRun.settleLicence();
+
+    expect(firstRun.step.value).not.toBe('licence');
+  });
+
+  it('does not block when the licence state cannot be read', async () => {
+    // The same rule as the consent check above: a request that failed must not cost someone
+    // the use of their own installation.
+    consentGet.mockResolvedValue(status(true));
+    licenceGet.mockRejectedValue(new Error('offline'));
+
+    const firstRun = useFirstRun();
+    await firstRun.load();
+
+    expect(firstRun.step.value).not.toBe('licence');
+    expect(firstRun.isOpen.value).toBe(false);
+  });
+
+  it('does not block when the backend is unreachable entirely', async () => {
+    // The regression: a failed consent read returned early before the licence was loaded,
+    // which left the licence step showing — moving the lock-out one screen along rather than
+    // avoiding it.
+    consentGet.mockRejectedValue(new Error('offline'));
+
+    const firstRun = useFirstRun();
+    await firstRun.load();
+
+    expect(firstRun.isOpen.value).toBe(false);
   });
 });

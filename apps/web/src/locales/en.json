@@ -529,7 +529,8 @@
       "terms": "Terms and Conditions",
       "privacy": "Privacy Policy",
       "noTelemetry": "No account, no cloud service, no telemetry. Nothing about your documents ever leaves this machine.",
-      "agree": "I agree"
+      "agree": "I agree",
+      "commercialLicence": "Commercial licence terms"
     },
     "licence": {
       "title": "Licence",

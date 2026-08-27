@@ -3,160 +3,296 @@ import type { LicenseTier } from '@impressive-ocr/shared';
 import type { Logger } from '../../infra/logger';
 
 /**
- * The licence server, behind an interface.
+ * The Speedbits License Manager, behind an interface.
  *
- * A `Protocol`-shaped seam rather than `fetch` calls inside the service, for the ordinary
- * reason: everything that decides *what a licence means* is testable without a network, and
- * the one part that talks to license.speedbits.io is a single file that can be rewritten when
- * the real endpoint shapes arrive without touching a line of the logic above it.
+ * A seam rather than `fetch` calls inside the service, so everything that decides *what a
+ * licence means* is testable without a network and the one part that talks to
+ * license.speedbits.io is a single file.
  *
- * **The HTTP implementation below is written against an assumed contract and is not yet
- * confirmed against the real service.** The request and response shapes are documented here
- * so they can be checked against the API rather than reverse-engineered from the code.
+ * The flow is two steps, and both tiers converge on the second:
+ *
+ * 1. **Register** (`POST /api/register`) — personal only. Creates the account and emails a
+ *    verification link; the licence key itself arrives by email *after* the link is clicked.
+ *    A commercial customer already has a key from the purchase, so they skip this.
+ * 2. **Validate** (`POST /api/installer/validate-license`) — both tiers. Takes the email and
+ *    the key, claims a seat for this machine, and reports the two entitlement dates.
+ *
+ * That shape is worth stating because it is not the one you would guess: registering does
+ * **not** return a key, so a personal user has to come back and enter the one they were
+ * emailed. The screen has to say so, or it looks broken.
  */
+
+/** Every response carries `success`; failures add `error`/`error_code` and a `message`. */
+interface ServerResponse extends Record<string, unknown> {
+  success?: boolean;
+  message?: string;
+  error?: string;
+  error_code?: string;
+}
+
+export interface LicenseServerConfig {
+  /**
+   * Base URL of the licence service.
+   *
+   * **https, deliberately, although the API documentation gives the base URL as http.** Every
+   * call here carries an email address, a licence key and a machine identifier; a licence key
+   * is a bearer credential for the seats it holds. Over plain http all three are readable by
+   * anything between the user and the server, on exactly the coffee-shop networks a desktop
+   * app runs on. If the host genuinely does not serve TLS this has to be raised rather than
+   * quietly downgraded, so the default stays https and only an explicit environment variable
+   * can change it.
+   */
+  baseUrl: string;
+  /**
+   * Installer API key for the product. Identifies the *build*, not the customer.
+   *
+   * Note for this product specifically: Impressive OCR's source is published, so this key is
+   * public no matter where it is stored. It is not a secret and must not be treated as one —
+   * it is a build tag the server can revoke. Rotate it per release, as the API docs advise.
+   */
+  installerApiKey: string;
+  /** `short_code` of the free personal product, e.g. `impressiveocr`. */
+  personalProductCode: string;
+  /** `short_code` of the paid commercial product. */
+  commercialProductCode: string;
+  appVersion: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  /** The server records both, and both are required. Sent from the consent the user gave. */
+  acceptedTerms: boolean;
+  acceptedPrivacy: boolean;
+}
 
 export interface ActivationRequest {
   tier: LicenseTier;
   email: string;
-  /** Absent for a personal registration, which has no key. */
-  licenseKey?: string | undefined;
-  /** Salted hash of the OS machine identifier. Never the raw value. */
+  licenseKey: string;
+  /** 32 hex characters. Stable per installation, since it is what holds the seat. */
   machineId: string;
-  /** So the server can tell a desktop seat from a headless one, and report versions. */
-  appVersion: string;
-  platform: string;
 }
 
 export interface ActivationResult {
-  /** False when the server refused: unknown key, seat limit reached, licence revoked. */
   accepted: boolean;
-  /**
-   * True when a confirmation email has been sent and the registration is not complete until
-   * the user clicks it. Personal registrations only.
-   */
-  requiresEmailConfirmation: boolean;
-  /** When automatic updates stop. The licence itself never expires. */
-  updatesUntil: string | null;
+  /** Seats left after this call, and the limit. `-1` from the server means unlimited. */
   seatsUsed: number | null;
   seatsAllowed: number | null;
-  /** Shown to the user verbatim when present, so the server owns its own refusal wording. */
+  /** ISO date the licence stops working. Null for perpetual, which is the paid product. */
+  licenseExpires: string | null;
+  /** ISO date automatic updates end. The software keeps working past it. */
+  updatesUntil: string | null;
+  updateAccessExpired: boolean;
+  /** Product name, for display. */
+  tierName: string | null;
   message: string | null;
 }
 
-export interface ReleaseRequest {
-  email: string;
-  licenseKey?: string | undefined;
-  machineId: string;
+export interface UpdateEligibility {
+  updateAvailable: boolean;
+  latestVersion: string | null;
+  updatesUntil: string | null;
+  /** True once the update window closed. Auto-updates stop; nothing else changes. */
+  updateAccessExpired: boolean;
 }
 
 export interface LicenseClient {
+  /** Personal tier only. The key arrives by email once the address is verified. */
+  register(request: RegisterRequest, signal?: AbortSignal): Promise<void>;
   activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult>;
-  /** Hand a seat back so another machine can take it. */
-  release(request: ReleaseRequest, signal?: AbortSignal): Promise<void>;
+  checkUpdate(
+    licenseKey: string,
+    machineId: string,
+    signal?: AbortSignal,
+  ): Promise<UpdateEligibility>;
 }
 
 export class LicenseServerError extends Error {
   constructor(
     message: string,
     readonly retryable: boolean,
+    /** The server's own code — `NO_SEATS_AVAILABLE`, `LICENSE_EXPIRED` — for logs. */
+    readonly code: string | null = null,
   ) {
     super(message);
     this.name = 'LicenseServerError';
   }
 }
 
-export interface HttpLicenseClientOptions {
-  /** Base URL of the licence service, without a trailing slash. */
-  baseUrl: string;
-  appVersion: string;
-  logger: Logger;
-  timeoutMs?: number;
-}
-
 /** Long enough for a slow link, short enough that a hung server is not a hung first run. */
 const DEFAULT_TIMEOUT_MS = 15_000;
 
 /**
- * Talks to license.speedbits.io.
- *
- * Assumed contract, pending confirmation:
- *
- * ```
- * POST {baseUrl}/v1/activations
- *   → { accepted, requiresEmailConfirmation, updatesUntil, seatsUsed, seatsAllowed, message }
- * POST {baseUrl}/v1/activations/release
- *   → 204
- * ```
- *
- * A refusal is expected to arrive as `200` with `accepted: false` and a `message`, because a
- * rejected key is a normal answer rather than a transport failure — and the two need
- * different handling. A `4xx` is treated as a permanent refusal, a `5xx` or a timeout as
- * retryable, so the caller can tell "your key is wrong" from "try again in a minute".
+ * Codes that mean "the licence is fine, the moment is wrong" — worth another try — as opposed
+ * to a decision about the licence that retrying cannot change.
  */
+const RETRYABLE_CODES = new Set(['SERVER_ERROR']);
+
 export class HttpLicenseClient implements LicenseClient {
-  constructor(private readonly options: HttpLicenseClientOptions) {}
+  constructor(
+    private readonly config: LicenseServerConfig,
+    private readonly logger: Logger,
+    private readonly timeoutMs = DEFAULT_TIMEOUT_MS,
+  ) {}
+
+  async register(request: RegisterRequest, signal?: AbortSignal): Promise<void> {
+    await this.post(
+      '/api/register',
+      {
+        email: request.email,
+        short_code: this.config.personalProductCode,
+        accepted_terms: request.acceptedTerms,
+        accepted_privacy: request.acceptedPrivacy,
+      },
+      signal,
+    );
+  }
 
   async activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult> {
-    const payload = await this.post('/v1/activations', request, signal);
+    const productCode =
+      request.tier === 'personal'
+        ? this.config.personalProductCode
+        : this.config.commercialProductCode;
+
+    const payload = await this.post(
+      '/api/installer/validate-license',
+      {
+        email: request.email,
+        license_key: request.licenseKey,
+        machine_id: request.machineId,
+        version: this.config.appVersion,
+        api_key: this.config.installerApiKey,
+        // Guards against activating a commercial key against the free product, and the other
+        // way round — which would otherwise succeed and silently record the wrong tier.
+        product_edition: productCode,
+      },
+      signal,
+    );
+
+    const seatsTotal = asNumber(payload.seats_total);
+    const seatsRemaining = asNumber(payload.seats_remaining);
+
     return {
-      accepted: payload.accepted === true,
-      requiresEmailConfirmation: payload.requiresEmailConfirmation === true,
-      updatesUntil: asString(payload.updatesUntil),
-      seatsUsed: asNumber(payload.seatsUsed),
-      seatsAllowed: asNumber(payload.seatsAllowed),
+      accepted: payload.valid === true || payload.success === true,
+      // The server reports what is *left*; the screen wants what is *used*. `-1` is its
+      // spelling of unlimited, which is not a number of seats and must not be shown as one.
+      seatsAllowed: seatsTotal === null || seatsTotal < 0 ? null : seatsTotal,
+      seatsUsed:
+        seatsTotal === null || seatsTotal < 0 || seatsRemaining === null
+          ? null
+          : seatsTotal - seatsRemaining,
+      licenseExpires: asString(payload.license_expires),
+      updatesUntil: asString(payload.update_eligible_until),
+      updateAccessExpired: payload.update_access_expired === true,
+      tierName: asString(payload.tier_name),
       message: asString(payload.message),
     };
   }
 
-  async release(request: ReleaseRequest, signal?: AbortSignal): Promise<void> {
-    await this.post('/v1/activations/release', request, signal);
+  async checkUpdate(
+    licenseKey: string,
+    machineId: string,
+    signal?: AbortSignal,
+  ): Promise<UpdateEligibility> {
+    const payload = await this.post(
+      '/api/installer/check-update',
+      {
+        license_key: licenseKey,
+        machine_id: machineId,
+        current_version: this.config.appVersion,
+      },
+      signal,
+    );
+
+    return {
+      updateAvailable: payload.update_available === true,
+      latestVersion: asString(payload.latest_version),
+      updatesUntil: asString(payload.update_eligible_until),
+      updateAccessExpired: payload.update_access_expired === true,
+    };
   }
 
   private async post(
     path: string,
-    body: unknown,
+    body: Record<string, unknown>,
     signal?: AbortSignal,
-  ): Promise<Record<string, unknown>> {
-    const timeout = AbortSignal.timeout(this.options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  ): Promise<ServerResponse> {
+    const timeout = AbortSignal.timeout(this.timeoutMs);
     const combined = signal === undefined ? timeout : AbortSignal.any([signal, timeout]);
 
     let response: Response;
     try {
-      response = await fetch(`${this.options.baseUrl}${path}`, {
+      response = await fetch(`${this.config.baseUrl}${path}`, {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          'user-agent': `ImpressiveOCR/${this.options.appVersion}`,
+          'user-agent': `ImpressiveOCR/${this.config.appVersion}`,
         },
         body: JSON.stringify(body),
         signal: combined,
       });
     } catch (error) {
-      // No network, DNS failure, timeout. Always worth another try later.
-      this.options.logger.warn({ err: error, path }, 'Could not reach the licence server');
+      // No network, DNS failure, timeout. Says nothing about the licence.
+      this.logger.warn({ err: error, path }, 'Could not reach the licence server');
       throw new LicenseServerError('The licence server could not be reached.', true);
     }
 
+    const payload = await readJson(response);
+    const code = asString(payload.error_code) ?? asString(payload.error);
+
     if (response.status >= 500) {
-      // Retryable: the server is broken or restarting, which says nothing about the licence.
-      throw new LicenseServerError('The licence server is temporarily unavailable.', true);
+      throw new LicenseServerError(
+        'The licence server is temporarily unavailable. Please try again.',
+        true,
+        code,
+      );
     }
 
-    const payload = await readJson(response);
-    if (response.status >= 400) {
-      const message = asString(payload.message) ?? `The licence server refused the request.`;
-      throw new LicenseServerError(message, false);
+    if (response.status >= 400 || payload.success === false) {
+      // The server writes wording meant for the user, so it is shown rather than replaced.
+      // Only its absence falls back to something generic.
+      const message = asString(payload.message) ?? describe(code);
+      throw new LicenseServerError(message, code !== null && RETRYABLE_CODES.has(code), code);
     }
+
     return payload;
   }
 }
 
-async function readJson(response: Response): Promise<Record<string, unknown>> {
+/**
+ * Wording for the server's codes, used only when it sends no message of its own.
+ *
+ * Every one of these is something the user can act on, which is the test for whether it
+ * belongs here: "no seats left" tells them to free a machine, `VALIDATION_FAILED` tells them
+ * to check what they typed. The server returns that same generic code for every ownership
+ * failure on purpose, so the endpoint cannot be used to find out which addresses exist —
+ * which means this wording must not guess at a more specific reason either.
+ */
+function describe(code: string | null): string {
+  switch (code) {
+    case 'NO_SEATS_AVAILABLE':
+      return 'This licence is already in use on the maximum number of machines.';
+    case 'LICENSE_EXPIRED':
+      return 'This licence has expired.';
+    case 'LICENSE_INACTIVE':
+      return 'This licence is not active. Please contact support.';
+    case 'EDITION_MISMATCH':
+      return 'That key belongs to a different product.';
+    case 'INVALID_MACHINE_ID':
+      return 'This machine could not be identified. Please report this.';
+    case 'INVALID_API_KEY':
+      return 'This version of Impressive OCR can no longer activate. Please update.';
+    case 'VALIDATION_FAILED':
+      return 'That email address and licence key do not match.';
+    default:
+      return 'The licence could not be verified.';
+  }
+}
+
+async function readJson(response: Response): Promise<ServerResponse> {
   try {
     const parsed: unknown = await response.json();
-    return typeof parsed === 'object' && parsed !== null
-      ? (parsed as Record<string, unknown>)
-      : {};
+    return typeof parsed === 'object' && parsed !== null ? (parsed as ServerResponse) : {};
   } catch {
     // A licence server answering with HTML is a misconfiguration, not a licence decision.
     return {};

@@ -4,7 +4,7 @@ import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
 import {
   licenseRecordSchema,
   maskLicenseKey,
-  type ActivateCommercialRequest,
+  type ActivateLicenseRequest,
   type LicenseRecord,
   type LicenseStatus,
   type RegisterPersonalRequest,
@@ -16,15 +16,23 @@ import { machineId } from './machine-id';
 /**
  * Which of the two licences this installation runs under.
  *
- * A registration record, not a copy-protection scheme, and the difference is deliberate.
- * Impressive OCR is dual licensed: the personal tier is the AGPL grant everyone already has,
- * and the commercial tier is what an organisation buys to be released from the AGPL's
- * obligations. **Neither tier withholds a feature, and nothing here refuses to process a
- * document.** The source is published under a licence that permits removing this code, so a
+ * A registration and entitlement record, not a copy-protection scheme, and the difference is
+ * deliberate. Impressive OCR is dual licensed: the personal tier is the AGPL grant everyone
+ * already has, the commercial tier is what an organisation buys to be released from the
+ * AGPL's obligations. **Neither tier withholds a feature, and nothing here refuses to process
+ * a document.** The source is published under a licence that permits deleting this file, so a
  * lock built on it would inconvenience honest users and stop nobody else.
  *
- * What it does do is record the choice, prove the entitlement once against the licence
- * server, and give support something to look at.
+ * The one thing entitlement does gate is **automatic updates**, and only for the commercial
+ * tier: past `updatesUntil` the installed version keeps working with every feature, and stops
+ * being offered newer releases. That is what was bought, and it is enforced by the licence
+ * server rather than by us.
+ *
+ * The flow has two steps and is worth stating, because it is not the obvious one:
+ *
+ * - Personal: register an email, verify it from the inbox, receive a key **by email**, then
+ *   enter that key. Registration alone does not activate anything.
+ * - Commercial: the key came with the purchase, so only the second step applies.
  */
 
 export class LicenseActivationError extends Error {
@@ -40,7 +48,6 @@ export class LicenseActivationError extends Error {
 export interface LicenseServiceOptions {
   db: Database_;
   client: LicenseClient;
-  appVersion: string;
   logger: Logger;
 }
 
@@ -52,10 +59,12 @@ export class LicenseService {
     return {
       state: record.state,
       tier: record.tier,
-      email: isEmail(record.email) ? record.email : null,
+      email: record.email,
       maskedKey: record.licenseKey === null ? null : maskLicenseKey(record.licenseKey),
       activatedAt: record.activatedAt,
+      licenseExpires: record.licenseExpires,
       updatesUntil: record.updatesUntil,
+      updateAccessExpired: record.updateAccessExpired,
       seatsUsed: record.seatsUsed,
       seatsAllowed: record.seatsAllowed,
       message: record.message,
@@ -63,63 +72,49 @@ export class LicenseService {
   }
 
   /**
-   * Register for the personal tier.
+   * Ask for a free personal licence.
    *
-   * Lands in `pending-confirmation` rather than `active`: the address is not proven until the
-   * user clicks the link, and recording it as complete before then would let one person
-   * register three seats to an address they do not own.
+   * Records `awaiting-key` rather than anything more optimistic, because that is exactly what
+   * is true: an email is on its way, and no key exists on this machine yet. Presenting this
+   * as "registered" would leave the user with no idea that a second step is coming, and the
+   * screen has to say so explicitly.
    */
   async registerPersonal(request: RegisterPersonalRequest): Promise<LicenseStatus> {
-    const machine = await machineId();
-    const result = await this.callServer(() =>
-      this.options.client.activate({
-        tier: 'personal',
+    await this.callServer(() =>
+      this.options.client.register({
         email: request.email,
-        machineId: machine,
-        appVersion: this.options.appVersion,
-        platform: process.platform,
+        acceptedTerms: true,
+        acceptedPrivacy: true,
       }),
     );
 
-    if (!result.accepted) {
-      return this.store({
-        ...this.read(),
-        state: 'invalid',
-        tier: 'personal',
-        email: request.email,
-        seatsUsed: result.seatsUsed,
-        seatsAllowed: result.seatsAllowed,
-        message: result.message ?? 'That registration was not accepted.',
-      });
-    }
-
     return this.store({
-      state: result.requiresEmailConfirmation ? 'pending-confirmation' : 'active',
+      ...licenseRecordSchema.parse({}),
+      state: 'awaiting-key',
       tier: 'personal',
       email: request.email,
-      licenseKey: null,
-      machineId: machine,
-      activatedAt: new Date().toISOString(),
-      updatesUntil: result.updatesUntil,
-      seatsUsed: result.seatsUsed,
-      seatsAllowed: result.seatsAllowed,
-      message: result.message,
     });
   }
 
-  /** Activate a purchased licence. Keys are pasted out of emails, so they arrive untidy. */
-  async activateCommercial(request: ActivateCommercialRequest): Promise<LicenseStatus> {
+  /**
+   * Activate a key and claim this machine's seat.
+   *
+   * One method for both tiers: the licence server takes the same call either way, and the
+   * tier only decides which product code guards it. A personal key offered against the
+   * commercial product — or the reverse — is refused as `EDITION_MISMATCH` rather than
+   * silently recording the wrong tier.
+   */
+  async activate(request: ActivateLicenseRequest): Promise<LicenseStatus> {
+    // Users paste these out of emails, so they arrive with stray spaces and mixed case.
     const licenseKey = request.licenseKey.trim().toUpperCase();
     const machine = await machineId();
 
     const result = await this.callServer(() =>
       this.options.client.activate({
-        tier: 'commercial',
+        tier: request.tier,
         email: request.email,
         licenseKey,
         machineId: machine,
-        appVersion: this.options.appVersion,
-        platform: process.platform,
       }),
     );
 
@@ -127,7 +122,7 @@ export class LicenseService {
       return this.store({
         ...this.read(),
         state: 'invalid',
-        tier: 'commercial',
+        tier: request.tier,
         email: request.email,
         message: result.message ?? 'That licence key was not accepted.',
       });
@@ -135,12 +130,14 @@ export class LicenseService {
 
     return this.store({
       state: 'active',
-      tier: 'commercial',
+      tier: request.tier,
       email: request.email,
       licenseKey,
       machineId: machine,
       activatedAt: new Date().toISOString(),
+      licenseExpires: result.licenseExpires,
       updatesUntil: result.updatesUntil,
+      updateAccessExpired: result.updateAccessExpired,
       seatsUsed: result.seatsUsed,
       seatsAllowed: result.seatsAllowed,
       message: null,
@@ -148,43 +145,54 @@ export class LicenseService {
   }
 
   /**
-   * Hand this machine's seat back and return to unregistered.
+   * Whether this installation may still be offered a newer release.
    *
-   * The local record is cleared even when the server call fails. The alternative leaves
-   * someone who is decommissioning a machine unable to release it because the machine is
-   * already offline, which is exactly when they would be doing this.
+   * The only place entitlement changes behaviour. Returns true when nothing is registered:
+   * an unregistered copy is running under the AGPL, which carries no update restriction, and
+   * withholding updates from it would be inventing a limit nobody agreed to.
    */
-  async releaseSeat(): Promise<LicenseStatus> {
+  async canReceiveUpdates(): Promise<boolean> {
     const record = this.read();
-    if (record.state === 'unregistered' || !isEmail(record.email)) {
-      return this.status();
+    if (record.state !== 'active' || record.licenseKey === null) {
+      return true;
     }
 
     try {
-      await this.options.client.release({
-        email: record.email,
-        ...(record.licenseKey === null ? {} : { licenseKey: record.licenseKey }),
-        machineId: record.machineId ?? (await machineId()),
-      });
-    } catch (error) {
-      this.options.logger.warn(
-        { err: error },
-        'Could not tell the licence server about the release; clearing locally anyway',
+      const eligibility = await this.options.client.checkUpdate(
+        record.licenseKey,
+        record.machineId ?? (await machineId()),
       );
+      // Written back so the System page can say when updates lapse without calling out again.
+      this.store({
+        ...record,
+        updatesUntil: eligibility.updatesUntil,
+        updateAccessExpired: eligibility.updateAccessExpired,
+      });
+      return !eligibility.updateAccessExpired;
+    } catch (error) {
+      // An unreachable licence server must not stop a paying customer updating. Failing
+      // closed here would turn every outage into "the app says my licence is invalid".
+      this.options.logger.warn({ err: error }, 'Could not check update entitlement; allowing');
+      return true;
     }
-
-    return this.store(licenseRecordSchema.parse({}));
   }
 
   /**
-   * True once the installation has been registered under either tier.
+   * Forget the licence on this machine.
    *
-   * Exposed for the first-run flow to decide whether to ask, and for nothing else. No code
-   * path gates processing on it — see the note at the top of this file.
+   * **Local only.** The Speedbits API has no endpoint for handing a seat back, so this
+   * releases nothing server-side: the seat stays claimed until an administrator clears the
+   * activation. The wording shown to the user has to say that rather than implying a seat was
+   * freed, and a `POST /api/installer/release-seat` on the licence server would remove the
+   * need for a support ticket every time someone replaces a computer.
    */
-  isRegistered(): boolean {
-    const { state } = this.read();
-    return state === 'active' || state === 'pending-confirmation';
+  forget(): LicenseStatus {
+    return this.store(licenseRecordSchema.parse({}));
+  }
+
+  /** True once a key has been activated. For the first-run flow, and nothing else. */
+  isActivated(): boolean {
+    return this.read().state === 'active';
   }
 
   private async callServer<T>(call: () => Promise<T>): Promise<T> {
@@ -192,6 +200,7 @@ export class LicenseService {
       return await call();
     } catch (error) {
       if (error instanceof LicenseServerError) {
+        this.options.logger.warn({ code: error.code }, 'The licence server refused a request');
         throw new LicenseActivationError(error.message, error.retryable);
       }
       this.options.logger.error({ err: error }, 'Licence activation failed unexpectedly');
@@ -221,10 +230,3 @@ export class LicenseService {
     return parsed.success ? parsed.data : licenseRecordSchema.parse({});
   }
 }
-
-/** Stored emails come back through zod as plain strings; this is the narrowing. */
-function isEmail(value: string | null): value is string {
-  return value !== null && value.includes('@');
-}
-
-export { machineId };

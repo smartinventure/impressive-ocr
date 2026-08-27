@@ -529,7 +529,8 @@
       "terms": "Allgemeine Geschäftsbedingungen",
       "privacy": "Datenschutzerklärung",
       "noTelemetry": "Kein Konto, kein Cloud-Dienst, keine Telemetrie. Nichts über Ihre Dokumente verlässt jemals diesen Rechner.",
-      "agree": "Ich stimme zu"
+      "agree": "Ich stimme zu",
+      "commercialLicence": "Lizenzbedingungen für Unternehmen"
     },
     "licence": {
       "title": "Lizenz",

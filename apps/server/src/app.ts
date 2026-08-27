@@ -145,16 +145,35 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     pretty: options.pretty ?? process.env.NODE_ENV !== 'production',
     file: logFile,
   });
-  // The licence server is a URL rather than a constant so a staging instance can be pointed
-  // at without a rebuild, and so tests never reach the real one.
+  /**
+   * The Speedbits License Manager.
+   *
+   * https by default even though the API documentation gives the base URL as http: every
+   * call carries an email address, a licence key and a machine id, and a licence key is a
+   * bearer credential. Only an explicit environment variable can downgrade that.
+   *
+   * The product codes and the installer key are per-build values that differ between the
+   * free and paid products. They are read from the environment so a release can set them
+   * without a code change, and so a test never reaches the real server.
+   */
   const licenseService = new LicenseService({
     db,
-    client: new HttpLicenseClient({
-      baseUrl: process.env.IMPRESSIVE_OCR_LICENSE_URL ?? DEFAULT_LICENSE_URL,
-      appVersion: APP_VERSION,
+    client: new HttpLicenseClient(
+      {
+        baseUrl: process.env.IMPRESSIVE_OCR_LICENSE_URL ?? DEFAULT_LICENSE_URL,
+        installerApiKey: process.env.IMPRESSIVE_OCR_LICENSE_API_KEY ?? '',
+        // Defaulted rather than required: an installation with no licence configuration
+        // still starts and works, and only registration reports that it cannot reach the
+        // server. Gating startup on a licence variable would make a missing build flag
+        // look like a broken application.
+        personalProductCode:
+          process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_PERSONAL ?? 'impressiveocr',
+        commercialProductCode:
+          process.env.IMPRESSIVE_OCR_LICENSE_PRODUCT_COMMERCIAL ?? 'impressiveocrcommercial',
+        appVersion: APP_VERSION,
+      },
       logger,
-    }),
-    appVersion: APP_VERSION,
+    ),
     logger,
   });
 

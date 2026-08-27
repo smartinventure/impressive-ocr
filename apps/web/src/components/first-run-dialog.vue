@@ -3,7 +3,12 @@
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { LICENCE_ENQUIRY_URL, PRIVACY_URL, TERMS_URL } from '@impressive-ocr/shared';
+import {
+  COMMERCIAL_LICENCE_URL,
+  LICENCE_ENQUIRY_URL,
+  PRIVACY_URL,
+  TERMS_URL,
+} from '@impressive-ocr/shared';
 import { useFirstRun } from '../composables/use-first-run';
 
 /**
@@ -60,6 +65,14 @@ function goToSystem(): void {
           <li>
             <a :href="PRIVACY_URL" target="_blank" rel="noopener noreferrer">
               {{ t('firstRun.consent.privacy') }}
+            </a>
+          </li>
+          <!-- The terms an organisation actually buys. Listed for everyone rather than shown
+               only after someone picks the commercial tier: it is the document that decides
+               whether they need to, so hiding it behind that choice is backwards. -->
+          <li>
+            <a :href="COMMERCIAL_LICENCE_URL" target="_blank" rel="noopener noreferrer">
+              {{ t('firstRun.consent.commercialLicence') }}
             </a>
           </li>
         </ul>

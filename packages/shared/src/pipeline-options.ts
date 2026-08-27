@@ -301,3 +301,19 @@ export function draftPipelineOptions(): PipelineOptions {
     output: { ...defaults.output, outputPath: '' },
   };
 }
+
+/**
+ * The profile to preselect on a machine that can run either.
+ *
+ * `accurate` wherever it is offered at all, which is the reverse of what it used to be. It
+ * became the faster profile as well as the more accurate one — about 2 s a page against 3.5
+ * on a graphics card, and 11 against 100 on a processor — so there is no longer a machine
+ * where preselecting `fast` serves the person using it.
+ *
+ * The schema default stays `fast`, and deliberately: it is the floor that runs anywhere, and
+ * it is what an API client gets for omitting the field. This is the *recommendation*, applied
+ * by the surfaces that know what the machine can actually do.
+ */
+export function recommendedProfile(availableProfiles: readonly EngineProfile[]): EngineProfile {
+  return availableProfiles.includes('accurate') ? 'accurate' : 'fast';
+}

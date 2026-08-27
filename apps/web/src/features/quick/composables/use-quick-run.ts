@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
   quickOptionsSchema,
+  recommendedProfile,
   type QuickOptions,
   type QuickRun,
   type QuickRunFile,
@@ -50,6 +51,36 @@ function recallRun(): QuickRun | null {
   }
 }
 
+/**
+ * How far a run is, counted in pages rather than in whole documents.
+ *
+ * Documents alone made the commonest Quick Mode run -- a single file -- a bar that sat at
+ * zero and indeterminate for the whole job and then jumped to full, which reads as a hang on
+ * anything longer than a couple of pages. Both engines stream a page event as each page
+ * lands, so the document in flight can contribute its own fraction of one slot.
+ *
+ * Exported for its own test: it is arithmetic with three ways to be wrong -- a bar that goes
+ * backwards, one that passes 100%, and one that divides by a page count of zero.
+ */
+export function progressFraction(input: {
+  finished: number;
+  total: number;
+  pagesDone: number;
+  /** Null until the sidecar has opened the document and counted its pages. */
+  pageCount: number | null;
+}): number {
+  if (input.total <= 0) return 0;
+
+  // Worth at most one slot however many pages it has, so the bar is monotonic: page 5 of 5
+  // leaves it exactly where finishing the document does.
+  const partial =
+    input.pageCount !== null && input.pageCount > 0
+      ? Math.min(input.pagesDone / input.pageCount, 1)
+      : 0;
+
+  return Math.min((input.finished + partial) / input.total, 1);
+}
+
 export function useQuickRun() {
   // Upload by default: someone opening this in a browser is usually not sitting at the
   // server. The desktop app overrides it below, where both are the same machine anyway.
@@ -66,6 +97,28 @@ export function useQuickRun() {
   if (desktop.isDesktop.value) {
     // The native dialog returns real paths, so the desktop never uploads to itself.
     source.value = 'server';
+  }
+
+  /**
+   * Preselect the better profile once the machine's capabilities are known.
+   *
+   * Applied by watcher rather than at construction because the hardware probe arrives over
+   * the wire, usually after this composable is created. Guarded on the user not having
+   * touched the control: a preference stated before the probe landed outranks ours.
+   */
+  const profileChosen = ref(false);
+  watch(
+    () => store.system?.hardware.availableProfiles,
+    (profiles) => {
+      if (profiles === undefined || profileChosen.value) return;
+      options.value = { ...options.value, profile: recommendedProfile(profiles) };
+    },
+    { immediate: true },
+  );
+
+  /** Called by the view when the profile select is used, to stop the watcher overriding it. */
+  function keepProfile(): void {
+    profileChosen.value = true;
   }
 
   const run = ref<QuickRun | null>(null);
@@ -172,11 +225,14 @@ export function useQuickRun() {
     };
   });
 
-  const completedFraction = computed(() => {
-    const total = run.value?.fileCount ?? 0;
-    if (total === 0) return 0;
-    return (succeeded.value + failed.value) / total;
-  });
+  const completedFraction = computed(() =>
+    progressFraction({
+      finished: succeeded.value + failed.value,
+      total: run.value?.fileCount ?? 0,
+      pagesDone: currentDocument.value?.pagesDone ?? 0,
+      pageCount: currentDocument.value?.pageCount ?? null,
+    }),
+  );
 
   /**
    * Uploads are downloaded; server runs wrote to a folder the user can already open.
@@ -355,6 +411,7 @@ export function useQuickRun() {
     pageProgress,
     currentDocument,
     completedFraction,
+    keepProfile,
     canDownload,
     downloadUrl,
     absoluteDownloadUrl,

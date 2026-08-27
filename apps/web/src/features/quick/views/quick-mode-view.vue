@@ -167,6 +167,7 @@ function toggleFormat(format: OutputFormat): void {
           variant="outlined"
           class="mb-4"
           :disabled="quick.busy.value"
+          @update:model-value="quick.keepProfile"
         >
           <template #append><InfoHint topic="quickProfile" /></template>
         </v-select>

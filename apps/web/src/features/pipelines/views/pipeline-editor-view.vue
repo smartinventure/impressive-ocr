@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -8,6 +8,7 @@ import {
   formatVramGib,
   MIN_VRAM_GIB_FOR_VL,
   pipelineOptionsSchema,
+  recommendedProfile,
   type OutputFormat,
   type PipelineOptions,
 } from '@impressive-ocr/shared';
@@ -42,11 +43,36 @@ const formError = ref<string | null>(null);
 const fieldErrors = ref<Record<string, string>>({});
 const openPanels = ref<string[]>(['source', 'engine', 'output']);
 
+/**
+ * Re-apply the recommended profile once the hardware probe arrives.
+ *
+ * `blankOptions()` runs during setup, usually before the probe has landed, so without this
+ * a new pipeline on a capable machine would still open on `fast`. Restricted to a new,
+ * untouched form: an existing pipeline's profile is a saved decision, and changing what a
+ * watched folder does without being asked is not an improvement.
+ */
+const profileChosen = ref(false);
+watch(
+  () => store.system?.hardware.availableProfiles,
+  (profiles) => {
+    if (profiles === undefined || profileChosen.value || isEdit.value) return;
+    options.value.engine.profile = recommendedProfile(profiles);
+  },
+);
+
 function blankOptions(): PipelineOptions {
   // Shared, so the form and the server start from exactly the same ~30 defaults with no
   // second copy to drift. It must not be `pipelineOptionsSchema.parse` with empty paths:
   // those are `.min(1)`, so that throws here in setup and renders a blank page.
-  return draftPipelineOptions();
+  const draft = draftPipelineOptions();
+  const profiles = store.system?.hardware.availableProfiles;
+
+  // A new pipeline starts on the better profile where the machine has one. Only a new one:
+  // an existing pipeline's saved choice is the user's, and silently upgrading it would
+  // change what a watched folder does without anyone asking for it.
+  return profiles === undefined
+    ? draft
+    : { ...draft, engine: { ...draft.engine, profile: recommendedProfile(profiles) } };
 }
 
 const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
@@ -286,6 +312,7 @@ onMounted(async () => {
               ]"
               :label="t('editor.profile')"
               class="mb-4"
+              @update:model-value="profileChosen = true"
             >
               <template #append><InfoHint topic="editorProfile" /></template>
             </v-select>

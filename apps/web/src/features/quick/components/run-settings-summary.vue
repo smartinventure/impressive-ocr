@@ -63,13 +63,17 @@ const chips = computed(() => {
     }),
   ];
 
-  // Only when switched on. A chip saying a feature is off is noise on a card that is already
-  // reporting four other things.
-  if (options.tableRecognition) {
-    entries.push(t('quick.summaryTables'));
-  }
-  if (options.formulaRecognition) {
-    entries.push(t('quick.summaryFormulas'));
+  // Only when switched on, and only on the engine that reads them. A chip saying a feature is
+  // off is noise on a card already reporting four other things; one claiming a module ran on
+  // the accurate engine would be worse than noise, because that engine never receives them —
+  // it reads tables and formulas itself, whatever these are set to.
+  if (options.profile === 'fast') {
+    if (options.tableRecognition) {
+      entries.push(t('quick.summaryTables'));
+    }
+    if (options.formulaRecognition) {
+      entries.push(t('quick.summaryFormulas'));
+    }
   }
   return entries;
 });

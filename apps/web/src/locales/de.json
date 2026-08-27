@@ -179,7 +179,8 @@
     "encodingUtf8Bom": "UTF-8 mit BOM (für Excel)",
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Betrifft nur die .txt-Datei. BOM wählen, wenn Excel Umlaute verstümmelt; Latin-1 nur für Altsysteme, da Zeichen außerhalb davon nicht schreibbar sind.",
-    "sectionExpert": "Experteneinstellungen"
+    "sectionExpert": "Experteneinstellungen",
+    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang. Rendering-Auflösung und die einzelnen Erkenner gelten nur für die Engine „Schnell“."
   },
   "moduleTone": {
     "slow": "langsamer",
@@ -420,7 +421,10 @@
     "strategyHybridShort": "Hybrid",
     "strategySkipShort": "Überspringen",
     "strategyAlwaysShort": "Immer OCR",
-    "downloadFiles": "Einzelne Dateien ({count})"
+    "downloadFiles": "Einzelne Dateien ({count})",
+    "uploading": "{count} Datei(en) werden an den Server übertragen…",
+    "startingRun": "Der Lauf wird gestartet…",
+    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang — hier gibt es nichts einzuschalten."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

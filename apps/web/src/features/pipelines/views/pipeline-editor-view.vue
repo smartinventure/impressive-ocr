@@ -35,6 +35,17 @@ const store = useLiveStore();
 const { t } = useI18n();
 
 const isEdit = computed(() => props.id !== undefined);
+
+/**
+ * Whether the rendering resolution and the module switches do anything on this engine.
+ *
+ * Both belong to PP-StructureV3. The accurate engine is handed the PDF and derives its own
+ * page geometry — rendering it to an image first costs reading order rather than gaining
+ * anything — and it reads layout, tables and formulas in one pass, so the module toggles are
+ * never sent. Showing settings that are quietly ignored is worse than not offering them: it
+ * invites tuning a run by a control that was never connected to it.
+ */
+const structureSettingsApply = computed(() => options.value.engine.profile === 'fast');
 const name = ref('');
 const description = ref('');
 const options = ref<PipelineOptions>(blankOptions());
@@ -331,6 +342,7 @@ onMounted(async () => {
             </v-select>
 
             <v-select
+              v-if="structureSettingsApply"
               v-model="options.engine.rasterDpi"
               :items="[150, 200, 300, 400]"
               :label="t('editor.dpi')"
@@ -356,22 +368,28 @@ onMounted(async () => {
               <template #append><InfoHint topic="editorTextLayer" /></template>
             </v-select>
 
-            <div class="editor__modules-title">
-              {{ t('editor.modules') }}
-              <InfoHint topic="editorModules" />
-            </div>
-            <div v-for="module in MODULES" :key="module.key" class="editor__module">
-              <v-switch
-                v-model="options.engine.modules[module.key]"
-                :label="t(module.labelKey)"
-                color="primary"
-                density="compact"
-                hide-details
-              />
-              <span class="editor__module-tone" :class="`editor__module-tone--${module.tone}`">
-                {{ t(`moduleTone.${module.tone}`) }}
-              </span>
-            </div>
+            <template v-if="structureSettingsApply">
+              <div class="editor__modules-title">
+                {{ t('editor.modules') }}
+                <InfoHint topic="editorModules" />
+              </div>
+              <div v-for="module in MODULES" :key="module.key" class="editor__module">
+                <v-switch
+                  v-model="options.engine.modules[module.key]"
+                  :label="t(module.labelKey)"
+                  color="primary"
+                  density="compact"
+                  hide-details
+                />
+                <span class="editor__module-tone" :class="`editor__module-tone--${module.tone}`">
+                  {{ t(`moduleTone.${module.tone}`) }}
+                </span>
+              </div>
+            </template>
+
+            <p v-else class="text-body-2 text-medium-emphasis mb-0">
+              {{ t('editor.modulesBuiltIn') }}
+            </p>
           </v-expansion-panel-text>
         </v-expansion-panel>
 

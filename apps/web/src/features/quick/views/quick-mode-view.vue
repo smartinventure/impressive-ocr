@@ -38,6 +38,17 @@ function formatBytes(bytes: number): string {
 const gpuAvailable = computed(() => store.system?.hardware.canUseGpu ?? false);
 
 /**
+ * Whether the per-module switches mean anything for the selected engine.
+ *
+ * They are PP-StructureV3's, and the accurate engine is a vision-language model that reads
+ * layout, tables and formulas in one pass — `build_predict_kwargs` in the sidecar does not
+ * send them to it at all. Left on screen they invite exactly the wrong conclusion: that a
+ * page of mathematics came out well *because* formula recognition was on, or badly because
+ * it was off, when neither switch was ever consulted.
+ */
+const modulesApply = computed(() => quick.options.value.profile === 'fast');
+
+/**
  * Whether the vision-language engine can run here at all.
  *
  * It no longer needs a graphics card — the inference engine runs it on a processor at about
@@ -217,33 +228,57 @@ function toggleFormat(format: OutputFormat): void {
           <template #append><InfoHint topic="quickTextLayer" /></template>
         </v-select>
 
-        <v-switch
-          v-model="quick.options.value.tableRecognition"
-          :label="t('module.table')"
-          color="primary"
-          density="compact"
-          :hint="t('quick.tableCost')"
-          persistent-hint
-          :disabled="quick.busy.value"
-        />
-        <v-switch
-          v-model="quick.options.value.formulaRecognition"
-          :label="t('module.formula')"
-          color="primary"
-          density="compact"
-          :hint="t('quick.formulaHint')"
-          persistent-hint
-          :disabled="quick.busy.value"
-        />
+        <template v-if="modulesApply">
+          <v-switch
+            v-model="quick.options.value.tableRecognition"
+            :label="t('module.table')"
+            color="primary"
+            density="compact"
+            :hint="t('quick.tableCost')"
+            persistent-hint
+            :disabled="quick.busy.value"
+          />
+          <v-switch
+            v-model="quick.options.value.formulaRecognition"
+            :label="t('module.formula')"
+            color="primary"
+            density="compact"
+            :hint="t('quick.formulaHint')"
+            persistent-hint
+            :disabled="quick.busy.value"
+          />
+        </template>
+
+        <p v-else class="text-body-2 text-medium-emphasis mb-0">
+          {{ t('quick.modulesBuiltIn') }}
+        </p>
       </v-card>
 
-      <v-progress-linear
-        v-if="quick.busy.value && quick.source.value === 'upload'"
-        :model-value="quick.uploadFraction.value * 100"
-        height="6"
-        rounded
-        class="mb-3"
-      />
+      <!-- Sending a large scan over a slow link is minutes, and a bare disabled button for
+           the duration is indistinguishable from a frozen page. Labelled with a percentage
+           while there are bytes to count, and indeterminate afterwards, because waiting for
+           the server to accept the run has no percentage to report honestly. -->
+      <v-card v-if="quick.phase.value !== 'idle'" variant="tonal" class="pa-4 mb-3">
+        <div class="d-flex align-center justify-space-between ga-3 mb-2">
+          <span class="text-body-2">
+            {{
+              quick.phase.value === 'uploading'
+                ? t('quick.uploading', { count: quick.fileCount.value })
+                : t('quick.startingRun')
+            }}
+          </span>
+          <span v-if="quick.phase.value === 'uploading'" class="text-caption ocr-mono">
+            {{ Math.round(quick.uploadFraction.value * 100) }}%
+          </span>
+        </div>
+        <v-progress-linear
+          :model-value="quick.uploadFraction.value * 100"
+          :indeterminate="quick.phase.value === 'starting'"
+          height="6"
+          rounded
+          color="primary"
+        />
+      </v-card>
 
       <v-btn
         color="primary"

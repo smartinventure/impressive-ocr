@@ -52,6 +52,56 @@ function recallRun(): QuickRun | null {
 }
 
 /**
+ * Where the last run's settings are kept.
+ *
+ * `localStorage`, not session: the point is that someone who always wants Word does not
+ * re-pick it every time they open the app, which means surviving the app being closed.
+ * Settings only — never the files, never an output path from a machine this browser may not
+ * be talking to any more.
+ */
+const SETTINGS_KEY = 'impressive-ocr.quick.settings';
+
+interface RememberedSettings {
+  options: QuickOptions;
+  source: 'server' | 'upload';
+  outputPath: string;
+}
+
+function rememberSettings(settings: RememberedSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Private browsing, or storage full. Costs the convenience, not the run.
+  }
+}
+
+/**
+ * Read back what was stored, discarding anything the current schema no longer accepts.
+ *
+ * Parsed rather than trusted: this value outlives releases, so a build that removes a format
+ * or renames a strategy would otherwise restore a setting the server rejects — and the user
+ * would meet that as a failed run with no idea why.
+ */
+function recallSettings(): RememberedSettings | null {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored === null) return null;
+
+    const parsed = JSON.parse(stored) as Partial<RememberedSettings>;
+    const options = quickOptionsSchema.safeParse(parsed.options);
+    if (!options.success) return null;
+
+    return {
+      options: options.data,
+      source: parsed.source === 'server' ? 'server' : 'upload',
+      outputPath: typeof parsed.outputPath === 'string' ? parsed.outputPath : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * How far a run is, counted in pages rather than in whole documents.
  *
  * Documents alone made the commonest Quick Mode run -- a single file -- a bar that sat at
@@ -82,13 +132,15 @@ export function progressFraction(input: {
 }
 
 export function useQuickRun() {
+  const remembered = recallSettings();
+
   // Upload by default: someone opening this in a browser is usually not sitting at the
   // server. The desktop app overrides it below, where both are the same machine anyway.
-  const source = ref<'server' | 'upload'>('upload');
+  const source = ref<'server' | 'upload'>(remembered?.source ?? 'upload');
   const serverFiles = ref<string[]>([]);
   const uploadFiles = ref<File[]>([]);
-  const outputPath = ref('');
-  const options = ref<QuickOptions>(quickOptionsSchema.parse({}));
+  const outputPath = ref(remembered?.outputPath ?? '');
+  const options = ref<QuickOptions>(remembered?.options ?? quickOptionsSchema.parse({}));
 
   // The live stream carries per-job events; polling carries the run's shape. Both are needed:
   // the poll never sees a message the sidecar emitted between two ticks.
@@ -106,7 +158,9 @@ export function useQuickRun() {
    * the wire, usually after this composable is created. Guarded on the user not having
    * touched the control: a preference stated before the probe landed outranks ours.
    */
-  const profileChosen = ref(false);
+  // A remembered profile is a decision the user already made, so the recommendation must
+  // not quietly undo it on the next visit.
+  const profileChosen = ref(remembered !== null);
   watch(
     () => store.system?.hardware.availableProfiles,
     (profiles) => {
@@ -126,6 +180,17 @@ export function useQuickRun() {
   const uploadFraction = ref(0);
   const busy = ref(false);
   const error = ref<string | null>(null);
+
+  /**
+   * What pressing Start is doing right now.
+   *
+   * `busy` alone could not be shown honestly: it covers sending bytes, which has a real
+   * percentage, and waiting for the server to create the run, which has none. Reported as one
+   * state the screen showed a bar that filled and then sat at 100% for as long as the server
+   * took, which reads as a hang -- and on the desktop, where there is no upload at all, it
+   * showed nothing whatsoever between the click and the run appearing.
+   */
+  const phase = ref<'idle' | 'uploading' | 'starting'>('idle');
 
   let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -288,11 +353,14 @@ export function useQuickRun() {
     try {
       if (source.value === 'upload') {
         uploadFraction.value = 0;
+        phase.value = 'uploading';
         const { uploadId } = await quickApi.upload([...uploadFiles.value], (fraction) => {
           uploadFraction.value = fraction;
         });
+        phase.value = 'starting';
         run.value = await quickApi.start({ source: 'upload', uploadId, options: options.value });
       } else {
+        phase.value = 'starting';
         run.value = await quickApi.start({
           source: 'server',
           files: [...serverFiles.value],
@@ -301,11 +369,19 @@ export function useQuickRun() {
         });
       }
       rememberRun(run.value);
+      // Stored only once a run has actually been accepted, so a setting that the server
+      // refused is never the one waiting for the user next time.
+      rememberSettings({
+        options: options.value,
+        source: source.value,
+        outputPath: outputPath.value,
+      });
       startPolling();
     } catch (caught) {
       error.value = caught instanceof ApiRequestError ? caught.message : 'Could not start the run.';
     } finally {
       busy.value = false;
+      phase.value = 'idle';
     }
   }
 
@@ -338,6 +414,7 @@ export function useQuickRun() {
     run.value = null;
     progress.value = null;
     uploadFraction.value = 0;
+    phase.value = 'idle';
     error.value = null;
     stopPolling();
   }
@@ -396,6 +473,7 @@ export function useQuickRun() {
     run,
     progress,
     uploadFraction,
+    phase,
     busy,
     error,
     fileCount,

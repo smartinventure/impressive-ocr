@@ -179,7 +179,8 @@
     "encodingUtf8Bom": "UTF-8 with BOM (for Excel)",
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Affects the .txt file only. Choose BOM if Excel garbles umlauts; Latin-1 only for legacy systems, as characters outside it cannot be written.",
-    "sectionExpert": "Expert settings"
+    "sectionExpert": "Expert settings",
+    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass. Rendering resolution and the individual recognisers apply to the fast engine only."
   },
   "moduleTone": {
     "slow": "slower",
@@ -420,7 +421,10 @@
     "strategyHybridShort": "Hybrid",
     "strategySkipShort": "Skip if text",
     "strategyAlwaysShort": "Always OCR",
-    "downloadFiles": "Individual files ({count})"
+    "downloadFiles": "Individual files ({count})",
+    "uploading": "Sending {count} file(s) to the server…",
+    "startingRun": "Starting the run…",
+    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass, so there is nothing to switch on here."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

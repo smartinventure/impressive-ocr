@@ -183,6 +183,17 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     logger,
   });
 
+  // Said once at startup, because the alternative is finding out from a user who typed a
+  // correct licence key and was told it did not work. Never logs the keys themselves — only
+  // whether this build has them, which is the part that goes wrong.
+  logger.info(
+    {
+      personal: process.env.IMPRESSIVE_OCR_LICENSE_KEY_PERSONAL ? 'configured' : 'missing',
+      commercial: process.env.IMPRESSIVE_OCR_LICENSE_KEY_COMMERCIAL ? 'configured' : 'missing',
+    },
+    'Licence build configuration',
+  );
+
   const events = new EventBus();
   const pipelineRepository = new PipelineRepository(db);
   const jobs = new JobRepository(db);

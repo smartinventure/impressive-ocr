@@ -31,6 +31,17 @@ export interface UpdateStatus {
   message: string | null;
 }
 
+export interface DataLocation {
+  /** Where the runtime, models and database are being kept right now. */
+  current: string;
+  /** Where they would be kept with no override at all. */
+  default: string;
+  /** The user's stored choice, or null when the default is in use. */
+  chosen: string | null;
+  /** True when an environment variable decided it, which makes the setting read-only. */
+  fromEnvironment: boolean;
+}
+
 interface DesktopBridge {
   readonly isDesktop: true;
   selectFolder: (request?: SelectFolderRequest) => Promise<string | null>;
@@ -38,6 +49,8 @@ interface DesktopBridge {
   showInFolder: (path: string) => Promise<void>;
   getServerInfo: () => Promise<{ url: string; port: number }>;
   getVersion: () => Promise<string>;
+  getDataLocation: () => Promise<DataLocation>;
+  setDataLocation: (dataDir: string | null) => Promise<DataLocation>;
   checkForUpdate: () => Promise<UpdateStatus>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;
@@ -83,6 +96,22 @@ export function useDesktopBridge() {
     /** The running version, or null in a browser where there is no packaged app. */
     async getVersion(): Promise<string | null> {
       return bridge.value === null ? null : bridge.value.getVersion();
+    },
+
+    /**
+     * Where the runtime lives, or null in a browser.
+     *
+     * Desktop-only on purpose. The headless server takes its location from
+     * `IMPRESSIVE_OCR_DATA_DIR` or a volume mount, both decided before the process starts,
+     * and a page offering to move it would be describing something it cannot do.
+     */
+    async getDataLocation(): Promise<DataLocation | null> {
+      return bridge.value === null ? null : bridge.value.getDataLocation();
+    },
+
+    /** Choose a location for the next start, or pass null to go back to the default. */
+    async setDataLocation(dataDir: string | null): Promise<DataLocation | null> {
+      return bridge.value === null ? null : bridge.value.setDataLocation(dataDir);
     },
 
     /**

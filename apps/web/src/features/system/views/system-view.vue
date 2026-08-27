@@ -11,6 +11,7 @@ import { systemApi, type HardwareWithExplanation } from '../../../api/endpoints'
 import { useLiveStore } from '../../../stores/live-store';
 import PreflightCard from '../components/preflight-card.vue';
 import UpdateCard from '../components/update-card.vue';
+import DataLocationCard from '../components/data-location-card.vue';
 
 /**
  * System status, and the place the OCR runtime gets installed.
@@ -317,6 +318,9 @@ onMounted(async () => {
         {{ hardware.explanation }}
       </div>
     </v-card>
+
+    <!-- Where the ~8 GB runtime lives. Desktop only; the card hides itself in a browser. -->
+    <DataLocationCard />
 
     <!-- Workers -->
     <v-card class="pa-5">

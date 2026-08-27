@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { type BrowserWindow, app, dialog, ipcMain, shell } from 'electron';
 import { join } from 'node:path';
-import { IPC_CHANNELS } from '../shared/ipc-contract';
+import { IPC_CHANNELS, type DataLocation } from '../shared/ipc-contract';
+import { isAbsolute } from 'node:path';
+import {
+  defaultDataDir,
+  readChosenDataDir,
+  resolveDataDir,
+  writeChosenDataDir,
+} from './data-location';
 import { registerDialogHandlers } from './ipc/dialog-handlers';
 import { startServer, type ServerHost } from './server-host';
 import { getLogPath, initStartupLog, installCrashHandlers, logError, logLine } from './startup-log';
@@ -110,6 +117,20 @@ async function main(): Promise<void> {
   void updates.checkQuietly();
 }
 
+/**
+ * The three answers the settings screen needs: where things are, where they would be, and
+ * whether the user is allowed to change that.
+ */
+function describeDataLocation(): DataLocation {
+  const fromEnvironment = (process.env.IMPRESSIVE_OCR_DATA_DIR ?? '').trim();
+  return {
+    current: resolveDataDir(),
+    default: defaultDataDir(),
+    chosen: readChosenDataDir(),
+    fromEnvironment: fromEnvironment !== '' && isAbsolute(fromEnvironment),
+  };
+}
+
 function registerAppHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.getServerInfo, () => ({
     url: host?.url ?? '',
@@ -117,6 +138,34 @@ function registerAppHandlers(): void {
   }));
 
   ipcMain.handle(IPC_CHANNELS.getVersion, () => app.getVersion());
+
+  ipcMain.handle(IPC_CHANNELS.getDataLocation, () => describeDataLocation());
+
+  /**
+   * Choose where the runtime lives.
+   *
+   * Validated here rather than trusted from the renderer, as every channel on this surface
+   * is. The environment wins: when `IMPRESSIVE_OCR_DATA_DIR` is set, a stored choice would
+   * never be read back, and silently accepting one would leave the settings screen claiming
+   * a location the app is not using.
+   */
+  ipcMain.handle(IPC_CHANNELS.setDataLocation, (_event, raw: unknown) => {
+    const location = describeDataLocation();
+    if (location.fromEnvironment) {
+      return location;
+    }
+
+    if (raw === null) {
+      writeChosenDataDir(null);
+      return describeDataLocation();
+    }
+    if (typeof raw !== 'string' || !isAbsolute(raw)) {
+      throw new Error('A data location must be an absolute path.');
+    }
+
+    writeChosenDataDir(raw);
+    return describeDataLocation();
+  });
 
   /**
    * Closing the window does NOT quit.

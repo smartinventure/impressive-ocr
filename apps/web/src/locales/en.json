@@ -694,5 +694,17 @@
       "body": "Named regions the layout detector finds but you do not want in the output — page headers, footers, page numbers.",
       "detail": "Discarding running heads and footers usually makes a converted book far more readable. Be careful with anything that might hold real content."
     }
+  },
+  "dataLocation": {
+    "title": "Where files are kept",
+    "subtitle": "The OCR runtime, models and database. Around 8 GB once installed.",
+    "chooseTitle": "Choose where Impressive OCR keeps its files",
+    "change": "Change location",
+    "reset": "Use the default",
+    "usingDefault": "This is the default location.",
+    "defaultIs": "The default is {path}",
+    "restartNeeded": "Restart Impressive OCR to use the new location. Nothing has been moved — the runtime will be installed again there, and the old folder can be deleted once it is working.",
+    "fromEnvironment": "The location is set by the IMPRESSIVE_OCR_DATA_DIR environment variable, so it cannot be changed here.",
+    "failed": "Could not change the location."
   }
 }

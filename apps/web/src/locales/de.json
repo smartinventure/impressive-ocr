@@ -694,5 +694,17 @@
       "body": "Benannte Bereiche, die die Layouterkennung findet, die Sie aber nicht in der Ausgabe haben wollen — Kopfzeilen, Fußzeilen, Seitenzahlen.",
       "detail": "Kolumnentitel und Fußzeilen zu verwerfen macht ein konvertiertes Buch meist deutlich lesbarer. Vorsicht bei allem, was echten Inhalt tragen könnte."
     }
+  },
+  "dataLocation": {
+    "title": "Wo Dateien abgelegt werden",
+    "subtitle": "Die OCR-Laufzeitumgebung, die Modelle und die Datenbank. Nach der Installation rund 8 GB.",
+    "chooseTitle": "Wählen Sie, wo Impressive OCR seine Dateien ablegt",
+    "change": "Speicherort ändern",
+    "reset": "Standard verwenden",
+    "usingDefault": "Dies ist der Standard-Speicherort.",
+    "defaultIs": "Der Standard ist {path}",
+    "restartNeeded": "Starten Sie Impressive OCR neu, um den neuen Speicherort zu verwenden. Es wurde nichts verschoben — die Laufzeitumgebung wird dort neu installiert, und der alte Ordner kann gelöscht werden, sobald alles funktioniert.",
+    "fromEnvironment": "Der Speicherort wird durch die Umgebungsvariable IMPRESSIVE_OCR_DATA_DIR festgelegt und kann hier nicht geändert werden.",
+    "failed": "Der Speicherort konnte nicht geändert werden."
   }
 }

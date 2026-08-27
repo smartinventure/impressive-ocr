@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from 'electron';
 import {
   IPC_CHANNELS,
   type DesktopBridge,
+  type DataLocation,
   type SelectFilesRequest,
   type SelectFolderRequest,
   type ServerInfo,
@@ -36,6 +37,12 @@ const bridge: DesktopBridge = {
   getServerInfo: () => ipcRenderer.invoke(IPC_CHANNELS.getServerInfo) as Promise<ServerInfo>,
 
   getVersion: () => ipcRenderer.invoke(IPC_CHANNELS.getVersion) as Promise<string>,
+
+  getDataLocation: () =>
+    ipcRenderer.invoke(IPC_CHANNELS.getDataLocation) as Promise<DataLocation>,
+
+  setDataLocation: (dataDir: string | null) =>
+    ipcRenderer.invoke(IPC_CHANNELS.setDataLocation, dataDir) as Promise<DataLocation>,
 
   checkForUpdate: () => ipcRenderer.invoke(IPC_CHANNELS.checkForUpdate) as Promise<UpdateStatus>,
 

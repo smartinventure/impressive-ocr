@@ -132,7 +132,7 @@ and since we're taking water to be incompressible, and $g$ doesn't change very m
 
 The precision of the result is limited to a few percent, due to the compressibility of the water, so we have at most two significant figures. If the change in pressure were exactly a thousand atmospheres, then the pressure at the bottom would be 1001 atmospheres; however, this distinction is not relevant at the level of approximation we're attempting here.
 
-(b) Since the air in the bubble is in thermal contact with the water, it's reasonable to assume that it keeps the same temperature the whole time. The ideal gas law is  $ PV = n kT $, and rewriting this as a proportionality gives
+(b) Since the air in the bubble is in thermal contact with the water, it's reasonable to assume that it keeps the same temperature the whole time. The ideal gas law is  $ PV = nkT $, and rewriting this as a proportionality gives
 
  $$ V\propto P^{-1}, $$ 
 

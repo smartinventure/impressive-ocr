@@ -26,6 +26,9 @@ export const IPC_CHANNELS = {
   installUpdate: 'update:install',
   /** Main → renderer push for update progress. */
   updateStatus: 'update:status',
+  /** Where the runtime, models and database live, and how to move them. */
+  getDataLocation: 'data:location',
+  setDataLocation: 'data:set-location',
 } as const;
 
 export interface SelectFolderRequest {
@@ -57,6 +60,22 @@ export interface ServerInfo {
   port: number;
 }
 
+export interface DataLocation {
+  /** Where everything is being kept right now. */
+  current: string;
+  /** Where it would be kept with no override at all. */
+  default: string;
+  /** The user's stored choice, or null when the default is in use. */
+  chosen: string | null;
+  /**
+   * True when `IMPRESSIVE_OCR_DATA_DIR` decided it.
+   *
+   * The setting is shown as unavailable rather than hidden: someone who set the variable
+   * should be told why the control does nothing, not left to wonder whether it is broken.
+   */
+  fromEnvironment: boolean;
+}
+
 export type UpdateState =
   'idle' | 'checking' | 'available' | 'downloading' | 'ready' | 'up-to-date' | 'error';
 
@@ -78,6 +97,14 @@ export interface DesktopBridge {
   showInFolder: (path: string) => Promise<void>;
   getServerInfo: () => Promise<ServerInfo>;
   getVersion: () => Promise<string>;
+  getDataLocation: () => Promise<DataLocation>;
+  /**
+   * Choose where the runtime lives, or pass null to return to the default.
+   *
+   * Takes effect on the next start and moves nothing: the runtime is gigabytes and is open
+   * by a running Python process while the app is up.
+   */
+  setDataLocation: (dataDir: string | null) => Promise<DataLocation>;
   checkForUpdate: () => Promise<UpdateStatus>;
   downloadUpdate: () => Promise<void>;
   installUpdate: () => Promise<void>;

@@ -182,8 +182,10 @@ third-party components.
 **Free for personal and private use.** Install it, use it, keep your documents.
 
 **Organisations need a commercial licence**, available from
-[www.speedbits.io](https://www.speedbits.io). A licence is perpetual, and includes one year of
-updates and support.
+[www.speedbits.io](https://www.speedbits.io). A licence is **perpetual** — the version you have
+keeps working indefinitely, with every feature — and includes **one year of automatic
+updates**. After that year the software carries on exactly as before; only the automatic
+updates stop.
 
 Both statements are true at once because Impressive OCR is **dual licensed**. Anyone may use
 it under the AGPL-3.0, which is what makes it free for personal use — and the AGPL comes with

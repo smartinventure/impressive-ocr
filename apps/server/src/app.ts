@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, createDatabase } from '@impressive-ocr/db';
-import {
+import { APP_VERSION,
   SESSION_IDLE_TIMEOUT_MINUTES,
   type AppSettings,
   type BindAddress,
@@ -32,7 +32,12 @@ import { Scheduler } from './modules/queue/scheduler';
 import { RuntimeInstaller } from './modules/runtime/runtime-installer';
 import { RuntimeService } from './modules/runtime/runtime-service';
 import { AuthService } from './modules/auth/auth-service';
+/** The licence service, overridable so a staging instance can be used without a rebuild. */
+const DEFAULT_LICENSE_URL = 'https://license.speedbits.io';
+
 import { ConsentService } from './modules/consent/consent-service';
+import { HttpLicenseClient } from './modules/license/license-client';
+import { LicenseService } from './modules/license/license-service';
 import { createSessionStore } from './modules/auth/session-store';
 import { QuickRunService } from './modules/quick/quick-run-service';
 import { QuickRunStore } from './modules/quick/quick-run-store';
@@ -125,6 +130,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   const authService = new AuthService(db, sessions);
   const settingsService = new SettingsService(db, () => authService.hasPassword());
   const consentService = new ConsentService(db);
+
   const stored = settingsService.get();
   const settings: AppSettings = {
     ...stored,
@@ -138,6 +144,18 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     level: options.logLevel ?? settings.logLevel,
     pretty: options.pretty ?? process.env.NODE_ENV !== 'production',
     file: logFile,
+  });
+  // The licence server is a URL rather than a constant so a staging instance can be pointed
+  // at without a rebuild, and so tests never reach the real one.
+  const licenseService = new LicenseService({
+    db,
+    client: new HttpLicenseClient({
+      baseUrl: process.env.IMPRESSIVE_OCR_LICENSE_URL ?? DEFAULT_LICENSE_URL,
+      appVersion: APP_VERSION,
+      logger,
+    }),
+    appVersion: APP_VERSION,
+    logger,
   });
 
   const events = new EventBus();
@@ -254,6 +272,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     settings: settingsService,
     auth: authService,
     consent: consentService,
+    license: licenseService,
     paths,
     resources: new ResourceMonitor(),
     quick,

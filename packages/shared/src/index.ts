@@ -17,6 +17,7 @@ export * from './preflight';
 export * from './settings';
 export * from './auth';
 export * from './consent';
+export * from './license';
 export * from './quick-run';
 export * from './events';
 export * from './sidecar';

@@ -2,7 +2,7 @@
   "name": "@impressive-ocr/desktop",
   "//productName": "Electron derives the app name — and therefore the userData directory — from this. Without it the scoped package name becomes AppData/Roaming/@impressive-ocr/desktop.",
   "productName": "Impressive OCR",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "private": true,
   "license": "AGPL-3.0-or-later",
   "description": "Impressive OCR desktop application",

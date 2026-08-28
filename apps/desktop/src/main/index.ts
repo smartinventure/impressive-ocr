@@ -74,7 +74,7 @@ async function main(): Promise<void> {
 
   try {
     logLine('Starting the backend…');
-    host = await startServer();
+    host = await startServer(headless);
     logLine(`Backend listening at ${host.url}`);
   } catch (error) {
     // Nothing works without the backend, so this is fatal — but it must say *why*, since the

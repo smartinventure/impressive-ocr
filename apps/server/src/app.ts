@@ -77,6 +77,21 @@ export interface CreateAppOptions {
    * unauthenticated server on a network interface.
    */
   bindAddress?: BindAddress | undefined;
+  /**
+   * What to do when the configured port is taken.
+   *
+   * `'fixed'`, the default, fails with `PortInUseError`. That is right for anything an
+   * operator points other configuration at: a container published with `-p 8084:8084`, a
+   * reverse proxy, a service unit. A server that quietly moved would leave those pointing at
+   * nothing, and "connection refused from a container that is running" is a much worse
+   * problem to debug than a startup error naming the port.
+   *
+   * `'next-free'` scans upward instead, and is for the desktop app, where nothing else knows
+   * the port: the window opens whatever URL `listen()` returns, so a jump is invisible and
+   * always correct. The alternative there is an app that will not start because something
+   * unrelated holds a port the user never chose and cannot see.
+   */
+  portStrategy?: 'fixed' | 'next-free' | undefined;
   /** Directory holding the built SPA. */
   webRoot?: string | undefined;
   /** Path to the bundled `uv` binary. */
@@ -109,6 +124,14 @@ export interface AppHandle {
   http: AppFastify;
   /** Bind and start serving. Returns the URL the UI is reachable at. */
   listen: () => Promise<string>;
+  /**
+   * The port actually bound, once `listen()` has resolved.
+   *
+   * Not the same as the configured port when the desktop app had to move: the Settings page
+   * shows the preference, and without this it would show 8084 while the user is looking at
+   * 8085 in their address bar.
+   */
+  boundPort: () => number;
   /** Graceful shutdown: stop accepting work, drain, close everything. */
   shutdown: () => Promise<void>;
   logger: Logger;
@@ -327,6 +350,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   });
 
   let housekeeping: NodeJS.Timeout | undefined;
+  // Settled by listen(); the configured port until then, which is what a caller asking
+  // before startup would sensibly expect.
+  let actualPort = 0;
 
   const services: AppServices = {
     pipelines,
@@ -377,6 +403,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     logger,
     http,
 
+    boundPort: () => actualPort,
+
     listen: async () => {
       // Said once, at the moment it becomes true. An unauthenticated server on a network
       // interface can read and write every folder in the allowlist, and the operator who
@@ -390,17 +418,22 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
         );
       }
 
-      try {
-        await http.listen({ port: settings.port, host: settings.bindAddress });
-      } catch (error) {
-        // A port clash is the single most likely startup failure on a desktop — another
-        // app, a stale instance, or a WSL relay. A raw EADDRINUSE stack tells the user
-        // nothing they can act on.
-        if (isAddressInUse(error)) {
-          throw new PortInUseError(settings.port);
-        }
-        throw error;
+      const boundPort = await listenOnFreePort(
+        http,
+        settings.port,
+        settings.bindAddress,
+        options.portStrategy ?? 'fixed',
+      );
+      if (boundPort !== settings.port) {
+        // Deliberately not written back to settings. A port held by something transient —
+        // another copy still shutting down, a dev server somebody forgot — must not silently
+        // rewrite a preference the user set, and the next start should try their port again.
+        logger.warn(
+          { configuredPort: settings.port, boundPort },
+          'The configured port was in use; listening on the next free port for this run',
+        );
       }
+      actualPort = boundPort;
       await watchers.sync();
 
       // Start the trial clock if this is the first run, then re-confirm an existing
@@ -431,7 +464,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
 
       const url = `${settings.scheme}://${
         settings.bindAddress === '0.0.0.0' ? 'localhost' : settings.bindAddress
-      }:${settings.port}`;
+      }:${actualPort}`;
       logger.info({ url, runtime: runtime.getStatus().state }, 'Impressive OCR is listening');
       return url;
     },
@@ -462,6 +495,47 @@ export class PortInUseError extends Error {
     );
     this.name = 'PortInUseError';
   }
+}
+
+/** How many ports to try past the configured one before giving up. */
+const PORT_SCAN_ATTEMPTS = 20;
+
+/**
+ * Bind the configured port, or the next free one when the caller allows it.
+ *
+ * Returns the port actually bound. Under `'fixed'` this is a single attempt and the original
+ * behaviour, down to the error: an operator who pinned a port wants to hear that it is taken,
+ * not to be quietly moved somewhere their proxy is not pointing.
+ *
+ * The scan is bounded and gives up with the *configured* port in the error, because that is
+ * the number the user recognises and the one they would change. Reporting the last port tried
+ * would name something they never chose.
+ */
+async function listenOnFreePort(
+  http: { listen: (options: { port: number; host: string }) => Promise<unknown> },
+  configuredPort: number,
+  host: string,
+  strategy: 'fixed' | 'next-free',
+): Promise<number> {
+  const attempts = strategy === 'next-free' ? PORT_SCAN_ATTEMPTS : 1;
+
+  for (let offset = 0; offset < attempts; offset += 1) {
+    const port = configuredPort + offset;
+    // Past the top of the range there is nothing left to try, and wrapping would start
+    // handing out privileged ports.
+    if (port > 65_535) break;
+    try {
+      await http.listen({ port, host });
+      return port;
+    } catch (error) {
+      // A port clash is the single most likely startup failure on a desktop — another app, a
+      // stale instance, or a WSL relay. Anything else is a real failure and must not be
+      // retried on a different port, which would only produce a confusing second error.
+      if (!isAddressInUse(error)) throw error;
+    }
+  }
+
+  throw new PortInUseError(configuredPort);
 }
 
 export function isAddressInUse(error: unknown): boolean {

@@ -20,7 +20,7 @@ export interface ServerHost {
   url: string;
 }
 
-export async function startServer(): Promise<ServerHost> {
+export async function startServer(headless: boolean): Promise<ServerHost> {
   const handle = await createApp({
     // Resolved rather than derived from `userData`: on Windows that is the Roaming half of
     // AppData, which a managed profile synchronises to a file server, and the runtime is
@@ -36,6 +36,12 @@ export async function startServer(): Promise<ServerHost> {
     // sets the port through the environment, and the desktop build is what the "Server"
     // shortcut launches.
     port: parsePort(process.env.IMPRESSIVE_OCR_PORT),
+    // The window opens whatever `listen()` returns, so moving is invisible and always
+    // correct — and the alternative is an app that refuses to start because something the
+    // user cannot see holds a port they never chose. Not in `--server` mode: that is what a
+    // container publishes and a proxy points at, and there a silent move breaks a mapping
+    // the operator made on purpose.
+    portStrategy: headless ? 'fixed' : 'next-free',
     pretty: !app.isPackaged,
   });
 

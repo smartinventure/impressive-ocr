@@ -22,6 +22,13 @@ from ..engines.chart_text import append_chart_text
 from .base import WriteContext, WrittenFile, measure
 from .docx_equations import embed_equations
 from .page_merge import merge_pages
+from .text_layer_fallback import (
+    FALLBACK_FORMATS,
+    SUFFIXES,
+    common_head,
+    page_file_name,
+    write_page,
+)
 
 _logger = get_logger()
 
@@ -59,7 +66,11 @@ class PaddleNativeWriter:
         target = context.work_dir / self.format
         target.mkdir(parents=True, exist_ok=True)
 
-        wrote_anything = False
+        # Pages with no PaddleOCR result behind them: taken from the PDF's existing text
+        # layer, which is the whole point of `hybrid` and means there was no inference to
+        # produce a result object. Handled after the loop rather than skipped, which is what
+        # left a born-digital PDF with an empty output folder and a successful job.
+        from_text_layer = [page for page in result.pages if page.raw is None]
         for page in result.pages:
             if page.raw is None:
                 continue
@@ -71,16 +82,29 @@ class PaddleNativeWriter:
                 )
             try:
                 method(save_path=str(target))
-                wrote_anything = True
             except Exception as error:
                 raise OutputWriteError(
                     f"PaddleOCR failed to write {self.format} for page {page.page_number}: {error}"
                 ) from error
 
-        if not wrote_anything:
-            return []
-
+        # The fallback runs before the empty check, not after it. A document taken entirely
+        # from its text layer has no PaddleOCR output at all, so an early return here is
+        # exactly the path that produced an empty folder and a successful job.
         paths = self._collect_paths(target)
+        if from_text_layer:
+            paths = self._write_from_text_layer(from_text_layer, target, paths, context)
+
+        if not paths:
+            # Never silently. Reporting success with no file is how this went unnoticed.
+            _logger.warning(
+                "Nothing was written for this format",
+                extra={
+                    "format": self.format,
+                    "pages": len(result.pages),
+                    "fromTextLayer": len(from_text_layer),
+                },
+            )
+            return []
 
         # Before the merge, while each file still corresponds to one page.
         if self.format == "markdown":
@@ -99,6 +123,42 @@ class PaddleNativeWriter:
                 embed_equations(path)
 
         return [measure(path, self.format) for path in files]
+
+    def _write_from_text_layer(
+        self,
+        pages: list[PageResult],
+        target: Path,
+        existing: list[Path],
+        context: WriteContext,
+    ) -> list[Path]:
+        """Produce files for the pages PaddleOCR never saw, and re-collect.
+
+        The head of the name is taken from whatever Paddle already wrote, so a mixed document
+        -- a digital PDF with scans appended -- interleaves in reading order instead of
+        sorting the two sources into separate groups. With no Paddle files at all, which is
+        the pure text-layer case, the output stem serves.
+        """
+        if self.format not in FALLBACK_FORMATS:
+            _logger.info(
+                "Pages from the existing text layer cannot be written in this format",
+                extra={"format": self.format, "pages": len(pages)},
+            )
+            return existing
+
+        head = common_head(existing) or context.output_stem
+        suffix = SUFFIXES[self.format]
+        for page in pages:
+            path = target / page_file_name(head, page.page_number, suffix)
+            try:
+                write_page(page, self.format, path)
+            except Exception as error:  # noqa: BLE001 - reported, never fatal
+                # One page failing must not cost the rest of the document.
+                _logger.warning(
+                    "Could not write a page taken from the existing text layer",
+                    extra={"format": self.format, "page": page.page_number, "error": str(error)},
+                )
+
+        return self._collect_paths(target)
 
     def _collect_paths(self, directory: Path) -> list[Path]:
         """Gather what Paddle wrote. It chooses its own file names, so we glob rather than guess.

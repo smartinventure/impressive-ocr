@@ -18,6 +18,7 @@ from typing import Any
 
 from ..core.logging import get_logger
 from .base import PageResult, TextBox
+from .chart_text import append_chart_text
 
 _logger = get_logger()
 
@@ -154,6 +155,12 @@ def to_page_result(
     """Build a :class:`PageResult` from one PaddleOCR page result."""
     boxes = extract_text_boxes(result)
     markdown = extract_markdown(result)
+
+    # Paddle's Markdown replaces a chart with an image reference, dropping every string the
+    # same run already recognised inside it. The txt and searchable-PDF writers use `boxes`
+    # and never lost them; this is what stops the Markdown writer being the one format that
+    # silently returns less.
+    markdown = append_chart_text(markdown, result, boxes, height)
 
     if not boxes and not markdown:
         _logger.warning(

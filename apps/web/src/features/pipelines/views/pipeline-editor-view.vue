@@ -108,12 +108,11 @@ const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
 /**
  * Module toggles, with the speed cost stated inline — these turn 20 minutes into 3 hours.
  *
- * `hintKey` is for the switches whose *off* position quietly loses content rather than
- * merely skipping an enhancement. Measured against `samples/charts/`, a chart with this off
- * contributes nothing but its title: PP-StructureV3 files the plot area as a figure and the
- * axis labels, legend and category names never reach the output. "Recognize charts" alone
- * reads like an optional extra, and someone who does not want pictures would switch it off
- * and never learn what it took with it.
+ * `hintKey` is for the switches whose name does not say what they decide. "Recognize charts"
+ * sounds like it controls whether a chart's text is read; it does not, and has not since the
+ * sidecar started recovering that text from the page-wide OCR pass. What it actually buys is
+ * an attempt to reconstruct the plotted *values* as a table, which costs a separate model and
+ * most of a minute per chart -- a very different trade from the one the label implies.
  */
 const MODULES = [
   { key: 'docOrientationClassify', labelKey: 'module.orientation', tone: 'neutral' },

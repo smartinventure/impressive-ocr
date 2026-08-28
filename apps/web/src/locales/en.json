@@ -196,7 +196,7 @@
     "formula": "Recognize formulas",
     "chart": "Recognize charts",
     "seal": "Recognize stamps and seals",
-    "chartHint": "Off, a chart contributes only its caption — the axis labels, legend and category names inside it are not read."
+    "chartHint": "Chart text is always read. This additionally tries to recover the plotted values as a table, and is slow."
   },
   "format": {
     "markdown": "Markdown",

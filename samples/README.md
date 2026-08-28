@@ -36,24 +36,33 @@ Recall over the three images, each string counted once, matched case-insensitive
 
 | Configuration | Panels | Dot plot | Stacked bar | Per chart |
 |---|---|---|---|---|
-| `fast` | 0% | 30% | 0% | 0.5–10 s |
-| `fast` + chart recognition | 58% | 54% | 63% | 26–56 s |
-| `accurate` | 6% | 27% | 3% | 0.8–8 s |
+| `fast`, Markdown, before the recovery below | 0% | 30% | 0% | 0.5–5 s |
+| `fast`, txt and searchable PDF | 97% | 95% | 94% | 0.5–5 s |
+| **`fast`, Markdown, now** | **97%** | **95%** | **94%** | **0.5–5 s** |
+| `fast` + chart recognition (PP-Chart2Table) | 58% | 54% | 63% | 26–56 s |
+| `accurate` | 6% | 27% | 3% | 0.7–7 s |
+| `accurate` + `use_chart_recognition` | 76% | 51% | 54% | 13–176 s |
 
-The first row is not a recognition failure. With `chartRecognition` off, PP-StructureV3 files
-the plot area as a figure and emits an `<img>` reference in its place, so the only text that
-survives is the caption outside it — which is why the stacked bar, whose title sits inside the
-frame, scores zero rather than low.
+The first row was never a recognition failure, and finding that out changed what needed
+fixing. PP-StructureV3 runs one page-wide OCR pass and separately assembles a Markdown
+document from the layout blocks; a block labelled `chart` becomes an image reference, so its
+text is dropped on the way out while remaining in `overall_ocr_res`. The txt and
+searchable-PDF writers read the boxes and never lost it — which is why the same run scored 0%
+and 97% depending only on which file you opened.
 
-Two things worth knowing before choosing a profile for a chart-heavy document. **The engine
-named "accurate" is the weakest of the three here**: PaddleOCR-VL is one end-to-end model with
-no chart sub-model to enable, so there is no setting that improves it — the editor already
-says so rather than offering switches that would do nothing. And chart recognition is
-expensive in a way the "slower" tag understates: on this machine it added minutes of model
-load and turned a half-second page into most of a minute.
+`chart_text.py` puts it back in the Markdown, using text that was already recognised and
+paid for. That is the third row: no extra model, no extra inference, no measurable time.
 
-Even at its best it reads about six strings in ten. That is worth having when the alternative
-is none, and it is not a substitute for the chart's own data.
+The rows below it are the alternatives that cost something, kept because they answer a
+different question. Both chart-recognition paths try to reconstruct the plotted *values* as
+a table rather than transcribe the labels, which is why they score lower on a text inventory
+while being the only options that can tell you a bar's height. PP-Chart2Table needs a
+separate 1.4 GB model; `use_chart_recognition` on PaddleOCR-VL reuses the model already
+loaded, and is the better of the two on the panel chart.
+
+One caveat on all of these. Scoring is exact string match after case folding, so a real
+misread — `How Bl Customers` for `How BI Customers` — counts as a complete miss. The figures
+are a floor.
 
 ## Licensing
 

@@ -144,15 +144,34 @@ def _merge_docx(files: list[Path], output_stem: str) -> Path | None:
     shutil.copyfile(files[0], staging)
 
     merged = docx.Document(str(staging))
+    body = merged.element.body
+
+    # The section properties are lifted out for the duration of the merge, and that is the
+    # whole fix. python-docx keeps `sectPr` last and inserts through the API *before* it,
+    # while raw appends land *after* it — so mixing the two put every page-break paragraph in
+    # one clump behind page one and every page's content behind the section properties. A
+    # 28-page contract came out as its first page, 27 blank pages, then the rest.
+    #
+    # With it removed both paths append to the end, in the order written, and it goes back
+    # last where the schema wants it.
+    section_properties = None
+    for element in list(body):
+        if element.tag.endswith("}sectPr"):
+            section_properties = element
+            body.remove(element)
+
     for path in files[1:]:
         merged.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
         page = docx.Document(str(path))
-        for element in page.element.body:
-            # `sectPr` carries the section's page setup and must stay last in the body; copying
-            # one in from a later page would end the merged document early.
+        for element in list(page.element.body):
+            # A later page's own `sectPr` is dropped rather than copied: it would end the
+            # merged document early, at the point that page was appended.
             if element.tag.endswith("}sectPr"):
                 continue
-            merged.element.body.append(element)
+            body.append(element)
+
+    if section_properties is not None:
+        body.append(section_properties)
 
     merged.save(str(staging))
     _replace_pages(files, staging)

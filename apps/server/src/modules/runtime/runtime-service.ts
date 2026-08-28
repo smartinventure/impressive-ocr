@@ -3,6 +3,7 @@ import { dirname } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
 import {
+  APP_VERSION,
   hardwareCapabilitiesSchema,
   runtimeStatusSchema,
   type HardwareCapabilities,
@@ -111,6 +112,47 @@ export class RuntimeService {
     }
 
     await this.backfillVersions();
+    await this.refreshStaleSidecar();
+  }
+
+  /**
+   * Bring the installed Python up to the version this build ships, before anything uses it.
+   *
+   * The sidecar is copied into the venv during setup and never touched again, so an app
+   * update ships new Python while the engine goes on running the old copy — silently, with a
+   * healthy-looking runtime. That is not a hypothetical: a fix for documents taken from a
+   * PDF's own text layer shipped in a release, and every existing install kept writing
+   * nothing, because the Python that had the fix was sitting unused in the app's resources.
+   *
+   * A manual repair for this already existed on the System page. Requiring someone to notice
+   * a prompt before a shipped bug fix takes effect is not a fix, so it now happens here.
+   *
+   * Awaited on purpose, and cheap enough to be: no Paddle download, no models, seconds. It
+   * has to complete before the first job spawns a sidecar, because reinstalling the package
+   * under a process that has already imported it changes nothing until that process restarts.
+   */
+  private async refreshStaleSidecar(): Promise<void> {
+    if (this.status.state !== 'ready') return;
+
+    const installed = this.status.sidecarVersion;
+    // Null means a runtime old enough not to record it. `backfillVersions` has already had
+    // its chance to fill that in; if it is still null there is nothing to compare and a
+    // reinstall would run on every start.
+    if (installed === null || installed === APP_VERSION) return;
+
+    this.options.logger.info(
+      { installed, shipped: APP_VERSION },
+      'The installed OCR engine is older than this build; updating it',
+    );
+    try {
+      const versions = await this.options.installer.reinstallSidecar();
+      this.setStatus({ ...this.status, sidecarVersion: versions.sidecar });
+      this.options.logger.info({ sidecar: versions.sidecar }, 'OCR engine updated');
+    } catch (error) {
+      // Not fatal: the previous engine still works, and it is better to run a document with
+      // last week's Python than to refuse to start.
+      this.options.logger.error({ err: error }, 'Could not update the OCR engine');
+    }
   }
 
   /**

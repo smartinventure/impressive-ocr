@@ -105,14 +105,23 @@ const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
   },
 ];
 
-/** Module toggles, with the speed cost stated inline — these turn 20 minutes into 3 hours. */
+/**
+ * Module toggles, with the speed cost stated inline — these turn 20 minutes into 3 hours.
+ *
+ * `hintKey` is for the switches whose *off* position quietly loses content rather than
+ * merely skipping an enhancement. Measured against `samples/charts/`, a chart with this off
+ * contributes nothing but its title: PP-StructureV3 files the plot area as a figure and the
+ * axis labels, legend and category names never reach the output. "Recognize charts" alone
+ * reads like an optional extra, and someone who does not want pictures would switch it off
+ * and never learn what it took with it.
+ */
 const MODULES = [
   { key: 'docOrientationClassify', labelKey: 'module.orientation', tone: 'neutral' },
   { key: 'docUnwarping', labelKey: 'module.unwarping', tone: 'slow' },
   { key: 'textlineOrientation', labelKey: 'module.textline', tone: 'neutral' },
   { key: 'tableRecognition', labelKey: 'module.table', tone: 'recommended' },
   { key: 'formulaRecognition', labelKey: 'module.formula', tone: 'slow' },
-  { key: 'chartRecognition', labelKey: 'module.chart', tone: 'slow' },
+  { key: 'chartRecognition', labelKey: 'module.chart', tone: 'slow', hintKey: 'module.chartHint' },
   { key: 'sealRecognition', labelKey: 'module.seal', tone: 'slow' },
 ] as const;
 
@@ -373,17 +382,22 @@ onMounted(async () => {
                 {{ t('editor.modules') }}
                 <InfoHint topic="editorModules" />
               </div>
-              <div v-for="module in MODULES" :key="module.key" class="editor__module">
-                <v-switch
-                  v-model="options.engine.modules[module.key]"
-                  :label="t(module.labelKey)"
-                  color="primary"
-                  density="compact"
-                  hide-details
-                />
-                <span class="editor__module-tone" :class="`editor__module-tone--${module.tone}`">
-                  {{ t(`moduleTone.${module.tone}`) }}
-                </span>
+              <div v-for="module in MODULES" :key="module.key" class="editor__module-row">
+                <div class="editor__module">
+                  <v-switch
+                    v-model="options.engine.modules[module.key]"
+                    :label="t(module.labelKey)"
+                    color="primary"
+                    density="compact"
+                    hide-details
+                  />
+                  <span class="editor__module-tone" :class="`editor__module-tone--${module.tone}`">
+                    {{ t(`moduleTone.${module.tone}`) }}
+                  </span>
+                </div>
+                <p v-if="'hintKey' in module" class="editor__module-hint">
+                  {{ t(module.hintKey) }}
+                </p>
               </div>
             </template>
 
@@ -653,6 +667,20 @@ onMounted(async () => {
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 8px;
+}
+
+.editor__module-row {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Aligned under the switch label rather than the switch itself, which is where the eye goes
+   looking for the sentence that explains it. */
+.editor__module-hint {
+  font-size: 12px;
+  line-height: 1.4;
+  opacity: 0.7;
+  margin: -4px 0 8px 52px;
 }
 
 .editor__module {

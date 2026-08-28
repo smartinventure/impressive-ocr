@@ -195,7 +195,8 @@
     "table": "Tabellen erkennen",
     "formula": "Formeln erkennen",
     "chart": "Diagramme erkennen",
-    "seal": "Stempel und Siegel erkennen"
+    "seal": "Stempel und Siegel erkennen",
+    "chartHint": "Ausgeschaltet liefert ein Diagramm nur seine Beschriftung — Achsentitel, Legende und Kategorienamen darin werden nicht gelesen."
   },
   "format": {
     "markdown": "Markdown",

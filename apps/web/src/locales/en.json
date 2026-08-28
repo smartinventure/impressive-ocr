@@ -195,7 +195,8 @@
     "table": "Recognize tables",
     "formula": "Recognize formulas",
     "chart": "Recognize charts",
-    "seal": "Recognize stamps and seals"
+    "seal": "Recognize stamps and seals",
+    "chartHint": "Off, a chart contributes only its caption — the axis labels, legend and category names inside it are not read."
   },
   "format": {
     "markdown": "Markdown",

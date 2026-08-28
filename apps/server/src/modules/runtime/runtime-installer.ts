@@ -130,6 +130,27 @@ export function within(step: RuntimeStep, fraction: number): number {
   return progressBefore(step) + (progressAfter(step) - progressBefore(step)) * clamped;
 }
 
+/**
+ * Lines after which a step is shown as roughly half done.
+ *
+ * Tuned to `install-paddle`, which emits a few dozen lines over several minutes and is the
+ * step people watch. Too low and the bar sits near the ceiling for most of the wait; too high
+ * and it barely leaves the floor.
+ */
+const LINES_TO_HALFWAY = 14;
+
+/**
+ * How far through a step to show, given the number of progress lines seen.
+ *
+ * Asymptotic: always moving, never arriving. A bar that reached 100% and then stayed there
+ * would be a worse lie than one that crawls — and the previous version of this was worse
+ * still, pinning `install-paddle` to exactly 11% for its entire multi-gigabyte download,
+ * which is why it was reported as a freeze.
+ */
+export function advance(linesSeen: number): number {
+  return 1 - 1 / (1 + linesSeen / LINES_TO_HALFWAY);
+}
+
 /** Percentage at which `step` begins. */
 export function progressBefore(step: RuntimeStep): number {
   return progressAfter(step) - STEP_WEIGHTS[step];
@@ -446,8 +467,11 @@ export class RuntimeInstaller {
     step: RuntimeStep,
     signal: AbortSignal | undefined,
   ): Promise<void> {
-    const floor = progressBefore(step);
-    const ceiling = progressAfter(step);
+    // uv reports which package it is working on, never a percentage, so there is no true
+    // fraction to show. Each line moves the bar a diminishing distance toward the step's end
+    // and never reaches it, which is honest about the one thing the user needs to know:
+    // something is still happening. `stepDone` supplies the real 100%.
+    let linesSeen = 0;
     await runCommand({
       command: this.options.uvBinary,
       args,
@@ -462,9 +486,8 @@ export class RuntimeInstaller {
         if (message === null) {
           return;
         }
-        // uv reports progress per package, not as a percentage, so the bar advances
-        // toward — never past — the step's ceiling as lines arrive.
-        onProgress({ step, percent: Math.min(ceiling - 1, floor + 1), message });
+        linesSeen += 1;
+        onProgress({ step, percent: within(step, advance(linesSeen)), message });
       },
     });
   }

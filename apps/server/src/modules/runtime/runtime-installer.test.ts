@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { STEP_ORDER, progressAfter, progressBefore, within } from './runtime-installer';
+import { STEP_ORDER, advance, progressAfter, progressBefore, within } from './runtime-installer';
 
 /**
  * The progress weighting is what makes a five-minute install feel honest rather than stuck,
@@ -69,5 +69,46 @@ describe('install progress weighting', () => {
     // step that owns it and start claiming another step's progress.
     expect(within('download-vl-server', 5)).toBe(progressAfter('download-vl-server'));
     expect(within('download-vl-server', -1)).toBe(progressBefore('download-vl-server'));
+  });
+});
+
+/**
+ * The bar during a step that takes minutes.
+ *
+ * Reported as "freezes at 11% installing PaddlePaddle". It was not frozen: `install-paddle`
+ * begins at 10% and the bar was pinned to `floor + 1` for the whole step, so every one of the
+ * several gigabytes it downloads was displayed as the same number.
+ */
+describe('install progress within a long step', () => {
+  it('moves on every line rather than sitting on one number', () => {
+    const early = within('install-paddle', advance(1));
+    const later = within('install-paddle', advance(10));
+    const muchLater = within('install-paddle', advance(60));
+
+    expect(later).toBeGreaterThan(early);
+    expect(muchLater).toBeGreaterThan(later);
+  });
+
+  it('never leaves the step it belongs to', () => {
+    // A bar that ran past its own step would jump backwards when the next one started.
+    const floor = progressBefore('install-paddle');
+    const ceiling = progressAfter('install-paddle');
+
+    for (const lines of [0, 1, 5, 50, 5_000]) {
+      const percent = within('install-paddle', advance(lines));
+      expect(percent).toBeGreaterThanOrEqual(floor);
+      expect(percent).toBeLessThan(ceiling);
+    }
+  });
+
+  it('does not claim a step is finished before it is', () => {
+    // `stepDone` supplies the real 100%. Arriving early and then waiting is a worse lie than
+    // crawling, because it tells the user the wait is over when it is not.
+    expect(advance(1_000_000)).toBeLessThan(1);
+  });
+
+  it('starts at the floor rather than jumping', () => {
+    expect(advance(0)).toBe(0);
+    expect(within('install-paddle', advance(0))).toBe(progressBefore('install-paddle'));
   });
 });

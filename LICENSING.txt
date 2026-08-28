@@ -1,0 +1,54 @@
+IMPRESSIVE OCR - HOW IT IS LICENSED
+===================================
+
+Impressive OCR is free and open source software, published under the GNU Affero
+General Public License version 3 (AGPL-3.0-or-later). The full text of that
+licence follows this notice.
+
+WHAT THE AGPL GIVES YOU
+
+Anyone may use, study, modify and share this software, for any purpose,
+including inside a business. There is no restriction on who you are or what you
+use it for.
+
+WHAT THE AGPL ASKS IN RETURN
+
+The AGPL is a copyleft licence. In short, if you distribute this software or a
+modified version of it, or make it available to others over a network, you must
+offer those people the complete corresponding source code under the same
+licence - including any changes you made.
+
+For an individual running Impressive OCR on their own machines, this costs
+nothing and requires nothing. Your documents are yours and never leave your
+computer.
+
+For many organisations it is a condition they cannot meet. Integrating this
+software into a product or an internal service can oblige you to publish source
+code you did not intend to publish.
+
+THE COMMERCIAL LICENCE
+
+If your organisation cannot accept the AGPL's conditions, a commercial licence
+is available. It grants the same software under different terms, without the
+source-disclosure obligation, and adds a warranty and support.
+
+  - Perpetual: the version you buy is yours to keep.
+  - One year of updates included.
+  - Available from https://www.speedbits.io
+
+EVALUATION
+
+Impressive OCR runs fully featured for 30 days without a licence key, so you can
+evaluate it before deciding which licence you need. After that, a key is
+required to continue processing documents.
+
+Nothing is held back in either case: the free and paid versions are the same
+software, with the same features.
+
+If you are unsure which applies to you, ask us at https://www.speedbits.io
+before you install.
+
+
+The GNU Affero General Public License, version 3, follows in full.
+===============================================================================
+

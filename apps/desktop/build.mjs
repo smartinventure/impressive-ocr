@@ -9,12 +9,14 @@
  */
 
 import { context, build as esbuild } from 'esbuild';
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const outDir = join(here, 'dist');
+/** The workspace root, two levels up from `apps/desktop`. */
+const repoRoot = resolve(here, '..', '..');
 const watch = process.argv.includes('--watch');
 
 /**
@@ -73,6 +75,26 @@ const shared = {
  * Emitted only when something is set, so a local build leaves the symbol undefined and the
  * `typeof` guard in `app.ts` falls through to its defaults.
  */
+/**
+ * The licence text the Windows installer shows, written to `dist/`.
+ *
+ * The installer must display the AGPL, and the AGPL forbids altering its text -- so the
+ * commercial position cannot be edited into `LICENSE` itself. This concatenates instead:
+ * `LICENSING.txt`, which explains what the AGPL requires and when a commercial licence is
+ * needed, followed by the licence in full and unmodified.
+ *
+ * Generated rather than committed, so the 661 lines of the AGPL exist once in this repository
+ * and the installer can never show a copy that has drifted from `LICENSE`.
+ */
+function writeInstallerLicense() {
+  const notice = readFileSync(join(repoRoot, 'LICENSING.txt'), 'utf8');
+  const agpl = readFileSync(join(repoRoot, 'LICENSE'), 'utf8');
+  const target = join(outDir, 'installer-license.txt');
+  writeFileSync(target, `${notice}
+${agpl}`, 'utf8');
+  return target;
+}
+
 function licenseDefines() {
   const values = {
     personalProduct: process.env.IMPRESSIVE_OCR_PRODUCT_COMMUNITY,
@@ -132,6 +154,9 @@ async function main() {
   }
 
   await Promise.all(targets.map((options) => esbuild(options)));
+  // After the bundles, because `rmSync` above clears `dist/` and electron-builder reads
+  // this path straight afterwards when packaging.
+  writeInstallerLicense();
   process.stdout.write('Built the Electron bundles.\n');
 }
 

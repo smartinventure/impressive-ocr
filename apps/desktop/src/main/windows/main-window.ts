@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 import { BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 
@@ -50,27 +50,53 @@ export function createMainWindow(url: string, iconPath: string | undefined): Bro
 /**
  * Confine the window to the local app.
  *
- * The page renders OCR output — text extracted from documents the user did not write. If a
+ * The page renders OCR output â€” text extracted from documents the user did not write. If a
  * link in that text could navigate the window or open a new one, a malicious PDF would have a
  * route to render attacker-controlled content inside a context holding the preload bridge.
  * External links are handed to the real browser, where they are harmless.
  */
+/**
+ * Whether a target belongs to the application itself.
+ *
+ * A target that will not parse is treated as foreign, so a malformed URL is refused rather
+ * than throwing inside the main process â€” where an exception in a `will-navigate` listener
+ * has no sensible place to go.
+ */
+export function isSameOrigin(target: string, appOrigin: string): boolean {
+  try {
+    return new URL(target).origin === appOrigin;
+  } catch {
+    return false;
+  }
+}
+
+/** Hand a URL to the system browser, but only when it is a web address. */
+export function openIfWebAddress(url: string): void {
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    void shell.openExternal(url);
+  }
+}
+
 function hardenNavigation(window: BrowserWindow, appUrl: string): void {
   const appOrigin = new URL(appUrl).origin;
 
   window.webContents.on('will-navigate', (event, target) => {
-    if (new URL(target).origin !== appOrigin) {
-      event.preventDefault();
-      void shell.openExternal(target);
+    if (isSameOrigin(target, appOrigin)) {
+      return;
     }
+    // Anything leaving the app is refused here and handed to the system browser only if it
+    // is a web address. The scheme check is the point: `openExternal` on a `file://` or
+    // custom-scheme URL asks the operating system to open it with whatever is registered,
+    // which for the wrong target means launching a program. The handler below has always
+    // said so; this one did not, and passed every scheme straight through.
+    event.preventDefault();
+    openIfWebAddress(target);
   });
 
   window.webContents.setWindowOpenHandler(({ url }) => {
     // Never a new Electron window: only http(s) is passed to the system browser, so a
     // `file://` or custom-scheme URL cannot be used to launch something.
-    if (url.startsWith('https://') || url.startsWith('http://')) {
-      void shell.openExternal(url);
-    }
+    openIfWebAddress(url);
     return { action: 'deny' };
   });
 

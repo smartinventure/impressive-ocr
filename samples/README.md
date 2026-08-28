@@ -51,8 +51,14 @@ text is dropped on the way out while remaining in `overall_ocr_res`. The txt and
 searchable-PDF writers read the boxes and never lost it — which is why the same run scored 0%
 and 97% depending only on which file you opened.
 
-`chart_text.py` puts it back in the Markdown, using text that was already recognised and
-paid for. That is the third row: no extra model, no extra inference, no measurable time.
+`chart_text.py` puts it back, using text that was already recognised and paid for. That is
+the third row: no extra model, no extra inference, no measurable time.
+
+It is applied by the Markdown *writer*, not by the result adapter, and the difference is not
+academic. `save_to_markdown` writes the file itself from Paddle's raw result and never reads
+`PageResult.markdown`, so the first version of this fix passed every unit test and changed
+nothing about the document anyone opened. What caught it was running a chart through the
+application and finding 117 bytes of Markdown beside 533 bytes of txt from the same job.
 
 The rows below it are the alternatives that cost something, kept because they answer a
 different question. Both chart-data paths try to reconstruct the plotted *values* as a table

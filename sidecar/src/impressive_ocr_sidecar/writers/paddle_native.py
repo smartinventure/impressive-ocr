@@ -17,7 +17,8 @@ from typing import Any
 from ..core.errors import OutputWriteError
 from ..core.logging import get_logger
 from ..core.protocol import OutputFormat
-from ..engines.base import DocumentResult
+from ..engines.base import DocumentResult, PageResult
+from ..engines.chart_text import append_chart_text
 from .base import WriteContext, WrittenFile, measure
 from .docx_equations import embed_equations
 from .page_merge import merge_pages
@@ -79,9 +80,15 @@ class PaddleNativeWriter:
         if not wrote_anything:
             return []
 
+        paths = self._collect_paths(target)
+
+        # Before the merge, while each file still corresponds to one page.
+        if self.format == "markdown":
+            _restore_chart_text(paths, [page for page in result.pages if page.raw is not None])
+
         # Pages are recognised one at a time, so Paddle wrote one file per page. A six-page
         # scan asked to produce Word means one Word document, not six.
-        files = merge_pages(self._collect_paths(target), context.output_stem)
+        files = merge_pages(paths, context.output_stem)
 
         # After the merge, so each formula is converted once rather than once per page, and
         # so the pass sees the document the user will actually open. `save_to_word` writes
@@ -114,6 +121,45 @@ class PaddleNativeWriter:
                 extra={"format": self.format, "directory": str(directory)},
             )
         return files
+
+
+def _restore_chart_text(paths: list[Path], pages: list[PageResult]) -> None:
+    """Put the chart text back into the Markdown files Paddle just wrote.
+
+    `save_to_markdown` replaces a chart region with an image reference, so the axis labels,
+    legend and category names inside it never reach the file — while the same run has them in
+    `overall_ocr_res`, and the txt and searchable-PDF writers emit them normally. Measured on
+    `samples/charts/`, that was 0-30% of a chart's text in the Markdown against 94-97% in the
+    txt from the identical job.
+
+    It has to happen here rather than in the result adapter. `PageResult.markdown` is not what
+    this writer emits: Paddle writes the file itself, from the raw result, and never consults
+    the adapter's copy. Appending there passed every unit test and changed nothing about the
+    document anyone opened.
+
+    Skipped unless the counts line up, because the alternative to knowing which page a file
+    belongs to is appending one page's chart labels to another page's text.
+    """
+    if len(paths) != len(pages):
+        _logger.warning(
+            "Not restoring chart text: Paddle wrote a different number of files than pages",
+            extra={"files": len(paths), "pages": len(pages)},
+        )
+        return
+
+    for path, page in zip(paths, pages, strict=True):
+        try:
+            before = path.read_text(encoding="utf-8")
+            after = append_chart_text(before, page.raw, page.text_boxes, page.height)
+            if after != before:
+                path.write_text(after, encoding="utf-8")
+        except OSError as error:
+            # The document is written and readable; losing a chart's labels is not worth
+            # failing the job over.
+            _logger.warning(
+                "Could not restore chart text into the Markdown",
+                extra={"path": str(path), "error": str(error)},
+            )
 
 
 def _page_order(path: Path) -> tuple[str, int, str]:

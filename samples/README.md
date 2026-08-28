@@ -16,6 +16,7 @@ truth for free, and it is why those files are worth keeping.
 | `pdfs-with-text/` | Born-digital. The text layer is the reference. |
 | `pdfs-with-graphics/` | Image-only, no text layer, so no automatic reference. |
 | `charts/` | Chart images with a hand-written text inventory in a matching `.md`. |
+| `charts-synthetic/` | Charts drawn from known values. The answer key is the input. |
 | `stamp-seal.png` | Seal artwork, transcribed by hand in `seal-truth.json`. |
 | `text-truth.json` | Extracted text layers, regenerated from the PDFs. |
 | `rendered/`, `all-*/` | Rendered pages. Derived, gitignored, regenerable. |
@@ -82,6 +83,43 @@ the plot. Dedup now applies only from four characters up.
 One caveat on all of these. Scoring is exact string match after case folding, so a real
 misread — `How Bl Customers` for `How BI Customers` — counts as a complete miss. The figures
 are a floor.
+
+## What `charts-synthetic/` is for
+
+Reading a chart's labels and reading its *values* are different jobs, and the hand-written
+inventories can only score the first. Nobody knows what the true numbers behind the Gartner
+charts are, and estimating them off the pixels would mean scoring a model against a guess.
+
+So these are drawn from a table we already have, by `make_charts.py`. The ground truth is the
+input, exact by construction. Each chart exists twice: once with the value printed above each
+bar, and a `-bare` variant without. That pair is the whole point — with the numbers printed,
+a model can score full marks by reading them, and only the bare variant asks whether it can
+measure a bar against an axis.
+
+`score.py <engine> "synth-*-bare.json"` runs one of the two chart-to-table paths and scores
+each cell, accepting either orientation of the table.
+
+### What they settled
+
+Per-cell accuracy over the three charts, 22 values:
+
+| Model | Values printed | **Bare** |
+|---|---|---|
+| PaddleOCR-VL (`accurate`) | 22/22 | **21/22** |
+| PP-Chart2Table (was `fast`) | 22/22 | **3/22** |
+
+Both look perfect until the printed labels come off. PP-Chart2Table then returns
+`6.5, 8.5, 5.0, 9.0, 7.0` for bars of `40, 65, 25, 80, 55` — the right shape on a scale it
+invented — which is how we know its full marks came from reading the numbers rather than
+measuring the plot. PaddleOCR-VL measures: its single miss is 68 for 65 on a 0–100 axis.
+
+That is why the fast engine no longer offers chart data and no longer downloads
+PP-Chart2Table's 1.4 GB. Chart *text* is unaffected on both engines — it needs no model and
+no switch.
+
+The honest limit: these are easy charts, three or fewer series. Neither model produces usable
+values for the 19-category, 8-series charts in `charts/`, and both fail there *silently*, by
+emitting a plausible table of wrong numbers.
 
 ## Licensing
 

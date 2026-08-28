@@ -196,7 +196,7 @@
     "formula": "Recognize formulas",
     "chart": "Extract chart data",
     "seal": "Recognize stamps and seals",
-    "chartHint": "Text inside charts is always read. This additionally tries to reconstruct the plotted values as a table, and is much slower."
+    "chartHint": "Reconstructs the plotted values as a table. Text inside charts is always read without this, on either engine. Slow, and reliable only on simple charts."
   },
   "format": {
     "markdown": "Markdown",

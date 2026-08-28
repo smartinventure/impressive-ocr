@@ -1,0 +1,42 @@
+{
+  "title": "Support Tickets by Month",
+  "categories": [
+    "Jan",
+    "Feb",
+    "Mar"
+  ],
+  "series": {
+    "Open": [
+      20,
+      35,
+      15
+    ],
+    "Closed": [
+      60,
+      45,
+      70
+    ],
+    "Pending": [
+      10,
+      25,
+      40
+    ]
+  },
+  "values": {
+    "Open": {
+      "Jan": 20,
+      "Feb": 35,
+      "Mar": 15
+    },
+    "Closed": {
+      "Jan": 60,
+      "Feb": 45,
+      "Mar": 70
+    },
+    "Pending": {
+      "Jan": 10,
+      "Feb": 25,
+      "Mar": 40
+    }
+  }
+}

@@ -196,7 +196,7 @@
     "formula": "Formeln erkennen",
     "chart": "Diagrammdaten extrahieren",
     "seal": "Stempel und Siegel erkennen",
-    "chartHint": "Text in Diagrammen wird immer gelesen. Dies versucht zusätzlich, die dargestellten Werte als Tabelle zu rekonstruieren, und ist deutlich langsamer."
+    "chartHint": "Rekonstruiert die dargestellten Werte als Tabelle. Text in Diagrammen wird auch ohne dies immer gelesen, auf beiden Engines. Langsam und nur bei einfachen Diagrammen verlässlich."
   },
   "format": {
     "markdown": "Markdown",

@@ -1,0 +1,28 @@
+{
+  "title": "Units Shipped by Region",
+  "categories": [
+    "North",
+    "South",
+    "East",
+    "West",
+    "Central"
+  ],
+  "series": {
+    "Units": [
+      40,
+      65,
+      25,
+      80,
+      55
+    ]
+  },
+  "values": {
+    "Units": {
+      "North": 40,
+      "South": 65,
+      "East": 25,
+      "West": 80,
+      "Central": 55
+    }
+  }
+}

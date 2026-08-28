@@ -210,6 +210,16 @@ describe('PipelineEditorView engine settings', () => {
     expect(wrapper.text()).toContain('Recognize tables');
   });
 
+  it('does not offer chart data on the fast engine', async () => {
+    // Its chart-to-table model reads bar heights against a scale it invents — 3 of 22 cells
+    // on charts drawn from known values — so the sidecar stopped loading it and the option
+    // would do nothing. Chart *text* is unaffected and needs no switch.
+    const wrapper = await openEngine();
+    await setProfile(wrapper, 'fast');
+
+    expect(wrapper.text()).not.toContain('Extract chart data');
+  });
+
   it('hides the ones the accurate engine has no answer for', async () => {
     const wrapper = await openEngine();
     await setProfile(wrapper, 'accurate');

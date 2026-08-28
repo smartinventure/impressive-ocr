@@ -50,14 +50,18 @@ const structureSettingsApply = computed(() => options.value.engine.profile === '
 /**
  * The toggles worth showing for the selected engine.
  *
- * The accurate engine does layout, tables and formulas in one pass, so those switches have
- * nothing to act on and are hidden rather than offered as decoration. Chart data is the
- * exception: PaddleOCR-VL re-reads a chart under a different task prompt, so the option is
- * real on both engines even though they reach it by different routes.
+ * The two engines have almost opposite needs here. The accurate engine does layout, tables
+ * and formulas in one pass, so those switches have nothing to act on. The fast engine has
+ * them all — except chart data, which it no longer offers at all: its chart-to-table model
+ * reads bar heights against a scale it invents, and the sidecar stopped loading it.
+ *
+ * So the chart switch is the one option that belongs to the accurate engine alone, and every
+ * other option belongs to the fast one. Reading a chart's *text* is not in this list, because
+ * it is not optional and happens on both.
  */
 const visibleModules = computed(() =>
   structureSettingsApply.value
-    ? MODULES
+    ? MODULES.filter((module) => module.key !== 'chartRecognition')
     : MODULES.filter((module) => module.key === 'chartRecognition'),
 );
 const name = ref('');

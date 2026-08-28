@@ -1,0 +1,37 @@
+{
+  "title": "Revenue by Quarter",
+  "categories": [
+    "Q1",
+    "Q2",
+    "Q3",
+    "Q4"
+  ],
+  "series": {
+    "Hardware": [
+      30,
+      45,
+      60,
+      75
+    ],
+    "Software": [
+      50,
+      40,
+      35,
+      20
+    ]
+  },
+  "values": {
+    "Hardware": {
+      "Q1": 30,
+      "Q2": 45,
+      "Q3": 60,
+      "Q4": 75
+    },
+    "Software": {
+      "Q1": 50,
+      "Q2": 40,
+      "Q3": 35,
+      "Q4": 20
+    }
+  }
+}

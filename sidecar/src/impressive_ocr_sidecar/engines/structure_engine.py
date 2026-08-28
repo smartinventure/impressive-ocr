@@ -232,6 +232,18 @@ def build_module_kwargs(modules: EngineModules) -> dict[str, Any]:
 
     A free function so it can be unit-tested without PaddleOCR installed — this mapping is
     where a typo would silently disable table recognition for everyone.
+
+    ``chart_recognition`` is deliberately absent, so PP-Chart2Table is never resolved,
+    downloaded or loaded by this engine. It answers with numbers on a scale it invented:
+    measured against charts drawn from known values with the printed labels removed, it read
+    3 of 22 cells correctly, returning 6.5, 8.5, 5.0, 9.0, 7.0 for bars of 40, 65, 25, 80, 55
+    — the right shape on the wrong axis. With the values printed on the bars it scored 22 of
+    22, which is the tell: it was reading the numbers, not measuring the plot.
+
+    Chart *text* is unaffected and still recovered here, by `chart_text.py`, from OCR this
+    engine already runs. What is gone is 1.4 GB of download and minutes of load in exchange
+    for data nobody should act on. The accurate profile keeps the feature, where
+    PaddleOCR-VL reads the same charts at 21 of 22.
     """
     return {
         "use_doc_orientation_classify": modules.doc_orientation_classify,
@@ -239,7 +251,6 @@ def build_module_kwargs(modules: EngineModules) -> dict[str, Any]:
         "use_textline_orientation": modules.textline_orientation,
         "use_table_recognition": modules.table_recognition,
         "use_formula_recognition": modules.formula_recognition,
-        "use_chart_recognition": modules.chart_recognition,
         "use_seal_recognition": modules.seal_recognition,
     }
 

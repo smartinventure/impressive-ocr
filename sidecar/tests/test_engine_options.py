@@ -11,34 +11,46 @@ class TestStructurePredictKwargs:
     def test_maps_every_module_toggle_to_paddles_use_prefix(self) -> None:
         options = EngineOptions(
             modules=EngineModules(
-                docOrientationClassify=False,
+                docOrientationClassify=True,
                 docUnwarping=True,
-                textlineOrientation=False,
-                tableRecognition=False,
+                textlineOrientation=True,
+                tableRecognition=True,
                 formulaRecognition=True,
-                chartRecognition=True,
                 sealRecognition=True,
             )
         )
 
         kwargs = structure_engine.build_predict_kwargs(options)
 
-        assert kwargs == {
-            "use_doc_orientation_classify": False,
-            "use_doc_unwarping": True,
-            "use_textline_orientation": False,
-            "use_table_recognition": False,
-            "use_formula_recognition": True,
-            "use_chart_recognition": True,
-            "use_seal_recognition": True,
-        }
+        assert kwargs["use_doc_orientation_classify"] is True
+        assert kwargs["use_doc_unwarping"] is True
+        assert kwargs["use_textline_orientation"] is True
+        assert kwargs["use_table_recognition"] is True
+        assert kwargs["use_formula_recognition"] is True
+        assert kwargs["use_seal_recognition"] is True
+
+    def test_never_asks_for_chart_recognition(self) -> None:
+        """PP-Chart2Table is not offered by this engine, so it is never loaded.
+
+        It answers with numbers on a scale it invented: on charts drawn from known values with
+        the printed labels removed it read 3 of 22 cells, giving 6.5/8.5/5.0/9.0/7.0 for bars
+        of 40/65/25/80/55. With the values printed on the bars it scored 22 of 22, which shows
+        it was reading them rather than measuring anything.
+
+        Chart *text* still comes out — `chart_text.py` recovers it from the OCR this engine
+        already runs — so what this drops is 1.4 GB and a wrong answer, not a capability.
+        """
+        options = EngineOptions(modules=EngineModules(chartRecognition=True))
+
+        kwargs = structure_engine.build_predict_kwargs(options)
+
+        assert "use_chart_recognition" not in kwargs
 
     def test_defaults_keep_tables_on_and_the_expensive_modules_off(self) -> None:
         kwargs = structure_engine.build_predict_kwargs(EngineOptions())
 
         assert kwargs["use_table_recognition"] is True
         assert kwargs["use_formula_recognition"] is False
-        assert kwargs["use_chart_recognition"] is False
         assert kwargs["use_seal_recognition"] is False
 
     def test_omits_the_page_limit_when_unlimited(self) -> None:
@@ -47,9 +59,9 @@ class TestStructurePredictKwargs:
         assert "page_num" not in kwargs
 
     def test_passes_the_page_limit_through_when_set(self) -> None:
-        kwargs = structure_engine.build_predict_kwargs(EngineOptions(maxPagesPerDocument=25))
+        kwargs = structure_engine.build_predict_kwargs(EngineOptions(maxPagesPerDocument=5))
 
-        assert kwargs["page_num"] == 25
+        assert kwargs["page_num"] == 5
 
 
 class TestVlPredictKwargs:

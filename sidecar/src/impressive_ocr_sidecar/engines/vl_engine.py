@@ -143,8 +143,18 @@ def build_backend_kwargs(vl_server: VlServerSettings | None) -> dict[str, Any]:
 def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
     """Map our options onto PaddleOCR-VL's keyword arguments.
 
-    The VLM handles layout, tables and formulas in one pass, so the per-module toggles
-    PP-StructureV3 exposes do not apply here.
+    Layout, tables and formulas are one pass of the VLM, so most of PP-StructureV3's toggles
+    have no equivalent here. Chart data is the exception, and it was missed for a while:
+    PaddleOCR-VL takes `use_chart_recognition`, which re-reads a chart region under a
+    different task prompt rather than through a second model. Sending nothing meant the switch
+    silently did nothing on this profile, and the profile looked incapable of charts when it
+    had simply never been asked. Measured on `samples/charts/`, forwarding it takes the panel
+    chart from 6% of its text to 76%.
+
+    It goes at predict time on purpose. `EngineCache` pins an engine for the life of the
+    process, so anything decided in the constructor cannot follow a per-pipeline setting; a
+    job that turns this on would get whatever the first job wanted. Verified against a
+    pipeline built without the flag, which is exactly the case that matters.
 
     The two preprocessing switches are deliberately **not** sent. They are decided in the
     constructor, which is where the sub-models are built, and passing them again could only
@@ -155,6 +165,8 @@ def build_predict_kwargs(options: EngineOptions) -> dict[str, Any]:
     kwargs: dict[str, Any] = {}
     if options.max_pages_per_document > 0:
         kwargs["page_num"] = options.max_pages_per_document
+    if options.modules.chart_recognition:
+        kwargs["use_chart_recognition"] = True
     return kwargs
 
 

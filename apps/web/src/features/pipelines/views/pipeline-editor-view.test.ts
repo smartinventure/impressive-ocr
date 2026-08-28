@@ -210,13 +210,24 @@ describe('PipelineEditorView engine settings', () => {
     expect(wrapper.text()).toContain('Recognize tables');
   });
 
-  it('hides them on the accurate engine', async () => {
+  it('hides the ones the accurate engine has no answer for', async () => {
     const wrapper = await openEngine();
     await setProfile(wrapper, 'accurate');
 
     expect(wrapper.text()).not.toContain('Scan resolution');
     expect(wrapper.text()).not.toContain('Recognize tables');
     expect(wrapper.text()).toContain('reads layout, tables and formulas in one pass');
+  });
+
+  it('still offers chart data on the accurate engine', async () => {
+    // The one module toggle that engine understands: PaddleOCR-VL re-reads a chart under a
+    // different task prompt, so the option is real on both engines even though they reach it
+    // by different routes. It was hidden here while the sidecar was not forwarding it, which
+    // made the profile look incapable of charts when it had simply never been asked.
+    const wrapper = await openEngine();
+    await setProfile(wrapper, 'accurate');
+
+    expect(wrapper.text()).toContain('Extract chart data');
   });
 
   it('keeps the settings it hid, so switching back restores them', async () => {

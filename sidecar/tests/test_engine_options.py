@@ -53,15 +53,43 @@ class TestStructurePredictKwargs:
 
 
 class TestVlPredictKwargs:
-    def test_forwards_no_module_switches_at_all(self) -> None:
-        """Not even the preprocessing pair, which this deliberately stopped sending.
+    def test_forwards_no_preprocessing_switches(self) -> None:
+        """The pair that must stay in the constructor.
 
-        The VLM handles layout, tables and formulas in one pass, so PP-StructureV3's toggles
-        have no equivalent. The two preprocessing switches used to be forwarded, and that was
-        the bug: PaddleOCR-VL builds its doc preprocessor in the constructor or not at all, so
-        asking for it here made every page fail with "object has no attribute
-        doc_preprocessor_pipeline". They are decided at construction now.
+        PaddleOCR-VL builds its doc preprocessor at construction or not at all, so asking for
+        it here made every page fail with "object has no attribute doc_preprocessor_pipeline".
         """
         kwargs = vl_engine.build_predict_kwargs(EngineOptions())
 
-        assert kwargs == {}
+        assert "use_doc_orientation_classify" not in kwargs
+        assert "use_doc_unwarping" not in kwargs
+
+    def test_defaults_ask_for_nothing(self) -> None:
+        assert vl_engine.build_predict_kwargs(EngineOptions()) == {}
+
+    def test_forwards_chart_recognition_when_asked(self) -> None:
+        """The one module toggle this engine understands.
+
+        It re-reads a chart region under a different task prompt rather than loading a second
+        model. Not forwarding it made the switch silently inert on this profile, which looked
+        from the outside like an engine that could not read charts.
+        """
+        options = EngineOptions(modules=EngineModules(chartRecognition=True))
+
+        assert vl_engine.build_predict_kwargs(options)["use_chart_recognition"] is True
+
+    def test_still_ignores_the_toggles_this_engine_has_no_answer_for(self) -> None:
+        # Tables and formulas are part of the one pass; there is no sub-model to switch.
+        options = EngineOptions(
+            modules=EngineModules(tableRecognition=True, formulaRecognition=True)
+        )
+        kwargs = vl_engine.build_predict_kwargs(options)
+
+        assert "use_table_recognition" not in kwargs
+        assert "use_formula_recognition" not in kwargs
+
+    def test_sends_nothing_when_chart_data_is_off(self) -> None:
+        # Absent rather than False: an unset knob leaves PaddleOCR on its own default.
+        options = EngineOptions(modules=EngineModules(chartRecognition=False))
+
+        assert "use_chart_recognition" not in vl_engine.build_predict_kwargs(options)

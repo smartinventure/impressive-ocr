@@ -46,6 +46,20 @@ const isEdit = computed(() => props.id !== undefined);
  * invites tuning a run by a control that was never connected to it.
  */
 const structureSettingsApply = computed(() => options.value.engine.profile === 'fast');
+
+/**
+ * The toggles worth showing for the selected engine.
+ *
+ * The accurate engine does layout, tables and formulas in one pass, so those switches have
+ * nothing to act on and are hidden rather than offered as decoration. Chart data is the
+ * exception: PaddleOCR-VL re-reads a chart under a different task prompt, so the option is
+ * real on both engines even though they reach it by different routes.
+ */
+const visibleModules = computed(() =>
+  structureSettingsApply.value
+    ? MODULES
+    : MODULES.filter((module) => module.key === 'chartRecognition'),
+);
 const name = ref('');
 const description = ref('');
 const options = ref<PipelineOptions>(blankOptions());
@@ -376,12 +390,15 @@ onMounted(async () => {
               <template #append><InfoHint topic="editorTextLayer" /></template>
             </v-select>
 
-            <template v-if="structureSettingsApply">
+            <template v-if="visibleModules.length > 0">
               <div class="editor__modules-title">
                 {{ t('editor.modules') }}
                 <InfoHint topic="editorModules" />
               </div>
-              <div v-for="module in MODULES" :key="module.key" class="editor__module-row">
+              <p v-if="!structureSettingsApply" class="text-body-2 text-medium-emphasis mb-2">
+                {{ t('editor.modulesBuiltIn') }}
+              </p>
+              <div v-for="module in visibleModules" :key="module.key" class="editor__module-row">
                 <div class="editor__module">
                   <v-switch
                     v-model="options.engine.modules[module.key]"
@@ -400,9 +417,7 @@ onMounted(async () => {
               </div>
             </template>
 
-            <p v-else class="text-body-2 text-medium-emphasis mb-0">
-              {{ t('editor.modulesBuiltIn') }}
-            </p>
+
           </v-expansion-panel-text>
         </v-expansion-panel>
 

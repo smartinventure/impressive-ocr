@@ -181,7 +181,7 @@
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Affects the .txt file only. Choose BOM if Excel garbles umlauts; Latin-1 only for legacy systems, as characters outside it cannot be written.",
     "sectionExpert": "Expert settings",
-    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass. Rendering resolution and the individual recognisers apply to the fast engine only."
+    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass, so those have nothing to switch. Rendering resolution is set for you."
   },
   "moduleTone": {
     "slow": "slower",

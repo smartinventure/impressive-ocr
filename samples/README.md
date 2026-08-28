@@ -41,7 +41,7 @@ Recall over the three images, each string counted once, matched case-insensitive
 | **`fast`, Markdown, now** | **97%** | **95%** | **94%** | **0.5–5 s** |
 | `fast` + chart recognition (PP-Chart2Table) | 58% | 54% | 63% | 26–56 s |
 | `accurate` | 6% | 27% | 3% | 0.7–7 s |
-| `accurate` + `use_chart_recognition` | 76% | 51% | 54% | 13–176 s |
+| `accurate` + extract chart data | 76% | 51% | 54% | 13–176 s |
 
 The first row was never a recognition failure, and finding that out changed what needed
 fixing. PP-StructureV3 runs one page-wide OCR pass and separately assembles a Markdown
@@ -54,11 +54,17 @@ and 97% depending only on which file you opened.
 paid for. That is the third row: no extra model, no extra inference, no measurable time.
 
 The rows below it are the alternatives that cost something, kept because they answer a
-different question. Both chart-recognition paths try to reconstruct the plotted *values* as
-a table rather than transcribe the labels, which is why they score lower on a text inventory
-while being the only options that can tell you a bar's height. PP-Chart2Table needs a
-separate 1.4 GB model; `use_chart_recognition` on PaddleOCR-VL reuses the model already
-loaded, and is the better of the two on the panel chart.
+different question. Both chart-data paths try to reconstruct the plotted *values* as a table
+rather than transcribe the labels, which is why they score lower on a text inventory while
+being the only options that can tell you a bar's height. PP-Chart2Table needs a separate
+1.4 GB model; PaddleOCR-VL reuses the model already loaded, and is the better of the two on
+the panel chart.
+
+The last row was unreachable until recently, and the reason is worth recording. The sidecar
+forwarded no module toggles to PaddleOCR-VL at all, so the switch was inert on that profile
+and the profile looked incapable of charts when it had simply never been asked. It is
+forwarded at predict time rather than construction, because `EngineCache` pins an engine for
+the life of the process and a constructor argument cannot follow a per-pipeline setting.
 
 ### Charts inside a page, not cropped to one
 

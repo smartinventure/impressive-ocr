@@ -181,7 +181,7 @@
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Betrifft nur die .txt-Datei. BOM wählen, wenn Excel Umlaute verstümmelt; Latin-1 nur für Altsysteme, da Zeichen außerhalb davon nicht schreibbar sind.",
     "sectionExpert": "Experteneinstellungen",
-    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang. Rendering-Auflösung und die einzelnen Erkenner gelten nur für die Engine „Schnell“."
+    "modulesBuiltIn": "Die genaue Engine liest Layout, Tabellen und Formeln in einem Durchgang; dort gibt es nichts zu schalten. Die Renderauflösung wird automatisch gesetzt."
   },
   "moduleTone": {
     "slow": "langsamer",

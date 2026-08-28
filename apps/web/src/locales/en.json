@@ -194,9 +194,9 @@
     "textline": "Detect text line orientation",
     "table": "Recognize tables",
     "formula": "Recognize formulas",
-    "chart": "Recognize charts",
+    "chart": "Extract chart data",
     "seal": "Recognize stamps and seals",
-    "chartHint": "Chart text is always read. This additionally tries to recover the plotted values as a table, and is slow."
+    "chartHint": "Text inside charts is always read. This additionally tries to reconstruct the plotted values as a table, and is much slower."
   },
   "format": {
     "markdown": "Markdown",

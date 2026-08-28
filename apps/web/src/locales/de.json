@@ -194,9 +194,9 @@
     "textline": "Ausrichtung der Textzeilen erkennen",
     "table": "Tabellen erkennen",
     "formula": "Formeln erkennen",
-    "chart": "Diagramme erkennen",
+    "chart": "Diagrammdaten extrahieren",
     "seal": "Stempel und Siegel erkennen",
-    "chartHint": "Diagrammtext wird immer gelesen. Dies versucht zusätzlich, die dargestellten Werte als Tabelle zu gewinnen, und ist langsam."
+    "chartHint": "Text in Diagrammen wird immer gelesen. Dies versucht zusätzlich, die dargestellten Werte als Tabelle zu rekonstruieren, und ist deutlich langsamer."
   },
   "format": {
     "markdown": "Markdown",

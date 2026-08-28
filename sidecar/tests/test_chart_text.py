@@ -108,3 +108,36 @@ class TestAppendChartText:
         markdown = "![chart](c.jpg)"
 
         assert append_chart_text(markdown, result(), [], PAGE_HEIGHT) == markdown
+
+
+class TestShortLabels:
+    """Axis ticks, and why "already in the Markdown" cannot mean the same thing for them.
+
+    Measured on `samples/rendered/charts-p01.png`, suppressing short strings that appear
+    anywhere in the body prose dropped `0`, `5` and `10` from an eight-label plot — the whole
+    scale of the chart, removed because a sentence elsewhere on the page mentioned a number.
+    """
+
+    def test_keeps_an_axis_tick_that_also_appears_in_the_prose(self) -> None:
+        markdown = "The experiment ran for 10 seconds at 5 volts."
+        boxes = [box("0", 10, 300), box("5", 60, 300), box("10", 110, 300)]
+
+        out = append_chart_text(markdown, result(), boxes, PAGE_HEIGHT)
+
+        assert out.rstrip().endswith("0\n5\n10")
+
+    def test_still_suppresses_a_repeated_title(self) -> None:
+        # The case dedup exists for: a full-page chart whose title Paddle put in the document
+        # and whose OCR box also falls inside the chart region.
+        markdown = "# Revenue by region"
+        boxes = [box("Revenue by region", 10, 5), box("Europe", 10, 40)]
+
+        out = append_chart_text(markdown, result(), boxes, PAGE_HEIGHT)
+
+        assert out.count("Revenue by region") == 1
+
+    def test_still_collapses_a_tick_repeated_inside_the_chart(self) -> None:
+        # Both axes have an origin; one `0` in the output is enough.
+        boxes = [box("0", 10, 300), box("0", 10, 20)]
+
+        assert append_chart_text("", result(), boxes, PAGE_HEIGHT).split() == ["0"]

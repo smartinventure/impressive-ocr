@@ -32,6 +32,14 @@ CHART_LABELS = frozenset({"chart", "figure", "image"})
 #: Rows within this fraction of the page height count as the same line for ordering.
 _ROW_TOLERANCE = 0.012
 
+#: Shortest string for which "already in the Markdown" is evidence of a duplicate.
+#:
+#: An axis tick reading `0`, `5` or `10` will collide with the body prose of almost any page,
+#: and suppressing it loses the scale of the chart -- measured on `samples/rendered/`, that
+#: silently dropped four of eight labels from one plot. Above this length a repeat is far more
+#: likely to be the chart's title appearing in both places, which is the case dedup is for.
+_MIN_LENGTH_FOR_DEDUP = 4
+
 Bounds = tuple[float, float, float, float]
 
 
@@ -118,9 +126,12 @@ def append_chart_text(markdown: str, result: Any, boxes: list[TextBox], height: 
     for box in _reading_order(inside, height):
         text = box.text.strip()
         key = _normalise(text)
-        # A chart legend repeats its own labels; the title is usually in the Markdown
-        # already. Neither is worth emitting twice.
-        if not key or key in seen or key in present:
+        if not key or key in seen:
+            continue
+        # A chart's title is usually in the Markdown already and not worth emitting twice.
+        # Short strings are exempt: an axis tick is not a duplicate of the `5` in a sentence
+        # three paragraphs up, and treating it as one throws away the chart's scale.
+        if len(key) >= _MIN_LENGTH_FOR_DEDUP and key in present:
             continue
         seen.add(key)
         lines.append(text)

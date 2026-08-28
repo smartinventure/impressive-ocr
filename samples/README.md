@@ -60,6 +60,19 @@ while being the only options that can tell you a bar's height. PP-Chart2Table ne
 separate 1.4 GB model; `use_chart_recognition` on PaddleOCR-VL reuses the model already
 loaded, and is the better of the two on the panel chart.
 
+### Charts inside a page, not cropped to one
+
+`rendered/charts-p01.png` and `-p02.png` are the harder shape and are what the geometry was
+tested against: a page of body prose with a small plot in the corner. Of 78 and 96 recognised
+boxes on those pages, 8 and 16 fall inside the chart region, and no body text is drawn in —
+including the rotated y-axis title, whose box centre lands inside the region despite the
+text reading sideways.
+
+They also caught a bug the three cropped charts could not. Suppressing any string already
+present in the Markdown is right for a chart's title and wrong for an axis tick: `0`, `5` and
+`10` collide with the prose of almost any page, and skipping them removed the whole scale of
+the plot. Dedup now applies only from four characters up.
+
 One caveat on all of these. Scoring is exact string match after case folding, so a real
 misread — `How Bl Customers` for `How BI Customers` — counts as a complete miss. The figures
 are a floor.

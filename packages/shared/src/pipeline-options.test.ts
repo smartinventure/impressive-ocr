@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { draftPipelineOptions, pipelineOptionsSchema } from './pipeline-options';
+import {
+  draftPipelineOptions,
+  pipelineOptionsSchema,
+  recommendedProfile,
+} from './pipeline-options';
 import { appSettingsSchema, DEFAULT_PORT } from './settings';
 
 /**
@@ -149,5 +153,27 @@ describe('draftPipelineOptions', () => {
     // The draft is a form state, not a valid pipeline: submitting it untouched must be
     // rejected rather than silently creating a pipeline pointing nowhere.
     expect(() => pipelineOptionsSchema.parse(draftPipelineOptions())).toThrow();
+  });
+});
+
+describe('recommendedProfile', () => {
+  it('prefers accurate wherever it can run', () => {
+    expect(recommendedProfile(['accurate', 'fast'])).toBe('accurate');
+    expect(recommendedProfile(['accurate'])).toBe('accurate');
+  });
+
+  it('falls back to fast on a machine that cannot offer it', () => {
+    expect(recommendedProfile(['fast'])).toBe('fast');
+    expect(recommendedProfile([])).toBe('fast');
+  });
+
+  // The schema default is a separate decision: it is what an API client gets for omitting
+  // the field, and it has to be the profile that runs on any machine at all.
+  it('does not change what the schema itself defaults to', () => {
+    const parsed = pipelineOptionsSchema.parse({
+      source: { inputPath: '/in' },
+      output: { outputPath: '/out' },
+    });
+    expect(parsed.engine.profile).toBe('fast');
   });
 });

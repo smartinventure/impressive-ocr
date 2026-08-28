@@ -40,10 +40,15 @@ describe('EngineHelp', () => {
     const text = document.body.textContent ?? '';
     expect(text).toContain('Choosing an OCR engine');
     // The measured figures, which are the reason this exists rather than a vague "slower".
-    expect(text).toContain('~5 s');
-    expect(text).toContain('~80 s');
+    // All four cells, because the point the dialog now has to make is that the accurate
+    // engine wins on both devices -- a table quoting only the GPU row would leave the old
+    // "accurate means slow, and only with a graphics card" reading intact.
+    expect(text).toContain('~3.5 s');
+    expect(text).toContain('~2 s');
+    expect(text).toContain('~100 s');
+    expect(text).toContain('~11 s');
     // And the finding that a speed comparison alone would hide.
-    expect(text).toContain('wrong order');
+    expect(text).toContain('wrong sequence');
 
     wrapper.unmount();
   });

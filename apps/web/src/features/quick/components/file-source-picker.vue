@@ -38,6 +38,16 @@ const emit = defineEmits<{
 const { t } = useI18n();
 const desktop = useDesktopBridge();
 
+/**
+ * True while a file dialog is being opened or a folder listed.
+ *
+ * The desktop path is the one that needed it: `selectFiles` crosses to the main process and
+ * puts up a native modal, and until it comes back the window genuinely cannot repaint. With
+ * no spinner on the button that is indistinguishable from the app having hung, which is
+ * exactly how it was reported.
+ */
+const picking = ref(false);
+
 const browsing = ref(false);
 const currentPath = ref<string | null>(null);
 const parentPath = ref<string | null>(null);
@@ -71,17 +81,22 @@ const selected = computed(() =>
 
 /** Desktop: the native dialog. Browser: the server-side browser. */
 async function chooseServerFiles(): Promise<void> {
-  if (desktop.isDesktop.value) {
-    const picked = await desktop.selectFiles({
-      title: t('quick.chooseFiles'),
-      extensions: [...PROCESSABLE_EXTENSIONS],
-    });
-    if (picked.length > 0) addServerFiles(picked);
-    return;
-  }
+  picking.value = true;
+  try {
+    if (desktop.isDesktop.value) {
+      const picked = await desktop.selectFiles({
+        title: t('quick.chooseFiles'),
+        extensions: [...PROCESSABLE_EXTENSIONS],
+      });
+      if (picked.length > 0) addServerFiles(picked);
+      return;
+    }
 
-  browsing.value = true;
-  await navigate(null);
+    browsing.value = true;
+    await navigate(null);
+  } finally {
+    picking.value = false;
+  }
 }
 
 async function navigate(path: string | null): Promise<void> {
@@ -126,6 +141,8 @@ function toggleServerFile(path: string): void {
  * trip to the dialog silently discarded the first.
  */
 function onUploadPicked(event: Event): void {
+  picking.value = false;
+
   const input = event.target as HTMLInputElement;
   const picked = [...(input.files ?? [])];
 
@@ -144,6 +161,22 @@ function onUploadPicked(event: Event): void {
 
   // Reset, or picking the same file again fires no change event at all.
   input.value = '';
+}
+
+/**
+ * Open the browser's file dialog, showing the button as busy until it returns.
+ *
+ * `cancel` fires when the dialog is dismissed without a selection; without listening for it
+ * the button would spin forever for anyone who opened the dialog and changed their mind.
+ * Older browsers do not emit it, so the spinner is also cleared by the change handler.
+ */
+function openUploadDialog(): void {
+  const input = uploadInput.value;
+  if (input === null) return;
+
+  picking.value = true;
+  input.addEventListener('cancel', () => (picking.value = false), { once: true });
+  input.click();
 }
 
 function removeAt(index: number): void {
@@ -199,6 +232,7 @@ function formatSize(bytes: number | null): string {
         color="primary"
         prepend-icon="folder_open"
         :disabled="disabled"
+        :loading="picking"
         @click="chooseServerFiles"
       >
         {{ t('quick.addFiles') }}
@@ -219,7 +253,8 @@ function formatSize(bytes: number | null): string {
           color="primary"
           prepend-icon="upload_file"
           :disabled="disabled"
-          @click="uploadInput?.click()"
+          :loading="picking"
+          @click="openUploadDialog"
         >
           {{ t('quick.addFiles') }}
         </v-btn>

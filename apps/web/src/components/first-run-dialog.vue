@@ -3,8 +3,14 @@
 import { onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { LICENCE_ENQUIRY_URL, PRIVACY_URL, TERMS_URL } from '@impressive-ocr/shared';
+import {
+  COMMERCIAL_LICENCE_URL,
+  LICENCE_ENQUIRY_URL,
+  PRIVACY_URL,
+  TERMS_URL,
+} from '@impressive-ocr/shared';
 import { useFirstRun } from '../composables/use-first-run';
+import LicenseStep from './license-step.vue';
 
 /**
  * What a fresh installation has to pass through: the terms, then a pointer at the engine.
@@ -20,7 +26,8 @@ import { useFirstRun } from '../composables/use-first-run';
 
 const { t } = useI18n();
 const router = useRouter();
-const { step, isOpen, accepting, error, load, accept, acknowledgeEngine } = useFirstRun();
+const { step, isOpen, accepting, error, load, accept, acknowledgeEngine, settleLicence } =
+  useFirstRun();
 
 onMounted(load);
 
@@ -62,6 +69,14 @@ function goToSystem(): void {
               {{ t('firstRun.consent.privacy') }}
             </a>
           </li>
+          <!-- The terms an organisation actually buys. Listed for everyone rather than shown
+               only after someone picks the commercial tier: it is the document that decides
+               whether they need to, so hiding it behind that choice is backwards. -->
+          <li>
+            <a :href="COMMERCIAL_LICENCE_URL" target="_blank" rel="noopener noreferrer">
+              {{ t('firstRun.consent.commercialLicence') }}
+            </a>
+          </li>
         </ul>
 
         <p class="text-medium-emphasis text-body-2 mb-0">{{ t('firstRun.consent.noTelemetry') }}</p>
@@ -84,7 +99,15 @@ function goToSystem(): void {
       </v-card-actions>
     </v-card>
 
-    <!-- Step two: nothing can be OCR'd until the engine is downloaded. -->
+    <!-- Step two: which licence this installation runs under. Skippable, always. -->
+    <v-card v-else-if="step === 'licence'" rounded="lg">
+      <v-card-title class="text-h6 pt-5 px-6">{{ t('licence.title') }}</v-card-title>
+      <v-card-text class="px-6 pb-5">
+        <LicenseStep show-skip @done="settleLicence" @skip="settleLicence" />
+      </v-card-text>
+    </v-card>
+
+    <!-- Step three: nothing can be OCR'd until the engine is downloaded. -->
     <v-card v-else-if="step === 'engine'" rounded="lg">
       <v-card-title class="text-h6 pt-5 px-6">{{ t('firstRun.engine.title') }}</v-card-title>
 

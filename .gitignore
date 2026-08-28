@@ -71,3 +71,9 @@ Thumbs.db
 coverage/
 playwright-report/
 test-results/
+
+# Rendered benchmark pages. Derived from samples/pdfs-with-text/ and regenerable, so they
+# are not worth carrying in the repository.
+samples/rendered/
+samples/rendered-*/
+samples/all-*/

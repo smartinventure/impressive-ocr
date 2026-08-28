@@ -118,6 +118,7 @@ function harness(queued: Job[]): Harness {
     hardware: gpuHardware,
     isRuntimeReady: () => true,
     isGloballyPaused: () => false,
+    canProcess: () => true,
     maxConcurrentDocuments: () => 1,
   };
 
@@ -199,6 +200,7 @@ describe('Scheduler', () => {
       hardware: gpuHardware,
       isRuntimeReady: () => true,
       isGloballyPaused: () => false,
+    canProcess: () => true,
       maxConcurrentDocuments: () => 1,
     };
     const scheduler = new Scheduler(options);

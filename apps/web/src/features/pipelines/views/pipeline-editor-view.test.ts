@@ -177,3 +177,56 @@ describe('PipelineEditorView', () => {
     expect(() => wrapper.unmount()).not.toThrow();
   });
 });
+
+/**
+ * The engine panel offers a rendering resolution and seven module switches, and the accurate
+ * engine reads none of them: the sidecar's `build_predict_kwargs` sends the vision-language
+ * pipeline nothing but a page limit. Showing a setting that is quietly ignored is worse than
+ * not offering it, because it invites tuning a run with a control that was never connected.
+ */
+describe('PipelineEditorView engine settings', () => {
+  async function openEngine(): Promise<ReturnType<typeof mountEditor>> {
+    const wrapper = mountEditor();
+    // Index 1 is Engine: source, engine, output, post, reliability, schedule.
+    await openPanel(wrapper, 1);
+    return wrapper;
+  }
+
+  async function setProfile(
+    wrapper: ReturnType<typeof mountEditor>,
+    profile: 'fast' | 'accurate',
+  ): Promise<void> {
+    const selects = wrapper.findAllComponents({ name: 'VSelect' });
+    const engine = selects.find((select) => String(select.props('label')).includes('Engine'));
+    engine?.vm.$emit('update:modelValue', profile);
+    await wrapper.vm.$nextTick();
+  }
+
+  it('offers resolution and modules on the fast engine', async () => {
+    const wrapper = await openEngine();
+    await setProfile(wrapper, 'fast');
+
+    expect(wrapper.text()).toContain('Scan resolution');
+    expect(wrapper.text()).toContain('Recognize tables');
+  });
+
+  it('hides them on the accurate engine', async () => {
+    const wrapper = await openEngine();
+    await setProfile(wrapper, 'accurate');
+
+    expect(wrapper.text()).not.toContain('Scan resolution');
+    expect(wrapper.text()).not.toContain('Recognize tables');
+    expect(wrapper.text()).toContain('reads layout, tables and formulas in one pass');
+  });
+
+  it('keeps the settings it hid, so switching back restores them', async () => {
+    // Hidden, not reset: a pipeline moved to the accurate engine and back should not have
+    // silently lost the resolution and modules its owner chose.
+    const wrapper = await openEngine();
+    await setProfile(wrapper, 'accurate');
+    await setProfile(wrapper, 'fast');
+
+    expect(wrapper.text()).toContain('Scan resolution');
+    expect(wrapper.text()).toContain('Recognize tables');
+  });
+});

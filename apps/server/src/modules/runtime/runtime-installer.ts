@@ -119,6 +119,17 @@ export function progressAfter(step: RuntimeStep): number {
   return total;
 }
 
+/**
+ * Percentage part-way through a step.
+ *
+ * Steps that report only `progressBefore` freeze the bar for their whole duration, which on
+ * anything measured in minutes is indistinguishable from a hang.
+ */
+export function within(step: RuntimeStep, fraction: number): number {
+  const clamped = Math.max(0, Math.min(1, fraction));
+  return progressBefore(step) + (progressAfter(step) - progressBefore(step)) * clamped;
+}
+
 /** Percentage at which `step` begins. */
 export function progressBefore(step: RuntimeStep): number {
   return progressAfter(step) - STEP_WEIGHTS[step];
@@ -204,6 +215,8 @@ export class RuntimeInstaller {
       await this.warmModels(python, onProgress, signal);
     });
 
+    let engineInstalled = false;
+
     // Last, and deliberately not fatal. Everything above is required to OCR anything at all;
     // this only decides whether the accurate profile is fast, and the pool already falls back
     // to PaddleOCR's own backend when it is missing. Failing the whole install here would
@@ -217,15 +230,16 @@ export class RuntimeInstaller {
           await installVlServer({
             vlServerDir: this.options.vlServerDir,
             hardware,
-            onMessage: (message: string) =>
+            onMessage: (message: string, fraction: number) =>
               onProgress({
                 step: 'download-vl-server',
-                percent: progressBefore('download-vl-server'),
+                percent: within('download-vl-server', fraction),
                 message,
               }),
             signal,
             logger: this.options.logger,
           });
+          engineInstalled = true;
         } catch (error) {
           this.options.logger.warn(
             { err: error },
@@ -239,7 +253,16 @@ export class RuntimeInstaller {
       this.verify(python, signal),
     );
 
-    onProgress({ step: 'verify', percent: 100, message: 'Runtime ready' });
+    // The final word says which of the two outcomes happened. Landing on "Runtime ready"
+    // either way is what let an installation finish 28x slower than intended with nothing on
+    // screen to say the fast engine had not arrived.
+    onProgress({
+      step: 'verify',
+      percent: 100,
+      message: engineInstalled
+        ? 'Runtime ready, with the fast inference engine.'
+        : 'Runtime ready. The fast inference engine could not be installed; Accurate mode will use the slower built-in backend, and can be retried from this page.',
+    });
     return { pythonPath: python, selection, versions };
   }
 
@@ -307,10 +330,10 @@ export class RuntimeInstaller {
     await installVlServer({
       vlServerDir: this.options.vlServerDir,
       hardware: request.hardware,
-      onMessage: (message: string) =>
+      onMessage: (message: string, fraction: number) =>
         request.onProgress({
           step: 'download-vl-server',
-          percent: progressBefore('download-vl-server'),
+          percent: within('download-vl-server', fraction),
           message,
         }),
       signal: request.signal,
@@ -531,13 +554,31 @@ const VERSION_PREFIX = 'IMPRESSIVE_OCR_VERSIONS ';
  * One JSON line behind a distinctive prefix, so parsing it cannot collide with anything else
  * a dependency decides to print.
  */
+/**
+ * Reports the sidecar version too, which it did not before.
+ *
+ * It imported the package and then never printed anything about it, so `sidecarVersion` was
+ * null on every installation. That is not merely a dash in the UI: `engineOutdated` reads
+ * `installed !== null && installed !== appVersion`, so a permanent null meant the warning
+ * that the venv's Python is older than the app could never fire — and that copy is exactly
+ * what silently ignores new settings after an application update.
+ *
+ * `importlib.metadata` rather than `__version__`, because the package does not define one and
+ * reading it returns None, which would have looked like a fix while changing nothing.
+ */
 const VERIFY_SCRIPT = [
   'import json, sys',
-  'import paddle, paddleocr, impressive_ocr_sidecar',
+  'from importlib.metadata import PackageNotFoundError, version',
+  'import paddle, paddleocr',
+  'try:',
+  '    sidecar = version("impressive-ocr-sidecar")',
+  'except PackageNotFoundError:',
+  '    sidecar = None',
   `print("${VERSION_PREFIX}" + json.dumps({`,
   '    "python": sys.version.split()[0],',
   '    "paddle": paddle.__version__,',
   '    "paddleocr": paddleocr.__version__,',
+  '    "sidecar": sidecar,',
   '}), flush=True)',
 ].join('\n');
 

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { Menu, Tray, app, nativeImage, shell } from 'electron';
 import { join } from 'node:path';
+import { resolveDataDir } from '../data-location';
 
 /**
  * The system tray icon.
@@ -77,7 +78,10 @@ export class AppTray {
         {
           label: 'Open the data folder',
           click: () => {
-            void shell.openPath(app.getPath('userData'));
+            // The resolved location, not `userData`: those are different directories now
+            // that the runtime lives outside the roaming profile, and opening the empty one
+            // is exactly the wrong answer to "where are my models?".
+            void shell.openPath(resolveDataDir());
           },
         },
         { type: 'separator' },

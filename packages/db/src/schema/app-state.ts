@@ -24,6 +24,13 @@ export const APP_STATE_KEYS = {
   auth: 'auth',
   /** Which version of the terms, privacy policy and licence summary was agreed to. */
   consent: 'consent',
+  /**
+   * Which licence this installation runs under, and the activation record for it.
+   *
+   * Beside `consent` rather than in `settings`: it holds an email address and a licence key,
+   * and `settings` is served to any client that can reach the API.
+   */
+  license: 'license',
 } as const;
 
 export type AppStateKey = (typeof APP_STATE_KEYS)[keyof typeof APP_STATE_KEYS];

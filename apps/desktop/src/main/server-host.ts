@@ -2,6 +2,7 @@
 import { app } from 'electron';
 import { join } from 'node:path';
 import { createApp, type AppHandle } from '@impressive-ocr/server';
+import { resolveDataDir } from './data-location';
 
 /**
  * Runs the backend inside Electron's main process.
@@ -21,9 +22,10 @@ export interface ServerHost {
 
 export async function startServer(): Promise<ServerHost> {
   const handle = await createApp({
-    // Electron's own userData location, so an uninstall takes the database and models with
-    // it and a portable install stays self-contained.
-    dataDir: join(app.getPath('userData'), 'data'),
+    // Resolved rather than derived from `userData`: on Windows that is the Roaming half of
+    // AppData, which a managed profile synchronises to a file server, and the runtime is
+    // eight gigabytes of libraries and model weights. See `data-location.ts`.
+    dataDir: resolveDataDir(),
     webRoot: resolveWebRoot(),
     uvBinary: resolveUvBinary(),
     // Passed explicitly: a packaged app is not inside the repository, so the server cannot

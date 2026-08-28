@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
-import { quickOptionsSchema, type QuickOptions, type QuickRun } from '@impressive-ocr/shared';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import {
+  quickOptionsSchema,
+  recommendedProfile,
+  type QuickOptions,
+  type QuickRun,
+  type QuickRunFile,
+} from '@impressive-ocr/shared';
 import { ApiRequestError } from '../../../api/client';
 import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
 import { useLiveStore } from '../../../stores/live-store';
@@ -45,14 +51,96 @@ function recallRun(): QuickRun | null {
   }
 }
 
+/**
+ * Where the last run's settings are kept.
+ *
+ * `localStorage`, not session: the point is that someone who always wants Word does not
+ * re-pick it every time they open the app, which means surviving the app being closed.
+ * Settings only — never the files, never an output path from a machine this browser may not
+ * be talking to any more.
+ */
+const SETTINGS_KEY = 'impressive-ocr.quick.settings';
+
+interface RememberedSettings {
+  options: QuickOptions;
+  source: 'server' | 'upload';
+  outputPath: string;
+}
+
+function rememberSettings(settings: RememberedSettings): void {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Private browsing, or storage full. Costs the convenience, not the run.
+  }
+}
+
+/**
+ * Read back what was stored, discarding anything the current schema no longer accepts.
+ *
+ * Parsed rather than trusted: this value outlives releases, so a build that removes a format
+ * or renames a strategy would otherwise restore a setting the server rejects — and the user
+ * would meet that as a failed run with no idea why.
+ */
+function recallSettings(): RememberedSettings | null {
+  try {
+    const stored = localStorage.getItem(SETTINGS_KEY);
+    if (stored === null) return null;
+
+    const parsed = JSON.parse(stored) as Partial<RememberedSettings>;
+    const options = quickOptionsSchema.safeParse(parsed.options);
+    if (!options.success) return null;
+
+    return {
+      options: options.data,
+      source: parsed.source === 'server' ? 'server' : 'upload',
+      outputPath: typeof parsed.outputPath === 'string' ? parsed.outputPath : '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * How far a run is, counted in pages rather than in whole documents.
+ *
+ * Documents alone made the commonest Quick Mode run -- a single file -- a bar that sat at
+ * zero and indeterminate for the whole job and then jumped to full, which reads as a hang on
+ * anything longer than a couple of pages. Both engines stream a page event as each page
+ * lands, so the document in flight can contribute its own fraction of one slot.
+ *
+ * Exported for its own test: it is arithmetic with three ways to be wrong -- a bar that goes
+ * backwards, one that passes 100%, and one that divides by a page count of zero.
+ */
+export function progressFraction(input: {
+  finished: number;
+  total: number;
+  pagesDone: number;
+  /** Null until the sidecar has opened the document and counted its pages. */
+  pageCount: number | null;
+}): number {
+  if (input.total <= 0) return 0;
+
+  // Worth at most one slot however many pages it has, so the bar is monotonic: page 5 of 5
+  // leaves it exactly where finishing the document does.
+  const partial =
+    input.pageCount !== null && input.pageCount > 0
+      ? Math.min(input.pagesDone / input.pageCount, 1)
+      : 0;
+
+  return Math.min((input.finished + partial) / input.total, 1);
+}
+
 export function useQuickRun() {
+  const remembered = recallSettings();
+
   // Upload by default: someone opening this in a browser is usually not sitting at the
   // server. The desktop app overrides it below, where both are the same machine anyway.
-  const source = ref<'server' | 'upload'>('upload');
+  const source = ref<'server' | 'upload'>(remembered?.source ?? 'upload');
   const serverFiles = ref<string[]>([]);
   const uploadFiles = ref<File[]>([]);
-  const outputPath = ref('');
-  const options = ref<QuickOptions>(quickOptionsSchema.parse({}));
+  const outputPath = ref(remembered?.outputPath ?? '');
+  const options = ref<QuickOptions>(remembered?.options ?? quickOptionsSchema.parse({}));
 
   // The live stream carries per-job events; polling carries the run's shape. Both are needed:
   // the poll never sees a message the sidecar emitted between two ticks.
@@ -63,11 +151,46 @@ export function useQuickRun() {
     source.value = 'server';
   }
 
+  /**
+   * Preselect the better profile once the machine's capabilities are known.
+   *
+   * Applied by watcher rather than at construction because the hardware probe arrives over
+   * the wire, usually after this composable is created. Guarded on the user not having
+   * touched the control: a preference stated before the probe landed outranks ours.
+   */
+  // A remembered profile is a decision the user already made, so the recommendation must
+  // not quietly undo it on the next visit.
+  const profileChosen = ref(remembered !== null);
+  watch(
+    () => store.system?.hardware.availableProfiles,
+    (profiles) => {
+      if (profiles === undefined || profileChosen.value) return;
+      options.value = { ...options.value, profile: recommendedProfile(profiles) };
+    },
+    { immediate: true },
+  );
+
+  /** Called by the view when the profile select is used, to stop the watcher overriding it. */
+  function keepProfile(): void {
+    profileChosen.value = true;
+  }
+
   const run = ref<QuickRun | null>(null);
   const progress = ref<QuickRunProgress | null>(null);
   const uploadFraction = ref(0);
   const busy = ref(false);
   const error = ref<string | null>(null);
+
+  /**
+   * What pressing Start is doing right now.
+   *
+   * `busy` alone could not be shown honestly: it covers sending bytes, which has a real
+   * percentage, and waiting for the server to create the run, which has none. Reported as one
+   * state the screen showed a bar that filled and then sat at 100% for as long as the server
+   * took, which reads as a hang -- and on the desktop, where there is no upload at all, it
+   * showed nothing whatsoever between the click and the run appearing.
+   */
+  const phase = ref<'idle' | 'uploading' | 'starting'>('idle');
 
   let timer: ReturnType<typeof setInterval> | undefined;
 
@@ -167,11 +290,14 @@ export function useQuickRun() {
     };
   });
 
-  const completedFraction = computed(() => {
-    const total = run.value?.fileCount ?? 0;
-    if (total === 0) return 0;
-    return (succeeded.value + failed.value) / total;
-  });
+  const completedFraction = computed(() =>
+    progressFraction({
+      finished: succeeded.value + failed.value,
+      total: run.value?.fileCount ?? 0,
+      pagesDone: currentDocument.value?.pagesDone ?? 0,
+      pageCount: currentDocument.value?.pageCount ?? null,
+    }),
+  );
 
   /**
    * Uploads are downloaded; server runs wrote to a folder the user can already open.
@@ -191,6 +317,34 @@ export function useQuickRun() {
     downloadUrl.value === '' ? '' : new URL(downloadUrl.value, window.location.origin).toString(),
   );
 
+  /**
+   * The individual results, offered alongside the ZIP.
+   *
+   * Fetched once the run is finished rather than polled: the list cannot change afterwards,
+   * and asking for it on every progress tick would be a request per second for a value that
+   * is constant.
+   */
+  const files = ref<QuickRunFile[]>([]);
+
+  async function loadFiles(): Promise<void> {
+    // Gated on `canDownload`, not merely on being finished: a server run wrote straight into
+    // the user's own output folder, and a list of download links to files they already have
+    // on disk would only invite them to fetch second copies into their browser's downloads.
+    if (run.value === null || !canDownload.value) return;
+    try {
+      files.value = await quickApi.files(run.value.pipelineId);
+    } catch {
+      // The ZIP button is unaffected, so a failure here costs a convenience rather than the
+      // results themselves. Nothing worth interrupting the user for.
+      files.value = [];
+    }
+  }
+
+  /** A file's own URL, for a direct link per row. */
+  function fileUrl(file: QuickRunFile): string {
+    return run.value === null ? '' : quickApi.fileUrl(run.value.pipelineId, file.index);
+  }
+
   async function start(): Promise<void> {
     if (!canStart.value) return;
 
@@ -199,11 +353,14 @@ export function useQuickRun() {
     try {
       if (source.value === 'upload') {
         uploadFraction.value = 0;
+        phase.value = 'uploading';
         const { uploadId } = await quickApi.upload([...uploadFiles.value], (fraction) => {
           uploadFraction.value = fraction;
         });
+        phase.value = 'starting';
         run.value = await quickApi.start({ source: 'upload', uploadId, options: options.value });
       } else {
+        phase.value = 'starting';
         run.value = await quickApi.start({
           source: 'server',
           files: [...serverFiles.value],
@@ -212,11 +369,19 @@ export function useQuickRun() {
         });
       }
       rememberRun(run.value);
+      // Stored only once a run has actually been accepted, so a setting that the server
+      // refused is never the one waiting for the user next time.
+      rememberSettings({
+        options: options.value,
+        source: source.value,
+        outputPath: outputPath.value,
+      });
       startPolling();
     } catch (caught) {
       error.value = caught instanceof ApiRequestError ? caught.message : 'Could not start the run.';
     } finally {
       busy.value = false;
+      phase.value = 'idle';
     }
   }
 
@@ -244,10 +409,12 @@ export function useQuickRun() {
    * gone; only the results remain, and they expire on their own.
    */
   function reset(): void {
+    files.value = [];
     rememberRun(null);
     run.value = null;
     progress.value = null;
     uploadFraction.value = 0;
+    phase.value = 'idle';
     error.value = null;
     stopPolling();
   }
@@ -256,7 +423,12 @@ export function useQuickRun() {
     if (run.value === null) return;
     try {
       progress.value = await quickApi.progress(run.value.pipelineId);
-      if (!isRunning.value) stopPolling();
+      if (!isRunning.value) {
+        stopPolling();
+        // The results are fixed the moment the run stops, so this is the one moment worth
+        // asking for them.
+        void loadFiles();
+      }
     } catch {
       // A transient failure mid-run is not worth tearing the screen down for; the next tick
       // will either succeed or the user will cancel.
@@ -301,6 +473,7 @@ export function useQuickRun() {
     run,
     progress,
     uploadFraction,
+    phase,
     busy,
     error,
     fileCount,
@@ -316,9 +489,13 @@ export function useQuickRun() {
     pageProgress,
     currentDocument,
     completedFraction,
+    keepProfile,
     canDownload,
     downloadUrl,
     absoluteDownloadUrl,
+    files,
+    fileUrl,
+    loadFiles,
     start,
     cancel,
     reset,

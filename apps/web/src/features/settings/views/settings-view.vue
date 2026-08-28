@@ -225,7 +225,11 @@ onMounted(load);
         :hint="t('settings.vlConcurrencyHint')"
         persistent-hint
         @end="save({ vlConcurrency: Number($event) })"
-      />
+      >
+        <template #append>
+          <span class="settings__value ocr-mono">{{ settings.vlConcurrency }}</span>
+        </template>
+      </v-slider>
     </v-card>
 
     <!-- Resource use. The defaults are chosen so the machine stays usable during a run. -->
@@ -243,7 +247,11 @@ onMounted(load);
         persistent-hint
         class="mb-6"
         @end="save({ cpuBudgetPercent: Number($event) })"
-      />
+      >
+        <template #append>
+          <span class="settings__value ocr-mono">{{ settings.cpuBudgetPercent }}%</span>
+        </template>
+      </v-slider>
 
       <v-slider
         :model-value="settings.maxConcurrentDocuments"
@@ -256,7 +264,11 @@ onMounted(load);
         persistent-hint
         class="mb-6"
         @end="save({ maxConcurrentDocuments: Number($event) })"
-      />
+      >
+        <template #append>
+          <span class="settings__value ocr-mono">{{ settings.maxConcurrentDocuments }}</span>
+        </template>
+      </v-slider>
 
       <!-- Minutes, not a slider: the useful values span 1 to a working day, which no slider
            resolves sensibly, and 0 has to be typeable because it means "never". -->
@@ -302,6 +314,15 @@ onMounted(load);
 </template>
 
 <style scoped>
+/* A fixed minimum width, so the slider track does not jump left and right by a few pixels as
+   the number gains or loses a digit while being dragged. */
+.settings__value {
+  min-width: 3.25rem;
+  text-align: right;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
 .settings {
   max-width: 760px;
 }

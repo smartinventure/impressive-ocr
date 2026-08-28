@@ -46,8 +46,57 @@ const shared = {
   logLevel: 'info',
   define: {
     'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV ?? 'production'),
+    // Licence configuration, compiled in at build time.
+    //
+    // It cannot be read from the environment at runtime: the server reads `process.env` when
+    // it starts, and that happens on the *user's* machine, where none of these are set. A
+    // packaged desktop app has no environment to inherit, so the values have to travel inside
+    // the bundle — which is what `define` does, substituting them as literals.
+    //
+    // Empty in a local build, which is a working app whose registration screen reports only
+    // that it cannot reach the licence server. The release workflow supplies the real values
+    // from repository secrets; they are never committed, because a key in a public repository
+    // is scraped and revoked before the release it belongs to ships.
+    ...licenseDefines(),
   },
 };
+
+/**
+ * Licence values to compile in, as an esbuild `define` for `__LICENSE_BUILD__`.
+ *
+ * The same symbol the headless bundle uses, and for the same reason: `app.ts` looks these up
+ * through `process.env[name]`, a *dynamic* property access that esbuild cannot substitute.
+ * Defining `process.env.IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY` therefore compiles cleanly,
+ * changes nothing, and produces a desktop build that cannot activate a licence — which is
+ * exactly what happened, and is invisible until someone types a correct key and is refused.
+ *
+ * Emitted only when something is set, so a local build leaves the symbol undefined and the
+ * `typeof` guard in `app.ts` falls through to its defaults.
+ */
+function licenseDefines() {
+  const values = {
+    personalProduct: process.env.IMPRESSIVE_OCR_PRODUCT_COMMUNITY,
+    personalKey: process.env.IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY,
+    commercialProduct: process.env.IMPRESSIVE_OCR_PRODUCT_COMMERCIAL,
+    commercialKey: process.env.IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL,
+  };
+
+  const present = Object.fromEntries(
+    Object.entries(values).filter(([, value]) => (value ?? '') !== ''),
+  );
+
+  const defines = {};
+  if (Object.keys(present).length > 0) {
+    defines.__LICENSE_BUILD__ = JSON.stringify(present);
+  }
+  // Read statically in `app.ts`, so this one can still be substituted directly.
+  if ((process.env.IMPRESSIVE_OCR_LICENSE_URL ?? '') !== '') {
+    defines['process.env.IMPRESSIVE_OCR_LICENSE_URL'] = JSON.stringify(
+      process.env.IMPRESSIVE_OCR_LICENSE_URL,
+    );
+  }
+  return defines;
+}
 
 const targets = [
   {

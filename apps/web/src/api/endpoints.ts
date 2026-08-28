@@ -3,6 +3,7 @@ import type {
   AppSettings,
   QuickOptions,
   QuickRun,
+  QuickRunFile,
   FolderRole,
   FolderValidation,
   AuthStatus,
@@ -22,6 +23,11 @@ import type {
   SystemStatus,
   UpdatePipelineRequest,
   UpdateSettingsRequest,
+} from '@impressive-ocr/shared';
+import type {
+  ActivateLicenseRequest,
+  LicenseStatus,
+  RegisterPersonalRequest,
 } from '@impressive-ocr/shared';
 import { api, uploadFiles } from './client';
 
@@ -190,6 +196,19 @@ export const quickApi = {
   progress: (pipelineId: string, signal?: AbortSignal): Promise<QuickRunProgress> =>
     api.get(`/quick/runs/${pipelineId}`, signal),
 
+  /** Everything the run produced, so each file can be offered on its own. */
+  files: (pipelineId: string, signal?: AbortSignal): Promise<QuickRunFile[]> =>
+    api.get(`/quick/runs/${pipelineId}/files`, signal),
+
+  /**
+   * A single result, addressed by its position in the server's list.
+   *
+   * Not a path: the client never names a file on disk, which is what keeps a download button
+   * from becoming a traversal.
+   */
+  fileUrl: (pipelineId: string, index: number): string =>
+    `/api/quick/runs/${pipelineId}/files/${index}`,
+
   cancel: (pipelineId: string): Promise<{ cancelled: number }> =>
     api.post(`/quick/runs/${pipelineId}/cancel`),
 
@@ -212,6 +231,35 @@ export interface QuickRunProgress {
   };
   jobs: Job[];
 }
+
+/**
+ * Registration and entitlement.
+ *
+ * The status endpoint is safe to call from anywhere: it never returns the licence key, only a
+ * masked form of it.
+ */
+export const licenseApi = {
+  get: (): Promise<LicenseStatus> => api.get('/license'),
+
+  /**
+   * The countries registration accepts.
+   *
+   * Null when the licence server could not be asked, which is the signal to use the bundled
+   * list rather than render an empty dropdown.
+   */
+  countries: (): Promise<{ code: string; name: string }[] | null> => api.get('/license/countries'),
+
+  /** Personal tier. Returns with the state `awaiting-key`: the key arrives by email. */
+  registerPersonal: (body: RegisterPersonalRequest): Promise<LicenseStatus> =>
+    api.post('/license/personal', body),
+
+  /** Both tiers. The key came by email, or with a purchase. */
+  activate: (body: ActivateLicenseRequest): Promise<LicenseStatus> =>
+    api.post('/license/activate', body),
+
+  /** Hand this machine's seat back so another can take it. */
+  release: (): Promise<LicenseStatus> => api.post('/license/release', { confirm: true }),
+};
 
 /** The application log, for the in-app viewer. */
 export const logsApi = {

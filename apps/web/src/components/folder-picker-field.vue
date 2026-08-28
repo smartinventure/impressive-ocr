@@ -6,6 +6,7 @@ import type { FolderRole } from '@impressive-ocr/shared';
 import { filesystemApi, settingsApi } from '../api/endpoints';
 import { useDesktopBridge } from '../composables/use-desktop-bridge';
 import FolderBrowserDialog from './folder-browser-dialog.vue';
+import InfoHint from './info-hint.vue';
 
 /**
  * A path input with a browse button — the pattern used for every folder in the app.
@@ -38,6 +39,8 @@ const props = withDefaults(
      */
     role?: FolderRole;
     disabled?: boolean;
+    /** `help.<topic>` copy for the (i) beside the field. Omitted means no icon. */
+    helpTopic?: string;
   }>(),
   {
     modelValue: '',
@@ -47,6 +50,7 @@ const props = withDefaults(
     role: undefined,
     externalError: null,
     disabled: false,
+    helpTopic: undefined,
   },
 );
 
@@ -190,6 +194,7 @@ async function browse(): Promise<void> {
       </template>
 
       <template #append>
+        <InfoHint v-if="helpTopic" :topic="helpTopic" class="mr-1" />
         <v-btn
           :disabled="disabled"
           variant="tonal"

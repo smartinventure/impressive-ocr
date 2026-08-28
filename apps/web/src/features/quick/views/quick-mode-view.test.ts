@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { mount } from '@vue/test-utils';
 import { createPinia } from 'pinia';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createVuetify } from 'vuetify';
 import * as components from 'vuetify/components';
 import * as directives from 'vuetify/directives';
@@ -99,5 +99,68 @@ describe('QuickModeView', () => {
     await wrapper.vm.$nextTick();
 
     expect(wrapper.html()).toBeTruthy();
+  });
+});
+
+/**
+ * Remembering the last settings, and hiding the ones the chosen engine ignores.
+ *
+ * Both exist because of the same complaint: the form asked for the same four decisions on
+ * every run, two of which the accurate engine never reads.
+ */
+describe('QuickModeView settings', () => {
+  const KEY = 'impressive-ocr.quick.settings';
+
+  function remember(options: Record<string, unknown>): void {
+    localStorage.setItem(KEY, JSON.stringify({ options, source: 'upload', outputPath: '' }));
+  }
+
+  afterEach(() => localStorage.clear());
+
+  it('restores the formats chosen last time', () => {
+    remember({ formats: ['docx'], profile: 'fast' });
+
+    // The chip for the remembered format is the selected one; Markdown, the schema default,
+    // is not. Someone who always wants Word should not re-pick it every run.
+    const wrapper = mountView();
+    const docx = wrapper
+      .findAllComponents({ name: 'VChip' })
+      .find((chip) => chip.text().includes('Word'));
+
+    expect(docx?.props('variant')).toBe('flat');
+  });
+
+  it('ignores a stored value the schema no longer accepts', () => {
+    // Written by an older release, or by hand. Restoring it would produce a run the server
+    // rejects, and the user would meet that as a failure with no explanation.
+    localStorage.setItem(KEY, JSON.stringify({ options: { formats: ['no-such-format'] } }));
+
+    expect(() => mountView()).not.toThrow();
+    expect(mountView().text()).toContain('Output');
+  });
+
+  it('survives a stored value that is not JSON at all', () => {
+    localStorage.setItem(KEY, 'not json');
+    expect(() => mountView()).not.toThrow();
+  });
+
+  it('offers the module switches on the fast engine', () => {
+    remember({ profile: 'fast' });
+
+    const text = mountView().text();
+    expect(text).toContain('Recognize tables');
+    expect(text).toContain('Recognize formulas');
+  });
+
+  it('hides them on the accurate engine, which never receives them', () => {
+    // The sidecar's build_predict_kwargs does not pass module toggles to the vision-language
+    // engine. Left on screen they invite the conclusion that a page of mathematics came out
+    // well because formula recognition was on — when the switch was never consulted.
+    remember({ profile: 'accurate' });
+
+    const text = mountView().text();
+    expect(text).not.toContain('Recognize tables');
+    expect(text).not.toContain('Recognize formulas');
+    expect(text).toContain('reads layout, tables and formulas in one pass');
   });
 });

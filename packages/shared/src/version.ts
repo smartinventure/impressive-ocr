@@ -9,4 +9,4 @@
  *
  * Do not edit by hand — run the release script.
  */
-export const APP_VERSION = '1.0.1';
+export const APP_VERSION = '1.0.2';

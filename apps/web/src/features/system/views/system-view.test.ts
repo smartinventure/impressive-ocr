@@ -43,6 +43,22 @@ vi.mock('../../../api/endpoints', () => ({
       blockers: [],
     }),
   },
+  // The System page also renders the licence card, on the same principle as the preflight
+  // card above: unmocked, its mounted hook throws and the page never finishes rendering.
+  licenseApi: {
+    get: vi.fn().mockResolvedValue({
+      state: 'unregistered',
+      tier: null,
+      email: null,
+      maskedKey: null,
+      code: null,
+      gate: { state: 'trial', canProcess: true, daysRemaining: 30, gracePeriodEndsAt: null },
+    }),
+    countries: vi.fn().mockResolvedValue(null),
+    registerPersonal: vi.fn(),
+    activate: vi.fn(),
+    release: vi.fn(),
+  },
 }));
 
 const vuetify = createVuetify({ components, directives });

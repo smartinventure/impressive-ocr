@@ -3,6 +3,7 @@ import type { AppPaths } from './infra/paths';
 import type { ResourceMonitor } from './modules/runtime/resource-usage';
 import type { AuthService } from './modules/auth/auth-service';
 import type { ConsentService } from './modules/consent/consent-service';
+import type { LicenseService } from './modules/license/license-service';
 import type { EventBus } from './modules/events/event-bus';
 import type { SidecarPool } from './modules/ocr/sidecar-pool';
 import type { PipelineService } from './modules/pipelines/pipeline-service';
@@ -27,6 +28,7 @@ export interface AppServices {
   settings: SettingsService;
   auth: AuthService;
   consent: ConsentService;
+  license: LicenseService;
   quick: QuickRunService;
   /** Where the log file lives, for the in-app viewer. */
   paths: AppPaths;

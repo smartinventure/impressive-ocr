@@ -448,3 +448,28 @@ describe('unknown endpoints', () => {
     });
   });
 });
+
+describe('quick mode results', () => {
+  /**
+   * The per-file download addresses a result by its position in the server's own list, so
+   * that no filename from the client is ever joined to a path. These cover the boundary of
+   * that scheme: anything not a valid position must be a 404, never a 500 and never a file.
+   */
+  it('lists nothing for a pipeline that produced nothing', async () => {
+    expect(await get('/api/quick/runs/unknown-pipeline/files')).toMatchObject({
+      status: 200,
+      body: [],
+    });
+  });
+
+  it('refuses an out-of-range file index', async () => {
+    expect((await get('/api/quick/runs/unknown-pipeline/files/0')).status).toBe(404);
+  });
+
+  it.each(['-1', '1.5', 'abc', '..%2F..%2Fetc%2Fpasswd'])(
+    'refuses %s as a file index',
+    async (index) => {
+      expect((await get(`/api/quick/runs/unknown-pipeline/files/${index}`)).status).toBe(404);
+    },
+  );
+});

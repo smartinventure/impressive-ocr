@@ -74,7 +74,19 @@ const routes: RouteRecordRaw[] = [
 export const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior: () => ({ top: 0 }),
+  /**
+   * Top of the page, unless the link named a section.
+   *
+   * The hash form exists for the licence banner, which sends someone to the System page to
+   * register — a page with several cards, on which "go to System" would land them at the top
+   * and leave them hunting for the one thing they were just asked to do.
+   *
+   * `behavior: 'smooth'` so the movement is visible: an instant jump to the middle of a page
+   * is indistinguishable from having loaded at that position, which loses the connection
+   * between the button that was pressed and the section that answers it.
+   */
+  scrollBehavior: (to) =>
+    to.hash !== '' ? { el: to.hash, behavior: 'smooth', top: 76 } : { top: 0 },
 });
 
 /**

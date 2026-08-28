@@ -22,7 +22,8 @@
     "retry": "Wiederholen",
     "close": "Schließen",
     "loading": "Wird geladen…",
-    "of": "von"
+    "of": "von",
+    "back": "Zurück"
   },
   "status": {
     "queued": "In Warteschlange",
@@ -138,13 +139,13 @@
     "watchEvents": "Dateisystem-Ereignisse (lokale Laufwerke)",
     "watchPolling": "Regelmäßige Abfrage (Netzlaufwerke)",
     "profile": "Engine-Profil",
-    "fastHint": "Läuft auf der CPU. Gut für alltägliche Dokumente.",
-    "accurateHint": "Benötigt eine GPU. Am besten bei komplexen Tabellen und schwierigen Scans.",
-    "accurateUnavailable": "Das Profil „Genau“ benötigt eine kompatible GPU, die auf diesem Rechner nicht vorhanden ist. Aufträge laufen mit dem Profil „Schnell“ auf der CPU.",
-    "accurateNeedsVram": "Das Profil „Genau“ benötigt eine Grafikkarte mit mindestens {required} GB; diese GPU hat {vram}. Aufträge laufen mit dem Profil „Schnell“ auf der GPU.",
+    "fastHint": "Eigene Tabellen-, Formel-, Diagramm- und Stempelerkennung.",
+    "accurateHint": "Schneller und besser in der Lesereihenfolge. Empfohlen.",
+    "accurateUnavailable": "Das Profil „Genau“ benötigt die Inferenz-Engine, die noch nicht installiert ist. Fügen Sie sie auf der Systemseite hinzu, oder nutzen Sie so lange „Schnell“.",
+    "accurateNeedsVram": "Ohne die Inferenz-Engine benötigt das Profil „Genau“ eine Grafikkarte mit mindestens {required} GB, und diese GPU hat {vram}. Mit der Inferenz-Engine von der Systemseite entfällt diese Anforderung.",
     "device": "Gerät",
     "dpi": "Scan-Auflösung",
-    "dpiHint": "Höhere Werte sind langsamer und helfen vor allem bei kleiner Schrift.",
+    "dpiHint": "Betrifft nur die Engine „Schnell“. Höhere Werte sind langsamer und helfen vor allem bei kleiner Schrift.",
     "textLayer": "PDFs, die bereits Text enthalten",
     "textLayerHint": "Vorhandenen Text zu übernehmen ist deutlich schneller und meist genauer als erneute OCR.",
     "textHybrid": "Hybrid — nur Seiten ohne Text per OCR",
@@ -179,7 +180,8 @@
     "encodingUtf8Bom": "UTF-8 mit BOM (für Excel)",
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Betrifft nur die .txt-Datei. BOM wählen, wenn Excel Umlaute verstümmelt; Latin-1 nur für Altsysteme, da Zeichen außerhalb davon nicht schreibbar sind.",
-    "sectionExpert": "Experteneinstellungen"
+    "sectionExpert": "Experteneinstellungen",
+    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang. Rendering-Auflösung und die einzelnen Erkenner gelten nur für die Engine „Schnell“."
   },
   "moduleTone": {
     "slow": "langsamer",
@@ -406,8 +408,8 @@
     "profileLabel": "Erkennungs-Engine",
     "profileFast": "Schnell — gut für alltägliche Dokumente",
     "profileAccurate": "Genau — am besten bei Spalten, Tabellen und schwierigen Scans",
-    "profileHint": "Genau erfasst das Layout von Zeitschriften- und Zeitungsseiten deutlich besser und braucht ein Mehrfaches der Zeit pro Seite.",
-    "profileHintNoGpu": "Genau benötigt eine GPU mit ausreichend Speicher, die dieser Rechner nicht hat.",
+    "profileHint": "Genau ist auf diesem Rechner die schnellere und die zuverlässigere der beiden. Schnell behält die Tabellen-, Formel-, Diagramm- und Stempelerkennung.",
+    "profileHintNoGpu": "Genau benötigt die Inferenz-Engine, die noch nicht installiert ist. Sie können sie auf der Systemseite hinzufügen.",
     "settingsUsed": "Einstellungen dieses Laufs:",
     "summaryEngine": "Engine: {value}",
     "summaryDevice": "Angefordert: {value}",
@@ -419,7 +421,11 @@
     "engineAccurateShort": "Genau",
     "strategyHybridShort": "Hybrid",
     "strategySkipShort": "Überspringen",
-    "strategyAlwaysShort": "Immer OCR"
+    "strategyAlwaysShort": "Immer OCR",
+    "downloadFiles": "Einzelne Dateien ({count})",
+    "uploading": "{count} Datei(en) werden an den Server übertragen…",
+    "startingRun": "Der Lauf wird gestartet…",
+    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang — hier gibt es nichts einzuschalten."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",
@@ -488,26 +494,28 @@
   },
   "engineHelp": {
     "trigger": "Welche Engine soll ich wählen?",
-    "title": "OCR-Engine auswählen",
+    "title": "Die OCR-Engine wählen",
     "fastTitle": "Schnell",
-    "fastFor": "Briefe, Rechnungen, Formulare, Berichte — alles einspaltig gesetzte. Die richtige Wahl für überwachte Ordner, bei denen Hunderte Dokumente zählen und nicht das einzelne.",
-    "fastLimit": "Zeichen werden gut erkannt, der Seitenaufbau dagegen schlecht. Bei Zeitschriften- und Zeitungsseiten können Spalten ineinandergeschoben, Initialen vom Wort getrennt und Überschriften verdreht werden — ein Ergebnis, das plausibel aussieht und unbrauchbar ist.",
+    "fastFor": "Briefe, Rechnungen, Formulare und Berichte — alles einspaltig Gesetzte. Sie bringt außerdem Tabellen-, Formel-, Diagramm- und Stempelerkennung mit, für die die genaue Engine kein Gegenstück hat, und ist die kleinere Installation.",
+    "fastLimit": "Sie liest Zeichen gut, rekonstruiert die Seitenstruktur aber schlecht. Auf einer Zeitschriften- oder Zeitungsseite kann sie Spalten verschränken, Initialen von ihrem Wort trennen und eine Überschrift in ein Anagramm verwandeln — eine Ausgabe, die plausibel aussieht und unbrauchbar ist.",
     "accurateTitle": "Genau",
-    "accurateFor": "Zeitschriften, Zeitungen, mehrspaltige Layouts, Tabellen und jeder Scan, den Sie lesen oder veröffentlichen wollen. Die Lesereihenfolge wird rekonstruiert, Spalten und Initialen erscheinen so, wie ein Mensch sie liest.",
-    "accurateLimit": "Benötigt eine GPU mit ausreichend Speicher und braucht deutlich länger pro Seite. Bei großen Mengen sind das Stunden, nicht Sekunden.",
+    "accurateFor": "Zeitschriften, Zeitungen, mehrspaltige Layouts, Tabellen und jeder Scan, den Sie lesen oder veröffentlichen wollen. Sie rekonstruiert die Lesereihenfolge, sodass Spalten und Initialen in der Reihenfolge herauskommen, in der ein Mensch sie liest.",
+    "accurateLimit": "Sie ist inzwischen die schnellere und zugleich die genauere der beiden — auf einer Grafikkarte wie auch allein auf dem Prozessor. Sie braucht rund 2 GB mehr Speicherplatz für die Inferenz-Engine, die mit der Laufzeit installiert wird.",
     "measuredTitle": "Gemessen an einer dicht gesetzten Zeitschriftenseite",
-    "measuredIntro": "Ein einseitiger deutscher Zeitschriftenartikel, verarbeitet auf einer Desktop-GPU und verglichen mit einer geprüften Abschrift.",
+    "measuredIntro": "Ein einseitiger deutscher Zeitschriftenartikel — zwei Spalten, eine Initiale, ein Foto, 637 Wörter — gegen ein von Hand geprüftes Transkript. Die Zeiten stammen von einer Desktop-Grafikkarte und einem 16-Kern-Prozessor.",
     "colSetting": "Einstellung",
     "colSpeed": "Pro Seite",
-    "colQuality": "Übereinstimmung",
-    "rowFastGpu": "Schnell, GPU",
-    "rowAccurateGpu": "Genau, GPU",
-    "rowFastCpu": "Schnell, CPU",
-    "fastGpuSpeed": "~5 s",
-    "accurateGpuSpeed": "~80 s",
-    "fastCpuSpeed": "~114 s",
-    "qualityNote": "Beide Engines erkennen nahezu dieselben Zeichen. Der Unterschied liegt in der Struktur: Schnell hat große Teile des Textes in der falschen Reihenfolge angeordnet — genau das misst der Prozentwert.",
-    "hardwareNote": "Die Zeiten hängen von Ihrer Hardware und der Seite ab. Das Laden der Modelle kostet nur beim ersten Dokument zehn bis zwanzig Sekunden, danach bleibt die Engine warm."
+    "colQuality": "Stimmte mit dem Transkript überein",
+    "rowFastGpu": "Schnell, Grafikkarte",
+    "rowAccurateGpu": "Genau, Grafikkarte",
+    "rowFastCpu": "Schnell, nur Prozessor",
+    "rowAccurateCpu": "Genau, nur Prozessor",
+    "fastGpuSpeed": "~3,5 s",
+    "accurateGpuSpeed": "~2 s",
+    "fastCpuSpeed": "~100 s",
+    "accurateCpuSpeed": "~11 s",
+    "qualityNote": "Beide Engines lesen nahezu dieselben Zeichen — 97,2 % gegen 98,7 % der Wörter kommen in der jeweiligen Ausgabe vor. Der Unterschied in der Tabelle ist die Lesereihenfolge: Schnell hat einen Teil davon in diesem Layout in die falsche Reihenfolge gebracht, und genau das misst der Prozentwert.",
+    "hardwareNote": "Die Zeiten hängen von Ihrer Hardware und von der Seite ab. Das Laden der Modelle kostet nur beim ersten Dokument zehn bis zwanzig Sekunden, danach bleibt die Engine warm."
   },
   "updateBadge": {
     "available": "Update verfügbar",
@@ -522,7 +530,8 @@
       "terms": "Allgemeine Geschäftsbedingungen",
       "privacy": "Datenschutzerklärung",
       "noTelemetry": "Kein Konto, kein Cloud-Dienst, keine Telemetrie. Nichts über Ihre Dokumente verlässt jemals diesen Rechner.",
-      "agree": "Ich stimme zu"
+      "agree": "Ich stimme zu",
+      "commercialLicence": "Lizenzbedingungen für Unternehmen"
     },
     "licence": {
       "title": "Lizenz",
@@ -537,5 +546,210 @@
       "open": "Systemseite öffnen",
       "later": "Später"
     }
+  },
+  "infoHint": {
+    "aria": "Mehr über {subject}"
+  },
+  "help": {
+    "quickSource": {
+      "title": "Welche Dateien verarbeitet werden",
+      "body": "Wählen Sie Dateien, die bereits auf dem Rechner mit Impressive OCR liegen, oder laden Sie sie von dem Computer hoch, an dem Sie gerade sitzen. Beides nimmt PDFs und Bilder an.",
+      "detail": "Dateien auf dem Server werden an Ort und Stelle gelesen, die Ergebnisse landen in einem Ordner Ihrer Wahl. Hochgeladene Dateien werden in einem temporären Ordner verarbeitet und als Download zurückgegeben, denn auf Ihrem eigenen Computer gibt es keinen Ordner, in den der Server schreiben könnte."
+    },
+    "quickOutputFolder": {
+      "title": "Wohin die Ergebnisse gehen",
+      "body": "Der Ordner, der die konvertierten Dateien aufnimmt. Er muss noch nicht existieren — er wird angelegt.",
+      "detail": "Pro Dokument und pro Format wird eine Datei geschrieben, benannt nach dem Ausgangsdokument."
+    },
+    "quickFormats": {
+      "title": "Ausgabeformate",
+      "body": "Jedes gewählte Format wird für jedes Dokument geschrieben; drei Formate ergeben also drei Dateien pro Dokument. Mindestens eines muss ausgewählt bleiben.",
+      "detail": "Markdown erhält Überschriften, Tabellen und Lesereihenfolge und ist die beste Wahl, wenn Sie das Ergebnis lesen oder bearbeiten wollen. JSON enthält die vollständige Struktur einschließlich der Position jedes Textblocks. TXT ist reiner Text ohne Struktur. DOCX und XLSX öffnen sich in Word und Excel. Das durchsuchbare PDF behält das Original-Seitenbild und legt den erkannten Text unsichtbar darüber — das Dokument sieht also aus wie das Original, lässt sich aber durchsuchen und kopieren."
+    },
+    "quickProfile": {
+      "title": "Welche OCR-Engine die Seiten liest",
+      "body": "Genau ist auf heutiger Hardware die schnellere und die bessere Engine — etwa 2 Sekunden pro Seite auf einer Grafikkarte und etwa 11 allein auf dem Prozessor, gegenüber rund 3,5 und 100 bei Schnell. Wählen Sie sie, sofern nichts dagegen spricht.",
+      "detail": "Schnell lohnt sich weiterhin aus zwei Gründen: Die eigene Tabellenerkennung setzt Zellen bei linierten Tabellen im Rechnungsstil eine Spur präziser, und sie bringt Formel-, Diagramm- und Stempelerkennung mit, für die Genau kein Gegenstück hat. Sie ist außerdem die kleinere Installation, wenn die Inferenz-Engine nicht erwünscht ist. Der eigentliche Unterschied liegt in der Struktur: Auf einer mehrspaltigen Seite kann Schnell die Spalten verschränken — der Text ergibt dann keinen Sinn, obwohl jedes Zeichen richtig erkannt wurde."
+    },
+    "quickDevice": {
+      "title": "Welcher Prozessor die Arbeit macht",
+      "body": "Automatisch nutzt die Grafikkarte, wenn eine brauchbare vorhanden ist, und sonst den Prozessor. Das ist fast immer die richtige Einstellung.",
+      "detail": "Erzwingen Sie GPU oder CPU, wenn Sie den Unterschied an Ihren eigenen Dokumenten messen wollen. Eine erzwungene GPU auf einem Rechner ohne brauchbare Grafikkarte scheitert nicht — es wird still zurückgefallen —, die Einstellung ist also gefahrlos zum Ausprobieren."
+    },
+    "quickTextLayer": {
+      "title": "PDFs, die bereits Text enthalten",
+      "body": "Viele PDFs sind gar keine Scans und enthalten schon perfekten Text. Hier legen Sie fest, was mit ihnen geschieht.",
+      "detail": "Hybrid, die Voreinstellung, behält vorhandenen Text und verarbeitet per OCR nur die Seiten, die es brauchen — bei gemischten Dokumenten am schnellsten und genauesten. Überspringen bei Text reicht das gesamte Dokument unverändert durch, sobald irgendein Text gefunden wird, was bei einem Scan mit einem versprengten Text-Wasserzeichen falsch ist. Immer OCR ignoriert den vorhandenen Text vollständig; nutzen Sie das, wenn Sie den eingebetteten Text für schlecht halten."
+    },
+    "editorProfile": {
+      "title": "Welche OCR-Engine die Seiten liest",
+      "body": "Genau ist auf heutiger Hardware schneller und besser — etwa 2 Sekunden pro Seite auf einer Grafikkarte, etwa 11 allein auf dem Prozessor, gegenüber rund 3,5 und 100 bei Schnell. Bei einem überwachten Ordner summiert sich dieser Unterschied über jedes Dokument.",
+      "detail": "Schnell behält eine eigene Tabellenerkennung, die bei linierten Tabellen geringfügig präziser ist, dazu Formel-, Diagramm- und Stempelerkennung, für die Genau kein Gegenstück hat. Der Vorteil von Genau ist die Lesereihenfolge: Auf mehrspaltigen Seiten kann Schnell die Spalten verschränken."
+    },
+    "editorDevice": {
+      "title": "Welcher Prozessor die Arbeit macht",
+      "body": "Automatisch nutzt die Grafikkarte, wenn eine brauchbar ist, und sonst den Prozessor. Ein Gerät zu erzwingen dient dem Messen — oder dazu, die Grafikkarte für anderes frei zu halten.",
+      "detail": "Eine auf GPU festgelegte Pipeline fällt auf einem Rechner ohne Grafikkarte zurück, statt zu scheitern; es bleibt also nichts hängen."
+    },
+    "editorDpi": {
+      "title": "Rendering-Auflösung",
+      "body": "Wie fein eine PDF-Seite in ein Bild gerendert wird, bevor die Engine Schnell sie liest. 150 ist die Voreinstellung und reicht für gewöhnlichen Druck; höhere Auflösungen kosten auf jeder Seite Zeit.",
+      "detail": "Das betrifft nur die Engine Schnell. Genau bekommt das PDF selbst und ermittelt die Seitengeometrie eigenständig — sie vorher in ein Bild zu rendern schadet sogar, weil es Lesereihenfolge kostet. Erhöhen Sie auf 300 nur bei wirklich kleiner Schrift, etwa Fußnoten oder Quellenangaben im Kleingedruckten."
+    },
+    "editorTextLayer": {
+      "title": "PDFs, die bereits Text enthalten",
+      "body": "Hybrid behält vorhandenen Text und verarbeitet per OCR nur die Seiten, die es brauchen. Überspringen bei Text reicht das Dokument durch, sobald irgendein Text gefunden wird. Immer OCR ignoriert eingebetteten Text vollständig.",
+      "detail": "Hybrid ist die richtige Voreinstellung für einen überwachten Ordner, in dem Scans und digital erzeugte PDFs gemischt eintreffen. Wählen Sie Immer OCR, wenn bekannt ist, dass der eingebettete Text unzuverlässig ist, etwa aus einem schlechten Fremdkonverter."
+    },
+    "editorModules": {
+      "title": "Erkennungsmodule",
+      "body": "Zusätzliche Erkenner, die die Engine Schnell neben dem Text ausführen kann. Jeder kostet auf jeder Seite Zeit — schalten Sie nur ein, was in Ihren Dokumenten tatsächlich vorkommt.",
+      "detail": "Die Tabellenerkennung findet linierte Tabellen und rekonstruiert ihre Zellen. Die Formelerkennung wandelt gesetzte Mathematik in LaTeX um. Die Diagrammerkennung liest Daten aus Grafiken. Die Stempelerkennung findet runde Stempel und liest ihre gebogene Schrift. Ausrichtung und Entzerrung begradigen Seiten, die schief eingescannt oder aus einem gewölbten Buch fotografiert wurden."
+    },
+    "editorInputFolder": {
+      "title": "Der überwachte Ordner",
+      "body": "Dokumente, die in diesen Ordner gelegt werden, werden automatisch aufgenommen und verarbeitet. Er muss bereits existieren und innerhalb eines erlaubten Ordners liegen.",
+      "detail": "Der Ordner wird laufend überwacht, solange die Pipeline läuft; Dateien, die beim Start schon darin liegen, werden ebenfalls aufgenommen."
+    },
+    "editorRecursive": {
+      "title": "Unterordner einbeziehen",
+      "body": "Den gesamten Baum unterhalb des Eingangsordners überwachen, nicht nur dessen oberste Ebene.",
+      "detail": "Lassen Sie es aus, wenn der Eingangsordner weitere Ordner enthält, die nicht verarbeitet werden sollen — etwa ein Archiv bereits erledigter Dokumente."
+    },
+    "editorMirror": {
+      "title": "Ordnerstruktur spiegeln",
+      "body": "Den Unterordnerpfad jedes Dokuments unterhalb des Ausgabeordners nachbilden, statt alle Ergebnisse flach in ein Verzeichnis zu schreiben.",
+      "detail": "Nur sinnvoll zusammen mit „Unterordner einbeziehen“. Es ist das, was ein großes Archiv nach der Verarbeitung navigierbar hält."
+    },
+    "editorSkipDuplicates": {
+      "title": "Bereits verarbeitete Dateien überspringen",
+      "body": "Jede Datei an ihrem Inhalt wiedererkennen und ignorieren, wenn sie erneut auftaucht — auch unter anderem Namen.",
+      "detail": "Nur abschalten, wenn Sie dieselben Dokumente bewusst erneut verarbeiten wollen, etwa nach einem Wechsel der Engine."
+    },
+    "editorWatchMode": {
+      "title": "Wie neue Dateien bemerkt werden",
+      "body": "Ereignisse lässt das Betriebssystem Änderungen melden und reagiert binnen Augenblicken. Abfragen prüft den Ordner stattdessen in festen Abständen.",
+      "detail": "Nutzen Sie Abfragen bei Netzlaufwerken und eingebundenen Freigaben, wo Änderungsmeldungen unzuverlässig sind oder gar nicht ankommen. Das kostet etwas mehr Arbeit und bemerkt Dateien einige Sekunden später."
+    },
+    "editorOutputFolder": {
+      "title": "Wohin die Ergebnisse gehen",
+      "body": "Der Ordner, der die konvertierten Dateien aufnimmt. Er muss noch nicht existieren.",
+      "detail": "Legen Sie ihn nicht innerhalb des überwachten Eingangsordners an — die Ergebnisse würden als neue Eingabe aufgenommen."
+    },
+    "editorFormats": {
+      "title": "Ausgabeformate",
+      "body": "Jedes Format wird für jedes Dokument geschrieben. Markdown erhält die Struktur, JSON enthält die vollständigen Layoutdaten, TXT ist reiner Text, DOCX und XLSX öffnen sich in Office, und das durchsuchbare PDF behält das Original-Seitenbild mit unsichtbar daraufgelegtem Text.",
+      "detail": "Jedes weitere Format kostet etwas Schreibzeit, aber keine Erkennungszeit — die Seite wird nur einmal gelesen."
+    },
+    "editorNamingTemplate": {
+      "title": "Wie Ergebnisdateien benannt werden",
+      "body": "Ein Muster für den Namen der Ausgabedatei. Platzhalter in geschweiften Klammern werden je Dokument ersetzt, die Dateiendung kommt automatisch dazu.",
+      "detail": "Behalten Sie den Dokumentnamen im Muster. Ohne ihn kollidieren zwei im selben Lauf verarbeitete Dokumente, und die Kollisionsregel entscheidet, welches übrig bleibt."
+    },
+    "editorCollision": {
+      "title": "Wenn eine Ergebnisdatei bereits existiert",
+      "body": "Suffix anhängen behält beide, indem die neue durchnummeriert wird. Überschreiben ersetzt die alte Datei. Überspringen behält die alte Datei und verwirft das neue Ergebnis.",
+      "detail": "Suffix anhängen ist die sichere Voreinstellung: Es geht nie etwas verloren, um den Preis eines Ordners, der nummerierte Varianten ansammeln kann."
+    },
+    "editorEncoding": {
+      "title": "Zeichenkodierung der Textdatei",
+      "body": "Wie die reine .txt-Ausgabe geschrieben wird. UTF-8 ist für alles Moderne richtig.",
+      "detail": "UTF-8 mit BOM hilft älteren Windows-Programmen, allen voran Excel, die Kodierung zu erkennen. Latin-1 ist nur für Altsysteme und kann keine Zeichen außerhalb westeuropäischer Schriften darstellen — alles andere geht verloren."
+    },
+    "editorOnSuccess": {
+      "title": "Was mit dem Original geschieht",
+      "body": "Nachdem ein Dokument erfolgreich verarbeitet wurde, kann die Originaldatei liegen bleiben, gelöscht oder aus dem überwachten Ordner verschoben werden.",
+      "detail": "Verschieben ist sicherer als Löschen und verhindert, dass dasselbe Dokument erneut gesehen wird. Löschen ist unumkehrbar — die Datei wird entfernt, nicht in den Papierkorb gelegt."
+    },
+    "editorArchiveFolder": {
+      "title": "Wohin Originale verschoben werden",
+      "body": "Verarbeitete Originale landen hier. Halten Sie den Ordner außerhalb des überwachten Ordners, sonst werden sie sofort erneut aufgenommen.",
+      "detail": "Der Ordner wird angelegt, falls er nicht existiert."
+    },
+    "editorMaxAttempts": {
+      "title": "Versuche vor dem Aufgeben",
+      "body": "Wie oft ein fehlschlagendes Dokument erneut versucht wird, bevor es beiseitegelegt wird. Fehler sind oft vorübergehend — eine noch kopierende Datei, ein kurz belegtes Gerät.",
+      "detail": "Drei ist ein sinnvoller Standard. Bei eins schiebt schon ein einzelner Aussetzer das Dokument in die Quarantäne."
+    },
+    "editorConcurrency": {
+      "title": "Dokumente gleichzeitig",
+      "body": "Wie viele Dokumente diese Pipeline parallel verarbeitet. Mehr ist nicht immer schneller: Die Engine ist durch Grafikkarte oder Prozessor begrenzt, darüber hinaus wird die Arbeit nur noch eingereiht.",
+      "detail": "Eins ist richtig für eine einzelne Grafikkarte. Erhöhen Sie es nur auf einem Rechner mit Reserven — und erst, nachdem Sie gemessen haben, dass es tatsächlich hilft."
+    },
+    "editorQuarantineFolder": {
+      "title": "Wohin fehlgeschlagene Dokumente kommen",
+      "body": "Ein Dokument, das alle Versuche fehlschlägt, wird hierher verschoben, statt die Warteschlange zu blockieren oder endlos wiederholt zu werden.",
+      "detail": "Ein gelegentlicher Blick lohnt sich: Ein wachsender Quarantäneordner bedeutet meist eine fehlerhafte Quelle, nicht eine defekte Pipeline."
+    },
+    "editorPriority": {
+      "title": "Reihenfolge gegenüber anderen Pipelines",
+      "body": "Wenn mehrere Pipelines Arbeit warten haben, wird die mit der höheren Priorität zuerst bedient.",
+      "detail": "Nur relevant, wenn Pipelines um dieselbe Hardware konkurrieren. Bei einer einzelnen laufenden Pipeline hat es keine Wirkung."
+    },
+    "editorActiveHours": {
+      "title": "Auf bestimmte Zeiten beschränken",
+      "body": "Nur innerhalb eines Zeitfensters verarbeiten — etwa ein nächtlicher Lauf auf einem gemeinsam genutzten Arbeitsplatzrechner.",
+      "detail": "Dokumente, die außerhalb des Fensters eintreffen, gehen nicht verloren; sie warten in der Warteschlange, bis das Fenster öffnet."
+    },
+    "expertIgnoreLabels": {
+      "title": "Layoutbereiche verwerfen",
+      "body": "Benannte Bereiche, die die Layouterkennung findet, die Sie aber nicht in der Ausgabe haben wollen — Kopfzeilen, Fußzeilen, Seitenzahlen.",
+      "detail": "Kolumnentitel und Fußzeilen zu verwerfen macht ein konvertiertes Buch meist deutlich lesbarer. Vorsicht bei allem, was echten Inhalt tragen könnte."
+    }
+  },
+  "dataLocation": {
+    "title": "Wo Dateien abgelegt werden",
+    "subtitle": "Die OCR-Laufzeitumgebung, die Modelle und die Datenbank. Nach der Installation rund 8 GB.",
+    "chooseTitle": "Wählen Sie, wo Impressive OCR seine Dateien ablegt",
+    "change": "Speicherort ändern",
+    "reset": "Standard verwenden",
+    "usingDefault": "Dies ist der Standard-Speicherort.",
+    "defaultIs": "Der Standard ist {path}",
+    "restartNeeded": "Starten Sie Impressive OCR neu, um den neuen Speicherort zu verwenden. Es wurde nichts verschoben — die Laufzeitumgebung wird dort neu installiert, und der alte Ordner kann gelöscht werden, sobald alles funktioniert.",
+    "fromEnvironment": "Der Speicherort wird durch die Umgebungsvariable IMPRESSIVE_OCR_DATA_DIR festgelegt und kann hier nicht geändert werden.",
+    "failed": "Der Speicherort konnte nicht geändert werden."
+  },
+  "licence": {
+    "chooseIntro": "Wie nutzen Sie Impressive OCR? Das entscheidet, welche Lizenz gilt — nicht, welche Funktionen Sie erhalten. Zurückgehalten wird in keinem Fall etwas.",
+    "personalTitle": "Privat oder persönlich",
+    "personalBody": "Kostenlos, auf bis zu {seats} eigenen Rechnern. Registrieren Sie eine E-Mail-Adresse, und wir senden Ihnen einen Lizenzschlüssel.",
+    "commercialTitle": "Unternehmen oder Organisation",
+    "commercialBody": "Eine kommerzielle Lizenz gilt unbefristet und enthält ein Jahr automatische Updates. Geben Sie den Schlüssel aus Ihrem Kauf ein.",
+    "commercialLink": "Lizenzbedingungen für Unternehmen lesen",
+    "registerIntro": "Wir senden Ihnen per E-Mail einen Lizenzschlüssel für bis zu {seats} Rechner. Ihre E-Mail-Adresse ist das Einzige, was wir erheben, und kein Dokument verlässt jemals diesen Computer.",
+    "email": "E-Mail-Adresse",
+    "emailHint": "Hierhin wird der Lizenzschlüssel geschickt.",
+    "country": "Land",
+    "register": "Lizenzschlüssel anfordern",
+    "sentTo": "Eine Bestätigungs-E-Mail ist unterwegs an {email}.",
+    "stepVerify": "Öffnen Sie diese E-Mail und klicken Sie auf den Bestätigungslink.",
+    "stepKey": "Danach kommt eine zweite E-Mail mit Ihrem Lizenzschlüssel.",
+    "stepEnter": "Kommen Sie hierher zurück und geben Sie ihn ein.",
+    "haveKey": "Ich habe meinen Lizenzschlüssel",
+    "later": "Später",
+    "activateIntro": "Geben Sie die E-Mail-Adresse ein, zu der die Lizenz gehört, sowie den Schlüssel.",
+    "key": "Lizenzschlüssel",
+    "keyHint": "Aus der E-Mail oder aus Ihrer Kaufbestätigung.",
+    "activate": "Aktivieren",
+    "activeFor": "Lizenziert für {email}.",
+    "seats": "{used} von {total} Rechnern belegt.",
+    "title": "Lizenz",
+    "release": "Diesen Rechner freigeben",
+    "releaseHint": "Gibt den Platz frei, damit ein anderer Rechner ihn nutzen kann. Diese Installation gilt danach als nicht registriert.",
+    "tierPersonal": "Privat",
+    "tierCommercial": "Kommerziell",
+    "updatesUntil": "Automatische Updates bis {date}.",
+    "updatesEnded": "Automatische Updates endeten am {date}. Die Software läuft mit allen Funktionen weiter.",
+    "unregistered": "Diese Installation ist nicht registriert. Sie läuft unter der AGPL-3.0.",
+    "trial": "Noch nicht registriert — {days} Tag(e) verbleiben.",
+    "trialBlocked": "Für die weitere Verarbeitung ist eine Registrierung erforderlich. Alles bereits Erstellte bleibt verfügbar.",
+    "offlineGrace": "Die Lizenz konnte zuletzt nicht bestätigt werden. Stellen Sie innerhalb von {days} Tag(en) eine Internetverbindung her, um weiterzuarbeiten.",
+    "offlineBlocked": "Die Lizenz wurde längere Zeit nicht bestätigt. Stellen Sie eine Internetverbindung her, damit sie erneut geprüft werden kann.",
+    "registerNow": "Registrieren",
+    "blockedTitle": "Registrierung erforderlich",
+    "nonCommercial": "Nicht-kommerzielle Version",
+    "commercialTrial": "Sie können Impressive OCR {days} Tage lang testen, bevor Sie einen Schlüssel eingeben.",
+    "commercialPurchase": "Kommerzielle Lizenzen gibt es nicht zur Selbstregistrierung — den Schlüssel erhalten Sie mit Ihrem Kauf.",
+    "commercialBuy": "Lizenz kaufen"
   }
 }

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { z } from 'zod';
-import { absolutePathSchema } from './common';
+import { absolutePathSchema, byteSizeSchema } from './common';
 import {
   devicePreferenceSchema,
   engineProfileSchema,
@@ -129,6 +129,25 @@ export const startQuickRunRequestSchema = z
   });
 
 export type StartQuickRunRequest = z.infer<typeof startQuickRunRequestSchema>;
+
+/**
+ * One file a run produced, offered on its own.
+ *
+ * A run of ten documents in four formats is forty files, and someone who wanted the Markdown
+ * for one of them should not have to take a ZIP of the other thirty-nine. Identified by
+ * `index` into the server's own ordered list rather than by path: the client never names a
+ * file on disk, so there is nothing to traverse out of.
+ */
+export const quickRunFileSchema = z.object({
+  index: z.number().int().min(0),
+  /** Source document the file came from, without its extension. */
+  documentName: z.string(),
+  fileName: z.string(),
+  format: outputFormatSchema,
+  bytes: byteSizeSchema,
+});
+
+export type QuickRunFile = z.infer<typeof quickRunFileSchema>;
 
 export const quickRunSchema = z.object({
   id: z.string(),

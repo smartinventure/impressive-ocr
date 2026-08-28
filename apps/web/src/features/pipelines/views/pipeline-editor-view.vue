@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import {
@@ -8,6 +8,7 @@ import {
   formatVramGib,
   MIN_VRAM_GIB_FOR_VL,
   pipelineOptionsSchema,
+  recommendedProfile,
   type OutputFormat,
   type PipelineOptions,
 } from '@impressive-ocr/shared';
@@ -16,6 +17,7 @@ import { pipelinesApi } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 import FolderPickerField from '../../../components/folder-picker-field.vue';
 import ExpertSettingsPanel from '../components/expert-settings-panel.vue';
+import InfoHint from '../../../components/info-hint.vue';
 
 /**
  * The pipeline editor — around thirty settings across eight groups.
@@ -33,6 +35,17 @@ const store = useLiveStore();
 const { t } = useI18n();
 
 const isEdit = computed(() => props.id !== undefined);
+
+/**
+ * Whether the rendering resolution and the module switches do anything on this engine.
+ *
+ * Both belong to PP-StructureV3. The accurate engine is handed the PDF and derives its own
+ * page geometry — rendering it to an image first costs reading order rather than gaining
+ * anything — and it reads layout, tables and formulas in one pass, so the module toggles are
+ * never sent. Showing settings that are quietly ignored is worse than not offering them: it
+ * invites tuning a run by a control that was never connected to it.
+ */
+const structureSettingsApply = computed(() => options.value.engine.profile === 'fast');
 const name = ref('');
 const description = ref('');
 const options = ref<PipelineOptions>(blankOptions());
@@ -41,11 +54,36 @@ const formError = ref<string | null>(null);
 const fieldErrors = ref<Record<string, string>>({});
 const openPanels = ref<string[]>(['source', 'engine', 'output']);
 
+/**
+ * Re-apply the recommended profile once the hardware probe arrives.
+ *
+ * `blankOptions()` runs during setup, usually before the probe has landed, so without this
+ * a new pipeline on a capable machine would still open on `fast`. Restricted to a new,
+ * untouched form: an existing pipeline's profile is a saved decision, and changing what a
+ * watched folder does without being asked is not an improvement.
+ */
+const profileChosen = ref(false);
+watch(
+  () => store.system?.hardware.availableProfiles,
+  (profiles) => {
+    if (profiles === undefined || profileChosen.value || isEdit.value) return;
+    options.value.engine.profile = recommendedProfile(profiles);
+  },
+);
+
 function blankOptions(): PipelineOptions {
   // Shared, so the form and the server start from exactly the same ~30 defaults with no
   // second copy to drift. It must not be `pipelineOptionsSchema.parse` with empty paths:
   // those are `.min(1)`, so that throws here in setup and renders a blank page.
-  return draftPipelineOptions();
+  const draft = draftPipelineOptions();
+  const profiles = store.system?.hardware.availableProfiles;
+
+  // A new pipeline starts on the better profile where the machine has one. Only a new one:
+  // an existing pipeline's saved choice is the user's, and silently upgrading it would
+  // change what a watched folder does without anyone asking for it.
+  return profiles === undefined
+    ? draft
+    : { ...draft, engine: { ...draft.engine, profile: recommendedProfile(profiles) } };
 }
 
 const FORMATS: { value: OutputFormat; labelKey: string; hintKey?: string }[] = [
@@ -217,6 +255,7 @@ onMounted(async () => {
               role="input"
               :label="t('editor.inputFolder')"
               :hint="t('editor.inputFolderHint')"
+              help-topic="editorInputFolder"
               :external-error="fieldErrors['source.inputPath'] ?? null"
               class="mb-4"
             />
@@ -225,19 +264,25 @@ onMounted(async () => {
               :label="t('editor.recursive')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorRecursive" /></template>
+            </v-switch>
             <v-switch
               v-model="options.source.mirrorFolderStructure"
               :label="t('editor.mirror')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorMirror" /></template>
+            </v-switch>
             <v-switch
               v-model="options.source.skipDuplicates"
               :label="t('editor.skipDuplicates')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorSkipDuplicates" /></template>
+            </v-switch>
             <v-select
               v-model="options.source.watchMode"
               :items="[
@@ -248,7 +293,9 @@ onMounted(async () => {
               :hint="t('editor.watchModeHint')"
               persistent-hint
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorWatchMode" /></template>
+            </v-select>
           </v-expansion-panel-text>
         </v-expansion-panel>
 
@@ -276,7 +323,10 @@ onMounted(async () => {
               ]"
               :label="t('editor.profile')"
               class="mb-4"
-            />
+              @update:model-value="profileChosen = true"
+            >
+              <template #append><InfoHint topic="editorProfile" /></template>
+            </v-select>
 
             <v-select
               v-model="options.engine.device"
@@ -287,16 +337,21 @@ onMounted(async () => {
               ]"
               :label="t('editor.device')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorDevice" /></template>
+            </v-select>
 
             <v-select
+              v-if="structureSettingsApply"
               v-model="options.engine.rasterDpi"
               :items="[150, 200, 300, 400]"
               :label="t('editor.dpi')"
               :hint="t('editor.dpiHint')"
               persistent-hint
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorDpi" /></template>
+            </v-select>
 
             <v-select
               v-model="options.textLayerStrategy"
@@ -309,21 +364,32 @@ onMounted(async () => {
               :hint="t('editor.textLayerHint')"
               persistent-hint
               class="mb-5"
-            />
+            >
+              <template #append><InfoHint topic="editorTextLayer" /></template>
+            </v-select>
 
-            <div class="editor__modules-title">{{ t('editor.modules') }}</div>
-            <div v-for="module in MODULES" :key="module.key" class="editor__module">
-              <v-switch
-                v-model="options.engine.modules[module.key]"
-                :label="t(module.labelKey)"
-                color="primary"
-                density="compact"
-                hide-details
-              />
-              <span class="editor__module-tone" :class="`editor__module-tone--${module.tone}`">
-                {{ t(`moduleTone.${module.tone}`) }}
-              </span>
-            </div>
+            <template v-if="structureSettingsApply">
+              <div class="editor__modules-title">
+                {{ t('editor.modules') }}
+                <InfoHint topic="editorModules" />
+              </div>
+              <div v-for="module in MODULES" :key="module.key" class="editor__module">
+                <v-switch
+                  v-model="options.engine.modules[module.key]"
+                  :label="t(module.labelKey)"
+                  color="primary"
+                  density="compact"
+                  hide-details
+                />
+                <span class="editor__module-tone" :class="`editor__module-tone--${module.tone}`">
+                  {{ t(`moduleTone.${module.tone}`) }}
+                </span>
+              </div>
+            </template>
+
+            <p v-else class="text-body-2 text-medium-emphasis mb-0">
+              {{ t('editor.modulesBuiltIn') }}
+            </p>
           </v-expansion-panel-text>
         </v-expansion-panel>
 
@@ -339,12 +405,16 @@ onMounted(async () => {
               role="output"
               :label="t('editor.outputFolder')"
               :hint="t('editor.outputFolderHint')"
+              help-topic="editorOutputFolder"
               :must-exist="false"
               :external-error="fieldErrors['output.outputPath'] ?? null"
               class="mb-4"
             />
 
-            <div class="editor__modules-title">{{ t('editor.formats') }}</div>
+            <div class="editor__modules-title">
+              {{ t('editor.formats') }}
+              <InfoHint topic="editorFormats" />
+            </div>
             <div class="editor__formats">
               <!-- No `model-value` here, deliberately. On VChip that prop is the chip's own
                    visibility: `isActive.value && createVNode(...)`, so binding it to "is this
@@ -374,7 +444,9 @@ onMounted(async () => {
               :hint="t('editor.namingTemplateHint')"
               persistent-hint
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorNamingTemplate" /></template>
+            </v-text-field>
 
             <v-select
               v-model="options.output.collisionPolicy"
@@ -385,7 +457,9 @@ onMounted(async () => {
               ]"
               :label="t('editor.collision')"
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorCollision" /></template>
+            </v-select>
 
             <!-- Only meaningful when a .txt is actually being written; no other writer reads
                  it. Shown unconditionally it would be a setting that silently does nothing. -->
@@ -401,7 +475,9 @@ onMounted(async () => {
               :hint="t('editor.encodingHint')"
               persistent-hint
               class="mt-4"
-            />
+            >
+              <template #append><InfoHint topic="editorEncoding" /></template>
+            </v-select>
           </v-expansion-panel-text>
         </v-expansion-panel>
 
@@ -422,12 +498,15 @@ onMounted(async () => {
               ]"
               :label="t('editor.onSuccess')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorOnSuccess" /></template>
+            </v-select>
             <FolderPickerField
               v-if="options.postProcessing.onSuccess === 'move-to-archive'"
               v-model="options.postProcessing.archivePath as string"
               role="output"
               :label="t('editor.archiveFolder')"
+              help-topic="editorArchiveFolder"
               :must-exist="false"
               :external-error="fieldErrors['postProcessing.archivePath'] ?? null"
             />
@@ -446,18 +525,23 @@ onMounted(async () => {
               type="number"
               :label="t('editor.maxAttempts')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorMaxAttempts" /></template>
+            </v-text-field>
             <v-text-field
               v-model.number="options.reliability.concurrency"
               type="number"
               :label="t('editor.concurrency')"
               class="mb-4"
-            />
+            >
+              <template #append><InfoHint topic="editorConcurrency" /></template>
+            </v-text-field>
             <FolderPickerField
               v-model="options.reliability.quarantinePath as string"
               role="output"
               :label="t('editor.quarantineFolder')"
               :hint="t('editor.quarantineHint')"
+              help-topic="editorQuarantineFolder"
               :must-exist="false"
               :external-error="fieldErrors['reliability.quarantinePath'] ?? null"
             />
@@ -479,13 +563,20 @@ onMounted(async () => {
               thumb-label
               :label="t('editor.priority')"
               class="mb-2"
-            />
+            >
+              <template #append>
+                <span class="editor__slider-value ocr-mono">{{ options.schedule.priority }}</span>
+                <InfoHint topic="editorPriority" />
+              </template>
+            </v-slider>
             <v-switch
               v-model="options.schedule.activeHoursEnabled"
               :label="t('editor.activeHours')"
               color="primary"
               density="compact"
-            />
+            >
+              <template #append><InfoHint topic="editorActiveHours" /></template>
+            </v-switch>
             <div v-if="options.schedule.activeHoursEnabled" class="d-flex ga-3 mt-2">
               <v-text-field
                 v-model="options.schedule.activeFrom"
@@ -524,6 +615,15 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Same reason as the settings sliders: a value that only appears while dragging tells you
+   nothing about a form you are reading. */
+.editor__slider-value {
+  min-width: 1.5rem;
+  text-align: right;
+  font-size: 0.875rem;
+  opacity: 0.75;
+}
+
 .editor {
   max-width: 860px;
 }

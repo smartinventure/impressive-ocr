@@ -66,16 +66,22 @@ export const appSettingsSchema = z.object({
    */
   maxConcurrentDocuments: z.number().int().min(1).max(16).default(1),
   /**
-   * Minutes an idle OCR worker keeps its models loaded before it is released. 0 keeps it
+   * Minutes an idle OCR worker keeps its models loaded before it is released. 0 keeps them
    * until the application stops.
    *
-   * A warm worker is the difference between a second document starting instantly and paying
-   * the model load again — forty seconds on a warm GPU box, minutes on a cold CPU one. It is
-   * also 3.2 GB of VRAM held while nothing is happening, measured on an 8 GB card, which is
-   * most of what a game or a video editor would want. Neither answer is right for everyone,
-   * so it is a setting; 0 preserves the behaviour this shipped with.
+   * A warm worker is the difference between the next document starting instantly and paying
+   * the model load again — thirty to forty seconds on a GPU box, minutes on a cold CPU one.
+   * It is also around 3.2 GB of video memory held while nothing is happening, measured on an
+   * 8 GB card, which is most of what a game or a video editor would want.
+   *
+   * Fifteen minutes rather than the 0 this shipped with. `0` was never wrong exactly — it
+   * makes every run after the first one instant — but it means a desktop app that has
+   * processed one document at nine in the morning is still holding 3.2 GB at six in the
+   * evening, and on a single-GPU machine that is felt. A quarter of an hour covers the way
+   * the app is actually used, which is a handful of documents in one sitting, and gives the
+   * card back to whoever wants it next.
    */
-  sidecarIdleMinutes: z.number().int().min(0).max(1440).default(0),
+  sidecarIdleMinutes: z.number().int().min(0).max(1440).default(15),
   /** Days of job history to retain; 0 disables pruning. */
   historyRetentionDays: z.number().int().min(0).max(3650).default(90),
   locale: z.enum(['en', 'de']).default('en'),

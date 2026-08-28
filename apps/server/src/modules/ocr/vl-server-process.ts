@@ -23,6 +23,9 @@ const READY_TIMEOUT_MS = 240_000;
 const READY_POLL_MS = 500;
 const WARM_UP_TIMEOUT_MS = 120_000;
 
+/** Context per slot: one region's image tokens plus everything it writes back. */
+const TOKENS_PER_SLOT = 4096;
+
 /**
  * A 1x1 PNG. Small enough to cost nothing, real enough to force the vision encoder to
  * compile its kernels, which is the whole point of the warm-up.
@@ -112,9 +115,15 @@ export class VlServerProcess {
    * `--parallel` and PaddleOCR's `vl_rec_max_concurrency` are the same number on purpose:
    * whichever is smaller becomes the real limit, and the other half of the slots idle.
    *
-   * The context is sized per slot rather than absolutely. Each request is one layout region
-   * and a short answer, so 2048 tokens each is generous; dividing a fixed budget by the slot
-   * count instead is what made 16 and 24 slots measure *slower* than 8.
+   * The context is sized per slot rather than absolutely, because dividing a fixed budget by
+   * the slot count is what made 16 and 24 slots measure *slower* than 8.
+   *
+   * 4096 rather than 2048, and the difference is not academic. A slot holds one layout
+   * region's image tokens *plus* everything it writes back, so a dense full-width region —
+   * a page of photo credits, a wall of terms and conditions — overruns 2048 and the answer
+   * is simply cut off mid-sentence. That page measured 37% word accuracy against its own
+   * text layer, having silently dropped 555 words of 901; at 4096 it scores 94%. It costs
+   * nothing worth counting: peak VRAM moved by about 150 MB.
    */
   private buildArguments(port: number): string[] {
     return [
@@ -131,7 +140,7 @@ export class VlServerProcess {
       '--parallel',
       String(this.options.concurrency),
       '--ctx-size',
-      String(this.options.concurrency * 2048),
+      String(this.options.concurrency * TOKENS_PER_SLOT),
       // Nothing here serves a browser, and the bundled UI is dead weight in our process.
       '--no-webui',
     ];

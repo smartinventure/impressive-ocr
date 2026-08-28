@@ -66,20 +66,29 @@ const open = ref(false);
               </tr>
             </thead>
             <tbody>
+              <!-- Quality is a property of the engine, not of the device, so it repeats
+                   down each pair. Shown per row anyway: the whole point of the table is that
+                   the accurate engine is no longer the slow one, and a merged cell would
+                   invite reading the speed column as the only thing that differs. -->
               <tr>
                 <td>{{ t('engineHelp.rowFastGpu') }}</td>
                 <td class="ocr-mono">{{ t('engineHelp.fastGpuSpeed') }}</td>
-                <td class="ocr-mono">49%</td>
+                <td class="ocr-mono">95%</td>
               </tr>
               <tr>
                 <td>{{ t('engineHelp.rowAccurateGpu') }}</td>
                 <td class="ocr-mono">{{ t('engineHelp.accurateGpuSpeed') }}</td>
-                <td class="ocr-mono">99%</td>
+                <td class="ocr-mono">98%</td>
               </tr>
               <tr>
                 <td>{{ t('engineHelp.rowFastCpu') }}</td>
                 <td class="ocr-mono">{{ t('engineHelp.fastCpuSpeed') }}</td>
-                <td class="ocr-mono">49%</td>
+                <td class="ocr-mono">95%</td>
+              </tr>
+              <tr>
+                <td>{{ t('engineHelp.rowAccurateCpu') }}</td>
+                <td class="ocr-mono">{{ t('engineHelp.accurateCpuSpeed') }}</td>
+                <td class="ocr-mono">98%</td>
               </tr>
             </tbody>
           </v-table>

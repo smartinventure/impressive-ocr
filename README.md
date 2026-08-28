@@ -87,6 +87,43 @@ handed the PDF and derives its own page geometry; rendering to an image first co
 order — bag recall stays above 97% while word accuracy falls as low as 60%, the signature of
 correctly-read text assembled in the wrong sequence.
 
+## What you need
+
+| | Minimum | Recommended |
+|---|---|---|
+| **Free disk space** | 8 GB (CPU only) | **12 GB** |
+| **Memory** | 8 GB | 16 GB |
+| **Graphics card** | none — it runs on the processor | NVIDIA with 8 GB VRAM or more |
+| **Operating system** | Windows 10 1809+, macOS 12+, Ubuntu 22.04+ or equivalent | |
+
+Disk is the one that catches people out. A full install on an NVIDIA machine occupies about
+**8.5 GB** and needs around **11 GB free** while it runs, because the language model is
+downloaded at full precision and quantised on your machine before the original is deleted. A
+processor-only install is roughly 5 GB. Measured, not estimated — and the app checks before
+it starts, so it tells you rather than failing part-way.
+
+A graphics card is optional. Without one the accurate engine reads about 11 seconds a page
+instead of 2, which is slow for a large backlog and perfectly usable for a document at a time.
+With one, 8 GB of video memory is the threshold for the accurate engine's own backend; below
+that it still runs, through the bundled inference engine, at about half the video memory.
+
+### Where it puts everything
+
+| | Location |
+|---|---|
+| **Windows** | `%LOCALAPPDATA%\Impressive OCR\data` |
+| **macOS** | `~/Library/Application Support/Impressive OCR/data` |
+| **Linux** | `~/.config/Impressive OCR/data` |
+
+Local rather than roaming on Windows, deliberately: a managed profile synchronises
+`AppData\Roaming` to a file server at every logon, and several gigabytes of CUDA libraries is
+not something to send over the network twice a day.
+
+Change it on the System page, or set `IMPRESSIVE_OCR_DATA_DIR` — which the container and the
+headless server read too. Keep it on one drive: the package cache and the Python environment
+share their files through hardlinks, so splitting them across volumes pays for the same bytes
+twice.
+
 ## Running it
 
 **Desktop** — download the installer for your platform from
@@ -106,10 +143,9 @@ and write every folder on its allowlist, so publish it further only behind a rev
 with authentication enabled.
 
 On first start the app downloads its Python runtime, the OCR models and the inference engine
-— roughly 2.3 GB for the engine alone on an NVIDIA machine, and several gigabytes in total.
-It happens once, and it picks the CPU or GPU build of each after probing the hardware, which
-is why none of it is bundled. The exact figures are shown for confirmation before anything is
-fetched.
+— about 8.5 GB in total on an NVIDIA machine, 2.25 GB of that the inference engine. It happens
+once, and it picks the CPU or GPU build of each after probing the hardware, which is why none
+of it is bundled. The exact figures are shown for confirmation before anything is fetched.
 
 ## Building from source
 
@@ -140,5 +176,23 @@ browser against the server.
 
 ## Licence
 
-AGPL-3.0-or-later. See [LICENSE](LICENSE), and [NOTICE](NOTICE) for third-party components —
-PaddleOCR is Apache-2.0, PyMuPDF is AGPL-3.0.
+The source is **AGPL-3.0-or-later** — see [LICENSE](LICENSE), and [NOTICE](NOTICE) for
+third-party components.
+
+**Free for personal and private use.** Install it, use it, keep your documents.
+
+**Organisations need a commercial licence**, available from
+[www.speedbits.io](https://www.speedbits.io). A licence is **perpetual** — the version you have
+keeps working indefinitely, with every feature — and includes **one year of automatic
+updates**. After that year the software carries on exactly as before; only the automatic
+updates stop.
+
+Both statements are true at once because Impressive OCR is **dual licensed**. Anyone may use
+it under the AGPL-3.0, which is what makes it free for personal use — and the AGPL comes with
+obligations that most organisations will not want: chiefly §13, which requires that anyone
+interacting with the software over a network be offered its complete corresponding source,
+including your modifications. The commercial licence is what removes those obligations. It is
+not a restriction on top of the AGPL; it is an alternative to it.
+
+If you are running it inside a company, ask your legal team which of the two you want to be
+under. Nothing here is legal advice.

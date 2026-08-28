@@ -13,7 +13,7 @@ import { createId } from '../../infra/ids';
 import type { Logger } from '../../infra/logger';
 import type { EventBus } from '../events/event-bus';
 import type { PipelineRepository } from '../pipelines/pipeline-repository';
-import type { JobRepository } from '../queue/job-repository';
+import type { JobRepository, QuickOutputRow } from '../queue/job-repository';
 import type { SettingsService } from '../settings/settings-service';
 import type { QuickRunStore } from './quick-run-store';
 
@@ -152,7 +152,7 @@ export class QuickRunService {
   }
 
   /** Absolute paths of everything a run produced, for the archive. */
-  outputsFor(pipelineId: string): { path: string; documentName: string }[] {
+  outputsFor(pipelineId: string): QuickOutputRow[] {
     return this.options.jobs.outputsForPipeline(pipelineId);
   }
 

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, createDatabase } from '@impressive-ocr/db';
-import {
+import { APP_VERSION,
   SESSION_IDLE_TIMEOUT_MINUTES,
   type AppSettings,
   type BindAddress,
@@ -32,7 +32,12 @@ import { Scheduler } from './modules/queue/scheduler';
 import { RuntimeInstaller } from './modules/runtime/runtime-installer';
 import { RuntimeService } from './modules/runtime/runtime-service';
 import { AuthService } from './modules/auth/auth-service';
+/** The licence service, overridable so a staging instance can be used without a rebuild. */
+const DEFAULT_LICENSE_URL = 'https://license.speedbits.io';
+
 import { ConsentService } from './modules/consent/consent-service';
+import { HttpLicenseClient } from './modules/license/license-client';
+import { LicenseService } from './modules/license/license-service';
 import { createSessionStore } from './modules/auth/session-store';
 import { QuickRunService } from './modules/quick/quick-run-service';
 import { QuickRunStore } from './modules/quick/quick-run-store';
@@ -125,6 +130,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   const authService = new AuthService(db, sessions);
   const settingsService = new SettingsService(db, () => authService.hasPassword());
   const consentService = new ConsentService(db);
+
   const stored = settingsService.get();
   const settings: AppSettings = {
     ...stored,
@@ -139,6 +145,77 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     pretty: options.pretty ?? process.env.NODE_ENV !== 'production',
     file: logFile,
   });
+  /**
+   * The Speedbits License Manager.
+   *
+   * https by default even though the API documentation gives the base URL as http: every
+   * call carries an email address, a licence key and a machine id, and a licence key is a
+   * bearer credential. Only an explicit environment variable can downgrade that.
+   *
+   * The **installer API keys** identify the *build*, one per product, and are the same for
+   * every customer on a release. They are not a customer's licence key — that arrives by
+   * email and is typed into the app. Both travel together on every call, and the names here
+   * say `INSTALLER_KEY` rather than `LICENSE_KEY` because the earlier spelling read as the
+   * customer credential and was understood as one.
+   *
+   * Read from the environment so a release can set them without a code change, and so a test
+   * never reaches the real server.
+   */
+  const licenseService = new LicenseService({
+    db,
+    client: new HttpLicenseClient(
+      {
+        baseUrl: process.env.IMPRESSIVE_OCR_LICENSE_URL ?? DEFAULT_LICENSE_URL,
+        // Defaulted rather than required: an installation with no licence configuration
+        // still starts and works, and only registration reports that it cannot reach the
+        // server. Gating startup on a licence variable would make a missing build flag look
+        // like a broken application.
+        personal: {
+          productCode: licenseSetting(
+            'IMPRESSIVE_OCR_PRODUCT_COMMUNITY',
+            'personalProduct',
+            'impressiveocrcommunity',
+          ),
+          installerApiKey: licenseSetting(
+            'IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY',
+            'personalKey',
+            '',
+          ),
+        },
+        commercial: {
+          productCode: licenseSetting(
+            'IMPRESSIVE_OCR_PRODUCT_COMMERCIAL',
+            'commercialProduct',
+            'impressiveocrcommercial',
+          ),
+          installerApiKey: licenseSetting(
+            'IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL',
+            'commercialKey',
+            '',
+          ),
+        },
+        appVersion: APP_VERSION,
+      },
+      logger,
+    ),
+    dataDir: paths.dataDir,
+    logger,
+  });
+
+  // Said once at startup, because the alternative is finding out from a user who typed a
+  // correct licence key and was told it did not work. Never logs the keys themselves — only
+  // whether this build has them, which is the part that goes wrong.
+  logger.info(
+    {
+      personal: licenseSetting('IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY', 'personalKey', '')
+        ? 'configured'
+        : 'missing',
+      commercial: licenseSetting('IMPRESSIVE_OCR_INSTALLER_KEY_COMMERCIAL', 'commercialKey', '')
+        ? 'configured'
+        : 'missing',
+    },
+    'Licence configuration',
+  );
 
   const events = new EventBus();
   const pipelineRepository = new PipelineRepository(db);
@@ -223,6 +300,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     hardware: () => runtime.getHardware(),
     isRuntimeReady: () => runtime.isReady(),
     isGloballyPaused,
+    // The licence gate. Computed per tick from stored state and the clock, with no network
+    // call, so an unreachable licence server can never stall the queue.
+    canProcess: () => licenseService.gate().canProcess,
     maxConcurrentDocuments: () => settingsService.get().maxConcurrentDocuments,
     executor: new JobExecutor({
       jobs,
@@ -254,6 +334,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     settings: settingsService,
     auth: authService,
     consent: consentService,
+    license: licenseService,
     paths,
     resources: new ResourceMonitor(),
     quick,
@@ -321,6 +402,15 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
         throw error;
       }
       await watchers.sync();
+
+      // Start the trial clock if this is the first run, then re-confirm an existing
+      // activation. Not awaited: the licence server is somebody else's uptime, and a slow
+      // one must not delay the moment this installation starts answering requests. The gate
+      // reads stored state, so the queue is correct either way and simply becomes more
+      // correct once the check lands.
+      licenseService.noteStarted();
+      void licenseService.revalidate();
+
       scheduler.start();
 
       // Housekeeping, on one timer rather than one per concern. Runs immediately so a server
@@ -398,4 +488,42 @@ function writeGloballyPaused(db: ReturnType<typeof createDatabase>['db'], paused
     .values({ key: APP_STATE_KEYS.globallyPaused, value: paused, updatedAt })
     .onConflictDoUpdate({ target: appState.key, set: { value: paused, updatedAt } })
     .run();
+}
+
+/**
+ * Values compiled into the bundle at build time, or undefined in a source run.
+ *
+ * Declared rather than imported because esbuild substitutes it as a literal and there is no
+ * module to import it from. Reading it through `typeof` is what keeps a development run —
+ * where nothing was substituted — from throwing a ReferenceError.
+ */
+declare const __LICENSE_BUILD__:
+  | {
+      personalProduct?: string;
+      personalKey?: string;
+      commercialProduct?: string;
+      commercialKey?: string;
+    }
+  | undefined;
+
+/**
+ * One licence setting, from the environment, then the build, then a default.
+ *
+ * The order is the whole point. The container sets these as `ENV`, so the environment has to
+ * win or an image could never be pointed at a staging licence server. The headless tarball
+ * has no environment to set — it is unpacked and run — so it needs the values compiled in.
+ * Both artifacts come off the same bundle, which is why neither mechanism can be the only one.
+ */
+function licenseSetting(
+  variable: string,
+  baked: 'personalProduct' | 'personalKey' | 'commercialProduct' | 'commercialKey',
+  fallback: string,
+): string {
+  const fromEnvironment = process.env[variable];
+  if (fromEnvironment !== undefined && fromEnvironment !== '') {
+    return fromEnvironment;
+  }
+
+  const build = typeof __LICENSE_BUILD__ === 'undefined' ? undefined : __LICENSE_BUILD__;
+  return build?.[baked] ?? fallback;
 }

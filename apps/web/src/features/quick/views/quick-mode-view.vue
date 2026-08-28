@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import type { OutputFormat } from '@impressive-ocr/shared';
+import type { OutputFormat, QuickRunFile } from '@impressive-ocr/shared';
 import { useLiveStore } from '../../../stores/live-store';
 import { useQuickRun } from '../composables/use-quick-run';
 import FileSourcePicker from '../components/file-source-picker.vue';
@@ -10,6 +10,7 @@ import FolderPickerField from '../../../components/folder-picker-field.vue';
 import RunSettingsSummary from '../components/run-settings-summary.vue';
 import EngineHelp from '../components/engine-help.vue';
 import InfoHint from '../../../components/info-hint.vue';
+import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
 
 /**
  * Quick Mode: OCR a handful of files once.
@@ -22,6 +23,44 @@ import InfoHint from '../../../components/info-hint.vue';
 const { t } = useI18n();
 const store = useLiveStore();
 const quick = useQuickRun();
+
+const desktop = useDesktopBridge();
+
+/** Whatever went wrong with the last open, shown under the list rather than in a dialog. */
+const openError = ref<string | null>(null);
+
+/**
+ * Whether the rows should open files instead of downloading them.
+ *
+ * Both conditions matter. Without the bridge there is no way to open anything — the same page
+ * runs in a plain browser against a headless server, possibly on another machine. Without an
+ * output folder the results live in the server's working directory, which is swept on a
+ * retention window and is not the user's to open.
+ */
+const canOpenFiles = computed(
+  () => desktop.isDesktop.value && (quick.run.value?.outputPath ?? null) !== null,
+);
+
+async function openFile(file: QuickRunFile): Promise<void> {
+  openError.value = null;
+  const path = quick.filePath(file);
+  if (path === null) return;
+
+  const result = await desktop.bridge.value?.openFile(path);
+  if (result === undefined || result.status === 'opened') return;
+
+  // The refusals are worth different sentences. A swept result is routine and the user just
+  // needs to know it is gone; a type we decline to launch is a deliberate limit.
+  openError.value =
+    result.reason === 'missing'
+      ? t('quick.openMissing', { name: file.fileName })
+      : t('quick.openRefused', { name: file.fileName });
+}
+
+async function revealFile(file: QuickRunFile): Promise<void> {
+  const path = quick.filePath(file);
+  if (path !== null) await desktop.bridge.value?.showInFolder(path);
+}
 
 /** The formats worth offering without a pipeline. The editor exposes the rest. */
 /** Offering GPU on a machine that cannot use one would only produce a silent fallback. */
@@ -442,18 +481,25 @@ function toggleFormat(format: OutputFormat): void {
 
       <!-- Each result on its own, beside the ZIP.
            A ten-document run in four formats is forty files, and someone who came for the
-           Markdown of one of them should not have to take the other thirty-nine. -->
+           Markdown of one of them should not have to take the other thirty-nine.
+
+           Two different lists, because the files are in two different places. An upload run
+           produced them on the server, so each row is a download. A folder run wrote them to
+           a directory the user picked, and in the desktop app they can simply be opened —
+           downloading a second copy of a file already sitting on your own disk is not a
+           feature. In a browser against a headless server that is not possible, and the
+           written-to path above is all we can honestly offer. -->
       <div v-if="quick.files.value.length > 0" class="quick__files mt-5">
         <div class="text-subtitle-2 mb-2">
-          {{ t('quick.downloadFiles', { count: quick.files.value.length }) }}
+          {{ canOpenFiles ? t('quick.openFiles') : t('quick.downloadFiles', { count: quick.files.value.length }) }}
         </div>
         <v-list density="compact" class="quick__file-list" rounded="md">
           <v-list-item
             v-for="file in quick.files.value"
             :key="file.index"
-            :href="quick.fileUrl(file)"
-            download
-            prepend-icon="description"
+            v-bind="canOpenFiles ? {} : { href: quick.fileUrl(file), download: true }"
+            :prepend-icon="canOpenFiles ? 'draft' : 'description'"
+            @click="canOpenFiles ? openFile(file) : undefined"
           >
             <v-list-item-title class="text-body-2">{{ file.fileName }}</v-list-item-title>
             <v-list-item-subtitle class="text-caption">
@@ -461,10 +507,22 @@ function toggleFormat(format: OutputFormat): void {
               {{ formatBytes(file.bytes) }}
             </v-list-item-subtitle>
             <template #append>
-              <v-icon icon="download" size="small" class="quick__file-download" />
+              <v-btn
+                v-if="canOpenFiles"
+                icon="folder_open"
+                variant="text"
+                density="comfortable"
+                size="small"
+                :title="t('quick.showInFolder')"
+                @click.stop="revealFile(file)"
+              />
+              <v-icon v-else icon="download" size="small" class="quick__file-download" />
             </template>
           </v-list-item>
         </v-list>
+        <p v-if="openError !== null" class="text-caption text-error mt-2 mb-0">
+          {{ openError }}
+        </p>
       </div>
 
       <!-- The same link, copyable. The button is a one-shot; this survives a reload and can be

@@ -42,11 +42,17 @@ export interface DataLocation {
   fromEnvironment: boolean;
 }
 
+/** Why an open did not happen. `missing` is routine: Quick Mode results expire. */
+export type OpenFileResult =
+  | { status: 'opened' }
+  | { status: 'refused'; reason: 'not-a-path' | 'unsupported-type' | 'missing' };
+
 interface DesktopBridge {
   readonly isDesktop: true;
   selectFolder: (request?: SelectFolderRequest) => Promise<string | null>;
   selectFiles: (request?: SelectFilesRequest) => Promise<string[]>;
   showInFolder: (path: string) => Promise<void>;
+  openFile: (path: string) => Promise<OpenFileResult>;
   getServerInfo: () => Promise<{ url: string; port: number }>;
   getVersion: () => Promise<string>;
   getDataLocation: () => Promise<DataLocation>;

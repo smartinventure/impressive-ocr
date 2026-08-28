@@ -426,7 +426,11 @@
     "downloadFiles": "Einzelne Dateien ({count})",
     "uploading": "{count} Datei(en) werden an den Server übertragen…",
     "startingRun": "Der Lauf wird gestartet…",
-    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang — hier gibt es nichts einzuschalten."
+    "modulesBuiltIn": "Die genaue Engine erfasst Layout, Tabellen und Formeln in einem Durchgang — hier gibt es nichts einzuschalten.",
+    "openFiles": "Ergebnis öffnen",
+    "showInFolder": "Im Ordner anzeigen",
+    "openMissing": "{name} ist nicht mehr vorhanden. Ergebnisse werden nach einiger Zeit entfernt.",
+    "openRefused": "{name} konnte nicht geöffnet werden."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

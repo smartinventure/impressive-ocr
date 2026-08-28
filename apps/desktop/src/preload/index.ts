@@ -4,6 +4,7 @@ import {
   IPC_CHANNELS,
   type DesktopBridge,
   type DataLocation,
+  type OpenFileResult,
   type SelectFilesRequest,
   type SelectFolderRequest,
   type ServerInfo,
@@ -33,6 +34,9 @@ const bridge: DesktopBridge = {
 
   showInFolder: (path: string) =>
     ipcRenderer.invoke(IPC_CHANNELS.showInFolder, path) as Promise<void>,
+
+  openFile: (path: string) =>
+    ipcRenderer.invoke(IPC_CHANNELS.openFile, path) as Promise<OpenFileResult>,
 
   getServerInfo: () => ipcRenderer.invoke(IPC_CHANNELS.getServerInfo) as Promise<ServerInfo>,
 

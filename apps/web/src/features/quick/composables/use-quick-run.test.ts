@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { progressFraction } from './use-quick-run';
+import { joinOutputPath, progressFraction } from './use-quick-run';
 
 /**
  * The regression these cover: a one-file run showed an indeterminate bar for its entire
@@ -41,5 +41,37 @@ describe('progressFraction', () => {
 
   it('is zero for a run with no files rather than dividing by it', () => {
     expect(progressFraction({ finished: 0, total: 0, pagesDone: 2, pageCount: 4 })).toBe(0);
+  });
+});
+
+/**
+ * Where a result sits on disk, for the desktop app's "open this" rows.
+ *
+ * The separator cannot come from the browser: the same page is served by a headless server
+ * that may be on another machine, and a Linux server driven from a Windows browser would get
+ * backslashes joined onto a POSIX path. It comes from the folder the server reported.
+ */
+describe('joinOutputPath', () => {
+  it('joins a Windows folder with a backslash', () => {
+    expect(joinOutputPath('D:\\scans\\out', 'report.md')).toBe('D:\\scans\\out\\report.md');
+  });
+
+  it('joins a POSIX folder with a forward slash', () => {
+    expect(joinOutputPath('/srv/scans/out', 'report.md')).toBe('/srv/scans/out/report.md');
+  });
+
+  it('does not double a separator the folder already ends with', () => {
+    expect(joinOutputPath('D:\\scans\\', 'report.md')).toBe('D:\\scans\\report.md');
+    expect(joinOutputPath('/srv/scans/', 'report.md')).toBe('/srv/scans/report.md');
+  });
+
+  it('keeps a drive root usable', () => {
+    expect(joinOutputPath('D:\\', 'report.md')).toBe('D:\\report.md');
+  });
+
+  it('takes the platform from the folder, not from the file name', () => {
+    // A browser on one platform driving a server on another is the case that breaks a naive
+    // join, and it is exactly the case the headless build exists for.
+    expect(joinOutputPath('/srv/out', 'a b.docx')).toBe('/srv/out/a b.docx');
   });
 });

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { BrowserWindow, dialog, ipcMain, shell, type OpenDialogOptions } from 'electron';
 import { statSync } from 'node:fs';
+import { openProducedFile } from './open-file';
 import { isAbsolute } from 'node:path';
 import {
   IPC_CHANNELS,
@@ -86,6 +87,10 @@ export function registerDialogHandlers(): void {
     }
     shell.showItemInFolder(raw);
   });
+
+  // Separate from the reveal above, and validated far more strictly: this one asks the
+  // operating system to *run* the file with its registered application.
+  ipcMain.handle(IPC_CHANNELS.openFile, (_event, raw: unknown) => openProducedFile(raw));
 }
 
 /** Narrow the untyped IPC payload. */

@@ -17,6 +17,7 @@ export const IPC_CHANNELS = {
   selectFiles: 'dialog:select-files',
   /** Reveal a produced file in Explorer/Finder. */
   showInFolder: 'shell:show-in-folder',
+  openFile: 'shell:open-file',
   /** Where the backend is listening, so the renderer can build absolute URLs if it needs to. */
   getServerInfo: 'app:server-info',
   getVersion: 'app:version',
@@ -89,12 +90,25 @@ export interface UpdateStatus {
 }
 
 /** The object the preload puts on `window.impressiveOcr`. */
+/** Why an open did not happen, for a message the user can act on. */
+export type OpenFileResult =
+  | { status: 'opened' }
+  | { status: 'refused'; reason: 'not-a-path' | 'unsupported-type' | 'missing' };
+
 export interface DesktopBridge {
   readonly isDesktop: true;
   selectFolder: (request?: SelectFolderRequest) => Promise<string | null>;
   /** Absolute paths of the chosen files; empty when cancelled. */
   selectFiles: (request?: SelectFilesRequest) => Promise<string[]>;
   showInFolder: (path: string) => Promise<void>;
+  /**
+   * Open a produced document in the user's default application.
+   *
+   * Resolves to whether it happened. The main process refuses anything that is not one of the
+   * formats this application writes, so the caller has to be able to say "that file is gone"
+   * rather than assume it worked.
+   */
+  openFile: (path: string) => Promise<OpenFileResult>;
   getServerInfo: () => Promise<ServerInfo>;
   getVersion: () => Promise<string>;
   getDataLocation: () => Promise<DataLocation>;

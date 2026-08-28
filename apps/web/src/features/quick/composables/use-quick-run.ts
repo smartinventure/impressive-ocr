@@ -112,6 +112,23 @@ function recallSettings(): RememberedSettings | null {
  * Exported for its own test: it is arithmetic with three ways to be wrong -- a bar that goes
  * backwards, one that passes 100%, and one that divides by a page count of zero.
  */
+/**
+ * Where a produced file sits, given the folder the server reported and the file's own name.
+ *
+ * Joined on the client so an upload run never has to disclose a server-side working directory
+ * to a browser. The separator comes from the folder itself, which is the only reliable
+ * indication of the platform the files are actually on: the same page runs in a browser that
+ * may be nowhere near the machine that wrote them.
+ *
+ * A join that turns out to be wrong is not dangerous. The desktop app validates the path
+ * before opening anything and reports it as missing, which is also what an expired result
+ * looks like.
+ */
+export function joinOutputPath(folder: string, fileName: string): string {
+  const separator = folder.includes('\\') ? '\\' : '/';
+  return `${folder.replace(/[\\/]+$/, '')}${separator}${fileName}`;
+}
+
 export function progressFraction(input: {
   finished: number;
   total: number;
@@ -327,10 +344,13 @@ export function useQuickRun() {
   const files = ref<QuickRunFile[]>([]);
 
   async function loadFiles(): Promise<void> {
-    // Gated on `canDownload`, not merely on being finished: a server run wrote straight into
-    // the user's own output folder, and a list of download links to files they already have
-    // on disk would only invite them to fetch second copies into their browser's downloads.
-    if (run.value === null || !canDownload.value) return;
+    // Two reasons to want this list, and they are not the same reason. An upload run needs
+    // download links, because the results exist only on the server. A folder run wrote
+    // straight into the user's own directory, where offering downloads would only invite
+    // second copies — but the desktop app can offer to *open* what is already there, and
+    // needs the names to do it.
+    if (run.value === null) return;
+    if (!canDownload.value && run.value.outputPath === null) return;
     try {
       files.value = await quickApi.files(run.value.pipelineId);
     } catch {
@@ -343,6 +363,24 @@ export function useQuickRun() {
   /** A file's own URL, for a direct link per row. */
   function fileUrl(file: QuickRunFile): string {
     return run.value === null ? '' : quickApi.fileUrl(run.value.pipelineId, file.index);
+  }
+
+  /**
+   * Where a produced file sits on disk, or null when there is no such place.
+   *
+   * Null for uploads on purpose: those live in a working directory that is swept on a
+   * retention window, and is the server's business rather than the user's — on a headless
+   * install it is not even the same machine.
+   *
+   * Joined here rather than sent by the server, so an upload run never has to disclose a
+   * server-side path to a browser. The separator is taken from the folder the server gave
+   * us, which is the only reliable indication of the platform the files are actually on.
+   * A join that turns out to be wrong is not dangerous: the desktop app validates the path
+   * and reports it as missing.
+   */
+  function filePath(file: QuickRunFile): string | null {
+    const folder = run.value?.outputPath ?? null;
+    return folder === null ? null : joinOutputPath(folder, file.fileName);
   }
 
   async function start(): Promise<void> {
@@ -495,6 +533,7 @@ export function useQuickRun() {
     absoluteDownloadUrl,
     files,
     fileUrl,
+    filePath,
     loadFiles,
     start,
     cancel,

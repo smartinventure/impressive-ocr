@@ -426,7 +426,11 @@
     "downloadFiles": "Individual files ({count})",
     "uploading": "Sending {count} file(s) to the server…",
     "startingRun": "Starting the run…",
-    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass, so there is nothing to switch on here."
+    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass, so there is nothing to switch on here.",
+    "openFiles": "Open a result",
+    "showInFolder": "Show in folder",
+    "openMissing": "{name} is no longer there. Results are removed after a while.",
+    "openRefused": "{name} could not be opened."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

@@ -17,6 +17,7 @@ import type { AppServices } from '../app-services';
 import { HttpError, registerErrorHandler } from './errors';
 import type { AppFastify } from './fastify-types';
 import { registerAuthHook } from './auth-hook';
+import { registerRequestLogging } from './request-logging';
 import { registerAuthRoutes } from './routes/auth-routes';
 import { registerConsentRoutes } from './routes/consent-routes';
 import { registerLicenseRoutes } from './routes/license-routes';
@@ -51,7 +52,18 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
     // whose forwarded headers we should believe.
     trustProxy: false,
     bodyLimit: 2 * 1024 * 1024,
+    // Fastify logs "incoming request" and "request completed" for every call at info level.
+    // The UI polls status while a page is open, so a machine sitting idle wrote two lines a
+    // second and a real event -- a failed job, a licence refusal -- scrolled away in seconds.
+    // The log a user is asked to send should be about their problem, not about a healthy
+    // client asking whether anything changed.
+    //
+    // Replaced below by a hook that keeps what is diagnostic: failures, and anything slow
+    // enough to be worth explaining.
+    disableRequestLogging: true,
   });
+
+  registerRequestLogging(app, options.logger);
 
   // Registered before helmet and the routes so `request.cookies` exists in the auth hook.
   await app.register(fastifyCookie);

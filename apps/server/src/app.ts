@@ -347,6 +347,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     logger,
     resolveFolder: (path, mustExist) =>
       resolveSafePath(path, { allowlist: settingsService.allowlist(), mustExist }),
+    // The scheduler owns the in-flight job and its abort signal; the job repository can only
+    // reach the ones that have not started. Stop needs both halves.
+    cancelRunning: (pipelineId) => scheduler.cancelForPipeline(pipelineId),
   });
 
   let housekeeping: NodeJS.Timeout | undefined;

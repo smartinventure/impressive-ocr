@@ -39,6 +39,13 @@ export interface QuickRunServiceOptions {
   logger: Logger;
   /** Canonicalize and authorise a path, exactly as the pipeline editor does. */
   resolveFolder: (path: string, mustExist: boolean) => Promise<string>;
+  /**
+   * Signal the in-flight job for a pipeline, which the job repository cannot do.
+   *
+   * A function rather than the scheduler itself: this module must not depend on the queue,
+   * and `app.ts` is the only place the two meet.
+   */
+  cancelRunning: (pipelineId: string) => number;
 }
 
 export class QuickRunError extends Error {
@@ -145,10 +152,22 @@ export class QuickRunService {
    * `AbortSignal`, which is what guarantees no half-written output survives — outputs are
    * only moved out of the work directory on success.
    */
+  /**
+   * Stop a run: drop what has not started, and signal what has.
+   *
+   * Both halves are needed, and only the first existed. `cancelPendingFor` touches jobs in
+   * the `pending` state by design — the executor owns a running one — so for a single
+   * document, which is already running by the time the Stop button is on screen, cancelling
+   * matched nothing and the run continued to completion.
+   *
+   * The count returned is everything that was stopped or told to stop, because "0 cancelled"
+   * for a run that is plainly still going is not a useful thing to report.
+   */
   cancel(pipelineId: string): number {
-    const cancelled = this.options.jobs.cancelPendingFor(pipelineId);
-    this.options.logger.info({ pipelineId, cancelled }, 'Quick run cancelled');
-    return cancelled;
+    const pending = this.options.jobs.cancelPendingFor(pipelineId);
+    const running = this.options.cancelRunning(pipelineId);
+    this.options.logger.info({ pipelineId, pending, running }, 'Quick run cancelled');
+    return pending + running;
   }
 
   /** Absolute paths of everything a run produced, for the archive. */

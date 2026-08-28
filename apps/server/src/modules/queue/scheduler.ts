@@ -110,6 +110,28 @@ export class Scheduler {
   }
 
   /**
+   * Cancel every in-flight job belonging to one pipeline.
+   *
+   * Quick Mode cancelled only *pending* jobs, which for a one-document run is none of them:
+   * the single job is already running by the time the button exists to click. So Stop
+   * returned a count of zero and did nothing visible, and the run carried on to completion.
+   *
+   * Returns how many were signalled. Aborting is not instantaneous — a sidecar still loading
+   * several gigabytes of model weights cannot answer until that finishes, because the load is
+   * one blocking call inside PaddleOCR — but it is the difference between stopping late and
+   * not stopping at all.
+   */
+  cancelForPipeline(pipelineId: string): number {
+    let signalled = 0;
+    for (const running of this.running.values()) {
+      if (running.pipelineId !== pipelineId) continue;
+      running.controller.abort();
+      signalled += 1;
+    }
+    return signalled;
+  }
+
+  /**
    * One scheduling pass.
    *
    * Re-entrancy guard rather than a queue: a tick that overruns its interval should be

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { SidecarJobError, describeFailure } from './job-executor';
+import { NoOutputError, SidecarJobError, describeFailure } from './job-executor';
 
 /**
  * The retry-versus-quarantine decision is the highest-consequence branch in the queue: get
@@ -53,5 +53,34 @@ describe('describeFailure', () => {
       message: 'something odd',
       retryable: true,
     });
+  });
+});
+
+/**
+ * A job that produced nothing.
+ *
+ * `formats` is `.min(1)`, so at least one output was always asked for and an empty set can
+ * only mean a writer produced none. That has happened twice — a missing `python-docx`, and
+ * every page coming from a PDF's own text layer — and both times the job was marked
+ * succeeded beside an empty folder.
+ *
+ * The severity is in what runs next: `onSuccess` can be `delete`, so the code path that
+ * reported a phantom success is the same one that removes the user's original.
+ */
+describe('describeFailure for a job with no output', () => {
+  it('does not retry, because the next attempt would produce nothing too', () => {
+    const described = describeFailure(new NoOutputError());
+
+    expect(described.retryable).toBe(false);
+    expect(described.code).toBe('no-output');
+  });
+
+  it('says the source was left alone', () => {
+    // The one thing the user needs to know: their document is still there.
+    expect(describeFailure(new NoOutputError()).message).toContain('left in place');
+  });
+
+  it('still retries an ordinary error', () => {
+    expect(describeFailure(new Error('socket hang up')).retryable).toBe(true);
   });
 });

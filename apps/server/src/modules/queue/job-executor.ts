@@ -170,6 +170,22 @@ export class JobExecutor {
       this.options.jobs.recordOutput(job.id, file.format, file.path, file.bytes);
     }
 
+    // A job that produced no file did not succeed, whatever the pipeline reported.
+    //
+    // `formats` is `.min(1)`, so at least one output was always asked for and an empty set
+    // can only mean a writer produced nothing. That has happened twice: once when
+    // `python-docx` was missing, and once when every page came from a PDF's own text layer.
+    // Both times the job was marked succeeded and the folder was empty.
+    //
+    // The reason this is thrown rather than logged is the next statement. `onSuccess` can be
+    // `delete`, so the path that reports a phantom success is also the path that removes the
+    // user's original — and the two together turn a silent writer bug into losing the
+    // document. Failing here leaves the source where it is and puts the job in the state a
+    // user would look at.
+    if (moved.length === 0) {
+      throw new NoOutputError();
+    }
+
     await applyPostAction({
       sourcePath: job.sourcePath,
       inputRoot: source.inputPath,
@@ -301,6 +317,19 @@ export class SidecarJobError extends Error {
  * fault is more likely to be transient infrastructure than a permanently broken document,
  * and a wrongly-quarantined file is worse for a user than a wasted retry.
  */
+/**
+ * The engine reported success and wrote nothing.
+ *
+ * Not retryable: a writer that produced no file for this document will produce no file for it
+ * again, and each attempt costs a full OCR pass. Better to stop and say so.
+ */
+export class NoOutputError extends Error {
+  constructor() {
+    super('The engine finished but produced no output file. The source was left in place.');
+    this.name = 'NoOutputError';
+  }
+}
+
 export function describeFailure(error: unknown): {
   code: string;
   message: string;
@@ -308,6 +337,9 @@ export function describeFailure(error: unknown): {
 } {
   if (error instanceof SidecarJobError) {
     return { code: error.code, message: error.message, retryable: error.retryable };
+  }
+  if (error instanceof NoOutputError) {
+    return { code: 'no-output', message: error.message, retryable: false };
   }
   if (error instanceof Error) {
     if (error.name === 'AbortError') {

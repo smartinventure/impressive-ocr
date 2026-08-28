@@ -343,3 +343,52 @@ describe('useLicense error codes', () => {
     expect(licence.errorCode.value).toBe('LICENSE_INACTIVE');
   });
 });
+
+/**
+ * One installation, one licence status.
+ *
+ * Four components read it: the shell for the header label and the banner, the first-run
+ * dialog, the System page card, and the step. With a `ref` per call they each held a private
+ * copy, so activating updated the form's copy while the shell kept the one it fetched at
+ * start — and the banner went on saying "not registered, 30 days left" beside a System page
+ * that showed the licence as active.
+ */
+describe('useLicense shared status', () => {
+  it('shows an activation to a consumer that did not perform it', async () => {
+    const shell = useLicense();
+    await shell.load();
+    expect(shell.status.value?.gate.state).toBe('trial');
+
+    // A second component — the licence step on the System page — activates.
+    const form = useLicense();
+    await form.load();
+    licenseApi.activate.mockResolvedValue(
+      status({
+        state: 'active',
+        tier: 'personal',
+        email: 'me@example.com',
+        gate: { state: 'licensed', canProcess: true, daysRemaining: null, gracePeriodEndsAt: null },
+      }),
+    );
+    form.choose('personal');
+    form.email.value = 'me@example.com';
+    form.licenseKey.value = 'IMC-1234-ABCD';
+    await form.activate();
+
+    // The shell never reloaded, and must still see it: this is what the banner reads.
+    expect(shell.status.value?.state).toBe('active');
+    expect(shell.status.value?.gate.state).toBe('licensed');
+  });
+
+  it('shows a released seat to every consumer too', async () => {
+    const shell = useLicense();
+    licenseApi.get.mockResolvedValue(status({ state: 'active', tier: 'personal' }));
+    await shell.load();
+
+    const form = useLicense();
+    licenseApi.release.mockResolvedValue(status());
+    await form.release();
+
+    expect(shell.status.value?.state).toBe('unregistered');
+  });
+});

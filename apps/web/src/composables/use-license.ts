@@ -21,8 +21,22 @@ import { licenseApi } from '../api/endpoints';
 
 export type LicenseScreen = 'choose' | 'register' | 'awaiting-key' | 'activate' | 'done';
 
+/**
+ * The licence status, shared by every caller of `useLicense`.
+ *
+ * Module scope on purpose. This is one fact about the installation, and four components read
+ * it: the shell for the header label and the banner, the first-run dialog, the System page
+ * card, and the step itself. Given a `ref` per call they each held a private copy, so
+ * activating a licence updated the copy belonging to the form while the shell kept the one it
+ * fetched at start -- and the banner went on saying "not registered, 30 days left" beside a
+ * System page showing the licence as active.
+ *
+ * Only the status is shared. `busy`, `error` and the form fields stay per-instance, because
+ * two forms open at once should not drive each other's spinner.
+ */
+const status = ref<LicenseStatus | null>(null);
+
 export function useLicense() {
-  const status = ref<LicenseStatus | null>(null);
   const busy = ref(false);
   const error = ref<string | null>(null);
   /**

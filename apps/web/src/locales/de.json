@@ -445,7 +445,11 @@
     "openMissing": "{name} ist nicht mehr vorhanden. Ergebnisse werden nach einiger Zeit entfernt.",
     "openRefused": "{name} konnte nicht geöffnet werden.",
     "showMoreFiles": "{count} weitere anzeigen",
-    "showFewerFiles": "Weniger anzeigen"
+    "showFewerFiles": "Weniger anzeigen",
+    "addFolder": "Ordner hinzufügen",
+    "chooseFolder": "Ordner zum Einlesen wählen",
+    "clearFolder": "Diesen Ordner entfernen",
+    "noExtensions": "Wählen Sie mindestens einen Dateityp, sonst wird nichts eingelesen."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

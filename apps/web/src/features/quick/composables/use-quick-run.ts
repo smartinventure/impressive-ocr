@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import {
+  PROCESSABLE_EXTENSIONS,
   quickOptionsSchema,
   recommendedProfile,
   type QuickOptions,
@@ -155,6 +156,16 @@ export function useQuickRun() {
   // server. The desktop app overrides it below, where both are the same machine anyway.
   const source = ref<'server' | 'upload'>(remembered?.source ?? 'upload');
   const serverFiles = ref<string[]>([]);
+  /**
+   * A folder to take the files from, instead of naming them one by one.
+   *
+   * Empty unless the user picked one. The two are exclusive: choosing a folder clears any
+   * individually picked files and vice versa, because a run that took some of each would put
+   * a count on screen that did not match what ran.
+   */
+  const serverFolder = ref('');
+  /** File types to take from that folder, as chosen in the chips. */
+  const folderExtensions = ref<string[]>([...PROCESSABLE_EXTENSIONS]);
   const uploadFiles = ref<File[]>([]);
   const outputPath = ref(remembered?.outputPath ?? '');
   const options = ref<QuickOptions>(remembered?.options ?? quickOptionsSchema.parse({}));
@@ -215,8 +226,14 @@ export function useQuickRun() {
     source.value === 'server' ? serverFiles.value.length : uploadFiles.value.length,
   );
 
+  /** A folder run has files too; the server counts them, so this side cannot. */
+  const hasFolder = computed(() => source.value === 'server' && serverFolder.value.trim() !== '');
+
   const canStart = computed(() => {
-    if (busy.value || run.value !== null || fileCount.value === 0) return false;
+    if (busy.value || run.value !== null) return false;
+    // A folder stands in for the files: how many there are is only known on the server.
+    if (fileCount.value === 0 && !hasFolder.value) return false;
+    if (hasFolder.value && folderExtensions.value.length === 0) return false;
     // Uploads always come back as a download; only a server-side run needs somewhere to put
     // its results.
     return source.value === 'upload' || outputPath.value.trim().length > 0;
@@ -401,7 +418,10 @@ export function useQuickRun() {
         phase.value = 'starting';
         run.value = await quickApi.start({
           source: 'server',
-          files: [...serverFiles.value],
+          files: hasFolder.value ? [] : [...serverFiles.value],
+          ...(hasFolder.value
+            ? { folderPath: serverFolder.value.trim(), extensions: [...folderExtensions.value] }
+            : {}),
           outputPath: outputPath.value.trim(),
           options: options.value,
         });
@@ -516,6 +536,9 @@ export function useQuickRun() {
     error,
     fileCount,
     canStart,
+    serverFolder,
+    folderExtensions,
+    hasFolder,
     isRunning,
     isFinished,
     succeeded,

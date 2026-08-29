@@ -16,6 +16,7 @@ import { archiveFileName, buildResultArchive } from '../../modules/quick/result-
 import type { AppServices } from '../../app-services';
 import type { AppFastify } from '../fastify-types';
 import { HttpError } from '../errors';
+import { expandFolder } from '../../modules/quick/folder-expansion';
 
 /**
  * Quick Mode: OCR a few files once, without configuring a watched folder.
@@ -96,9 +97,17 @@ export function registerQuickRoutes(app: AppFastify, services: AppServices): voi
         });
       }
 
+      // A folder is turned into its files here, where the filesystem is. The path goes
+      // through the same allowlist check a pipeline's would: browsing a folder is not consent
+      // to read everything in it.
+      const files =
+        body.folderPath === undefined
+          ? body.files
+          : await filesFromFolder(body.folderPath, body.extensions, services);
+
       return await quick.start({
         source: 'server',
-        files: body.files,
+        files,
         outputPath: body.outputPath ?? null,
         options: quickOptionsSchema.parse(body.options),
       });
@@ -245,6 +254,33 @@ function sanitizeUploadName(filename: string, index: number): string {
     .trim();
 
   return cleaned.length > 0 ? cleaned : `upload-${index + 1}`;
+}
+
+/**
+ * The files inside a folder the user chose, authorised and filtered.
+ *
+ * The empty case is an error rather than an empty run: "nothing happened" with no reason is
+ * the least useful outcome, and the two reasons -- wrong folder, or wrong file types -- call
+ * for different corrections.
+ */
+async function filesFromFolder(
+  folderPath: string,
+  extensions: readonly string[],
+  services: AppServices,
+): Promise<string[]> {
+  const resolved = await services.resolveFolder(folderPath, true);
+  const expansion = await expandFolder(resolved, extensions);
+
+  if (expansion.files.length === 0) {
+    throw new HttpError(
+      400,
+      'no-files',
+      expansion.skipped > 0
+        ? 'That folder has no files of the types you chose.'
+        : 'That folder is empty.',
+    );
+  }
+  return expansion.files;
 }
 
 async function listStagedFiles(inputDir: string): Promise<string[]> {

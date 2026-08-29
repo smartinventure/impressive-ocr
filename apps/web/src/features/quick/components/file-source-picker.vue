@@ -26,6 +26,10 @@ const props = defineProps<{
   source: 'server' | 'upload';
   serverFiles: string[];
   uploadFiles: File[];
+  /** A folder to take the files from instead, expanded by the server. */
+  serverFolder: string;
+  /** Which types to take from that folder, without the dot. */
+  folderExtensions: string[];
   disabled?: boolean;
 }>();
 
@@ -33,6 +37,8 @@ const emit = defineEmits<{
   'update:source': ['server' | 'upload'];
   'update:serverFiles': [string[]];
   'update:uploadFiles': [File[]];
+  'update:serverFolder': [string];
+  'update:folderExtensions': [string[]];
 }>();
 
 const { t } = useI18n();
@@ -80,6 +86,47 @@ const selected = computed(() =>
 );
 
 /** Desktop: the native dialog. Browser: the server-side browser. */
+const pickingFolder = ref(false);
+
+/**
+ * Only where a folder can actually be chosen.
+ *
+ * `selectFolder` needs the desktop bridge; in a browser it returns null and the button would
+ * open nothing and say nothing. The browse dialog is no substitute — it walks folders but
+ * only selects files, which is the opposite of what this asks for.
+ */
+const canPickFolder = computed(() => props.source === 'server' && desktop.isDesktop.value);
+
+/**
+ * Pick a folder rather than its files.
+ *
+ * Clears any individually chosen files: a run taking some of each would show a count that did
+ * not match what ran, and the two answers to "what is in this run" would disagree.
+ */
+async function chooseServerFolder(): Promise<void> {
+  pickingFolder.value = true;
+  try {
+    const chosen = await desktop.selectFolder({ title: t('quick.chooseFolder') });
+    if (chosen === null) return;
+    emit('update:serverFiles', []);
+    emit('update:serverFolder', chosen);
+  } finally {
+    pickingFolder.value = false;
+  }
+}
+
+/** Choosing files again abandons the folder, for the same reason. */
+function clearFolder(): void {
+  if (props.serverFolder !== '') emit('update:serverFolder', '');
+}
+
+function toggleExtension(extension: string): void {
+  const next = props.folderExtensions.includes(extension)
+    ? props.folderExtensions.filter((item) => item !== extension)
+    : [...props.folderExtensions, extension];
+  emit('update:folderExtensions', next);
+}
+
 async function chooseServerFiles(): Promise<void> {
   picking.value = true;
   try {
@@ -116,6 +163,8 @@ async function navigate(path: string | null): Promise<void> {
 
 /** Add without duplicating: picking the same file twice should not queue it twice. */
 function addServerFiles(paths: readonly string[]): void {
+  // Naming files abandons a chosen folder: the run is one or the other.
+  clearFolder();
   const merged = [...props.serverFiles];
   for (const path of paths) {
     if (!merged.includes(path)) merged.push(path);
@@ -225,17 +274,66 @@ function formatSize(bytes: number | null): string {
       <v-btn value="server" prepend-icon="dns">{{ t('quick.sourceServer') }}</v-btn>
     </v-btn-toggle>
 
+    <!-- What was chosen, and what will be taken from it. The chips are the only place the
+         run's scope is visible: the file list stays empty because the server does the
+         listing, so without them "run this folder" says nothing about what that means. -->
+    <div v-if="serverFolder !== ''" class="quick-picker__folder mb-3">
+      <div class="d-flex align-center ga-2 mb-2">
+        <v-icon icon="folder_open" size="18" />
+        <span class="ocr-mono text-body-2">{{ serverFolder }}</span>
+        <v-btn
+          icon="close"
+          size="x-small"
+          variant="text"
+          :title="t('quick.clearFolder')"
+          :disabled="disabled"
+          @click="emit('update:serverFolder', '')"
+        />
+      </div>
+      <div class="d-flex ga-2 flex-wrap">
+        <v-chip
+          v-for="extension in PROCESSABLE_EXTENSIONS"
+          :key="extension"
+          size="small"
+          label
+          :variant="folderExtensions.includes(extension) ? 'flat' : 'outlined'"
+          :color="folderExtensions.includes(extension) ? 'primary' : undefined"
+          :disabled="disabled"
+          @click="toggleExtension(extension)"
+        >
+          {{ extension.toUpperCase() }}
+        </v-chip>
+      </div>
+      <p v-if="folderExtensions.length === 0" class="text-caption text-error mt-2 mb-0">
+        {{ t('quick.noExtensions') }}
+      </p>
+    </div>
+
     <div class="d-flex ga-3 flex-wrap align-center mb-3">
       <v-btn
         v-if="source === 'server'"
         variant="tonal"
         color="primary"
-        prepend-icon="folder_open"
+        prepend-icon="description"
         :disabled="disabled"
         :loading="picking"
         @click="chooseServerFiles"
       >
         {{ t('quick.addFiles') }}
+      </v-btn>
+
+      <!-- The whole folder, as an alternative to naming its files. The server lists it: a web
+           page cannot read a directory, and the desktop's dialog hands back the folder rather
+           than what is in it. -->
+      <v-btn
+        v-if="canPickFolder"
+        variant="tonal"
+        prepend-icon="folder_open"
+        :disabled="disabled"
+        :loading="pickingFolder"
+        @click="chooseServerFolder"
+      >
+        {{ t('quick.addFolder') }}
       </v-btn>
 
       <template v-else>
@@ -371,6 +469,13 @@ function formatSize(bytes: number | null): string {
 
 <style scoped>
 /* Driven by the button beside it; the native control is never shown. */
+/* Boxed so the folder and its types read as one choice rather than two loose rows. */
+.quick-picker__folder {
+  border: 1px solid rgb(var(--v-theme-outline-variant));
+  border-radius: 8px;
+  padding: 12px;
+}
+
 .quick-picker__input {
   display: none;
 }

@@ -445,7 +445,11 @@
     "openMissing": "{name} is no longer there. Results are removed after a while.",
     "openRefused": "{name} could not be opened.",
     "showMoreFiles": "Show {count} more",
-    "showFewerFiles": "Show fewer"
+    "showFewerFiles": "Show fewer",
+    "addFolder": "Add a folder",
+    "chooseFolder": "Choose a folder to read",
+    "clearFolder": "Remove this folder",
+    "noExtensions": "Choose at least one file type, or nothing will be read."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

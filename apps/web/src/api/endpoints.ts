@@ -199,6 +199,10 @@ export const quickApi = {
   start: (body: {
     source: 'server' | 'upload';
     files?: string[];
+    /** A folder to take the files from, expanded on the server. Exclusive with `files`. */
+    folderPath?: string;
+    /** Which types to take from that folder, without the dot. */
+    extensions?: string[];
     uploadId?: string;
     outputPath?: string;
     options: QuickOptions;

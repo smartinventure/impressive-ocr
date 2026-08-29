@@ -170,6 +170,8 @@ function toggleFormat(format: OutputFormat): void {
           v-model:source="quick.source.value"
           v-model:server-files="quick.serverFiles.value"
           v-model:upload-files="quick.uploadFiles.value"
+          v-model:server-folder="quick.serverFolder.value"
+          v-model:folder-extensions="quick.folderExtensions.value"
           :disabled="quick.busy.value"
         />
       </v-card>

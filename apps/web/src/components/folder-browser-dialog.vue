@@ -242,7 +242,26 @@ watch(
                 size="20"
               />
             </template>
-            <v-list-item-title>{{ entry.name }}</v-list-item-title>
+            <v-list-item-title>
+              <!-- Under a mounted host, the operator's own path rather than the container's:
+                   they came looking for /mnt/scans, not /host/mnt/scans. -->
+              {{ entry.hostPath ?? entry.name }}
+              <v-chip
+                v-if="entry.hostPath !== null"
+                size="x-small"
+                color="succeeded"
+                variant="tonal"
+                label
+                class="ml-2"
+              >
+                {{ t('folderBrowser.hostChip') }}
+                <!-- The container path is still what pipelines store and what appears in the
+                     log, so it has to be reachable from here. -->
+                <v-tooltip activator="parent" location="top" max-width="320">
+                  {{ t('folderBrowser.hostTooltip', { path: entry.path }) }}
+                </v-tooltip>
+              </v-chip>
+            </v-list-item-title>
             <v-list-item-subtitle v-if="!entry.isAccessible">
               {{ t('folderBrowser.inaccessible') }}
             </v-list-item-subtitle>

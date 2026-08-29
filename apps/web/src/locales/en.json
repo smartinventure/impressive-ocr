@@ -92,7 +92,9 @@
     "inaccessible": "Not accessible",
     "truncated": "Only the first 1,000 folders are shown. Use the filter to narrow the list.",
     "loadFailed": "Could not read that folder.",
-    "createFailed": "Could not create that folder."
+    "createFailed": "Could not create that folder.",
+    "hostChip": "HOST",
+    "hostTooltip": "A folder on the host machine, reached through the mount this container was started with. Pipelines store it as {path}, which is where the OCR engine looks for it."
   },
   "runtime": {
     "notInstalled": "The OCR runtime is not installed yet.",

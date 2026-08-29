@@ -3,6 +3,7 @@ import { access, lstat, mkdir, readdir, realpath } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, join, parse, resolve } from 'node:path';
 import { isInside, PathNotAllowedError } from '../../infra/fs/safe-path';
+import { hasHostMount, HOST_MOUNT, toHostPath } from './host-mount';
 
 /**
  * Server-side folder browsing for the pipeline editor and the settings allowlist.
@@ -42,6 +43,14 @@ export interface FolderEntry {
   isDirectory: boolean;
   /** Bytes, for files. Null for folders, which are not sized here. */
   sizeBytes: number | null;
+  /**
+   * The same folder as the operator knows it on their own machine, when this server is in a
+   * container started with the host mounted. `/host/mnt/scans` reports `/mnt/scans`.
+   *
+   * Null everywhere else, which is every desktop installation. `path` remains the only value
+   * anything acts on — this is what the operator reads, not what the sidecar is given.
+   */
+  hostPath: string | null;
 }
 
 export interface BrowseResult {
@@ -52,6 +61,8 @@ export interface BrowseResult {
   selectable: boolean;
   truncated: boolean;
   entries: FolderEntry[];
+  /** `currentPath` as the operator knows it, when browsing under a mounted host. */
+  hostPath: string | null;
 }
 
 export interface BrowseOptions {
@@ -100,6 +111,7 @@ export async function browseFolders(options: BrowseOptions): Promise<BrowseResul
     selectable: options.scope === 'system' || isWithinAllowlist(target, options.allowlist),
     truncated: entries.length >= MAX_ENTRIES,
     entries,
+    hostPath: toHostPath(target),
   };
 }
 
@@ -122,12 +134,17 @@ async function listRoots(options: BrowseOptions): Promise<BrowseResult> {
     selectable: false,
     truncated: false,
     entries,
+    // The root list is not itself anywhere; the host mount appears as one of its entries.
+    hostPath: null,
   };
 }
 
 async function systemRoots(): Promise<string[]> {
   if (process.platform !== 'win32') {
-    return ['/', homedir()];
+    // The host mount first when there is one: in a container the operator came looking for
+    // their own machine, and `/` is this container's short and unfamiliar tree.
+    const host = (await hasHostMount()) ? [HOST_MOUNT] : [];
+    return [...host, '/', homedir()];
   }
   // No API enumerates drives without a native dependency, so probe the letters. Each check
   // is a cheap `access`, and an unmapped letter fails immediately.
@@ -190,6 +207,7 @@ async function describeEntry(path: string, options: BrowseOptions): Promise<Fold
       selectable,
       isDirectory,
       sizeBytes: isDirectory ? null : stats.size,
+      hostPath: toHostPath(path),
     };
   } catch {
     // Unprobeable: assume a folder, which is the safer guess — a file that turns out not to
@@ -202,6 +220,7 @@ async function describeEntry(path: string, options: BrowseOptions): Promise<Fold
       selectable,
       isDirectory: true,
       sizeBytes: null,
+      hostPath: toHostPath(path),
     };
   }
 }

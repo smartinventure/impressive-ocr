@@ -59,6 +59,15 @@ export interface FolderEntry {
   /** Files appear only when `includeFiles` was requested; folders always do. */
   isDirectory: boolean;
   sizeBytes: number | null;
+  /**
+   * The folder as it exists on the operator's own machine, when this server runs in a
+   * container started with the host mounted at `/host`.
+   *
+   * Null on every desktop installation and for anything outside that mount. Display only:
+   * `path` is what pipelines store and what the OCR sidecar is given, because the sidecar
+   * runs inside the container and `/mnt/scans` means nothing there.
+   */
+  hostPath: string | null;
 }
 
 export interface BrowseResult {
@@ -68,6 +77,8 @@ export interface BrowseResult {
   selectable: boolean;
   truncated: boolean;
   entries: FolderEntry[];
+  /** `currentPath` as the operator knows it; see `FolderEntry.hostPath`. */
+  hostPath: string | null;
 }
 
 export const pipelinesApi = {

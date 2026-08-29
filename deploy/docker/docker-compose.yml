@@ -39,6 +39,26 @@ services:
       # Where output files are written. Must be writable.
       - ./output:/output
 
+      # OPTIONAL, and a serious grant — read the whole comment before uncommenting.
+      #
+      # Mounting the host root at /host makes the entire machine browsable from the folder
+      # picker, which then labels anything under it "HOST" and shows the path as you know it:
+      # /host/mnt/scans is displayed as /mnt/scans. The mapping is fixed rather than guessed,
+      # which is why the label can be trusted.
+      #
+      # Read-only, and that is not a default to relax. This application extracts the text of
+      # a document into an output file. With the host writable, or with the API reachable by
+      # anyone, "browse the host" becomes "read any file on the machine and write its contents
+      # somewhere I control" — /host/root/.ssh/id_rsa included. Enable this only with
+      # authentication switched on, and only with the port bound to loopback as above.
+      #
+      # Mounting does not authorise: /host is browsable, and a pipeline still refuses a path
+      # that is not on the allowlist. Add the specific folders you want in Settings.
+      #
+      # Use ro,rslave instead of ro if drives or network shares are mounted on the host after
+      # this container starts; the plain form shows only what existed at start.
+      # - /:/host:ro
+
     environment:
       # Both already default to these in the image; repeated here because they are the two
       # an operator most often wants to change.

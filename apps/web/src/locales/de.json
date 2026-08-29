@@ -92,7 +92,9 @@
     "inaccessible": "Nicht zugänglich",
     "truncated": "Es werden nur die ersten 1.000 Ordner angezeigt. Verwenden Sie den Filter, um die Liste einzugrenzen.",
     "loadFailed": "Der Ordner konnte nicht gelesen werden.",
-    "createFailed": "Der Ordner konnte nicht angelegt werden."
+    "createFailed": "Der Ordner konnte nicht angelegt werden.",
+    "hostChip": "HOST",
+    "hostTooltip": "Ein Ordner auf dem Host-Rechner, erreichbar über die Einbindung, mit der dieser Container gestartet wurde. Pipelines speichern ihn als {path} — dort sucht die OCR-Engine danach."
   },
   "runtime": {
     "notInstalled": "Die OCR-Laufzeitumgebung ist noch nicht installiert.",

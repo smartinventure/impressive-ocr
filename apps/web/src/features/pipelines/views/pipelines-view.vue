@@ -185,6 +185,18 @@ async function toggleAll(): Promise<void> {
           </div>
 
           <div class="pipeline-card__actions">
+            <!-- The name is a link too, but a link in a card of chips and paths does not read
+                 as one. An explicit control is what someone looks for. Always available:
+                 viewing is not a modification. -->
+            <span :title="t('pipelines.viewDetails')">
+              <v-btn
+                icon="visibility"
+                variant="text"
+                size="small"
+                :to="{ name: 'pipeline-detail', params: { id: pipeline.id } }"
+              />
+            </span>
+
             <v-btn
               :icon="pipeline.enabled ? 'pause' : 'play_arrow'"
               variant="tonal"

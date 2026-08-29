@@ -30,6 +30,22 @@ const desktop = useDesktopBridge();
 const openError = ref<string | null>(null);
 
 /**
+ * How many results to show before folding the rest away.
+ *
+ * A ten-document run in four formats is forty rows, and this list has no height cap — it
+ * pushes everything below it off the screen, including the button to start another run.
+ */
+const VISIBLE_FILES = 5;
+
+const showAllFiles = ref(false);
+
+const visibleFiles = computed(() =>
+  showAllFiles.value ? quick.files.value : quick.files.value.slice(0, VISIBLE_FILES),
+);
+
+const hiddenFileCount = computed(() => Math.max(0, quick.files.value.length - VISIBLE_FILES));
+
+/**
  * Whether the rows should open files instead of downloading them.
  *
  * Both conditions matter. Without the bridge there is no way to open anything — the same page
@@ -495,7 +511,7 @@ function toggleFormat(format: OutputFormat): void {
         </div>
         <v-list density="compact" class="quick__file-list" rounded="md">
           <v-list-item
-            v-for="file in quick.files.value"
+            v-for="file in visibleFiles"
             :key="file.index"
             v-bind="canOpenFiles ? {} : { href: quick.fileUrl(file), download: true }"
             :prepend-icon="canOpenFiles ? 'draft' : 'description'"
@@ -520,6 +536,27 @@ function toggleFormat(format: OutputFormat): void {
             </template>
           </v-list-item>
         </v-list>
+        <!-- Folded rather than scrolled: a scroll area inside a page that already scrolls is
+             two places to be lost in, and the count says what is behind it. -->
+        <v-btn
+          v-if="hiddenFileCount > 0 && !showAllFiles"
+          variant="text"
+          size="small"
+          class="mt-1"
+          @click="showAllFiles = true"
+        >
+          {{ t('quick.showMoreFiles', { count: hiddenFileCount }) }}
+        </v-btn>
+        <v-btn
+          v-else-if="showAllFiles && hiddenFileCount > 0"
+          variant="text"
+          size="small"
+          class="mt-1"
+          @click="showAllFiles = false"
+        >
+          {{ t('quick.showFewerFiles') }}
+        </v-btn>
+
         <p v-if="openError !== null" class="text-caption text-error mt-2 mb-0">
           {{ openError }}
         </p>

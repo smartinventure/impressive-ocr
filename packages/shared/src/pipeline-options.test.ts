@@ -144,9 +144,23 @@ describe('draftPipelineOptions', () => {
     // values than the server.
     expect(draft.engine).toEqual(parsed.engine);
     expect(draft.output.formats).toEqual(parsed.output.formats);
-    expect(draft.postProcessing).toEqual(parsed.postProcessing);
     expect(draft.reliability).toEqual(parsed.reliability);
     expect(draft.textLayerStrategy).toBe(parsed.textLayerStrategy);
+  });
+
+  it('starts a new pipeline archiving its originals, unlike the parse default', () => {
+    // The one deliberate difference. `keep` is what a document written before this field
+    // existed resolves to and has to stay parseable; it is not what someone setting up a
+    // watched folder should get, because a folder that keeps everything stops distinguishing
+    // the processed from the waiting.
+    const draft = draftPipelineOptions();
+    const parsed = pipelineOptionsSchema.parse({
+      source: { inputPath: 'C:/scans/in' },
+      output: { outputPath: 'C:/scans/out' },
+    });
+
+    expect(draft.postProcessing.onSuccess).toBe('move-to-archive');
+    expect(parsed.postProcessing.onSuccess).toBe('keep');
   });
 
   it('still fails validation until the user supplies real paths', () => {

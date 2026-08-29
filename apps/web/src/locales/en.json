@@ -69,7 +69,8 @@
     "pause": "Pause this pipeline",
     "resume": "Resume this pipeline",
     "pauseFirst": "Pause this pipeline before editing or deleting it. A document already being read would otherwise lose its record part-way through.",
-    "nowProcessing": "Reading {file}"
+    "nowProcessing": "Reading {file}",
+    "viewDetails": "View details"
   },
   "device": {
     "gpu": "GPU",
@@ -192,7 +193,8 @@
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Affects the .txt file only. Choose BOM if Excel garbles umlauts; Latin-1 only for legacy systems, as characters outside it cannot be written.",
     "sectionExpert": "Expert settings",
-    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass, so those have nothing to switch. Rendering resolution is set for you."
+    "modulesBuiltIn": "The accurate engine reads layout, tables and formulas in one pass, so those have nothing to switch. Rendering resolution is set for you.",
+    "lastFormat": "the only format left, so it cannot be switched off"
   },
   "moduleTone": {
     "slow": "slower",
@@ -441,7 +443,9 @@
     "openFiles": "Open a result",
     "showInFolder": "Show in folder",
     "openMissing": "{name} is no longer there. Results are removed after a while.",
-    "openRefused": "{name} could not be opened."
+    "openRefused": "{name} could not be opened.",
+    "showMoreFiles": "Show {count} more",
+    "showFewerFiles": "Show fewer"
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

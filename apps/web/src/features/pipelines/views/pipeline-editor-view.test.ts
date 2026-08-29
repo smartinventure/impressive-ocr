@@ -20,9 +20,11 @@ import en from '../../../locales/en.json';
  * navigation -- so the visible symptom was an unrelated page failing to load.
  */
 
+const pipelinesApi = vi.hoisted(() => ({ get: vi.fn(), create: vi.fn(), update: vi.fn() }));
+
 vi.mock('../../../api/endpoints', () => ({
   settingsApi: { validateFolder: vi.fn().mockResolvedValue({ valid: true, message: null }) },
-  pipelinesApi: { get: vi.fn(), create: vi.fn(), update: vi.fn() },
+  pipelinesApi,
 }));
 
 const vuetify = createVuetify({ components, directives });
@@ -73,6 +75,13 @@ async function openPanel(wrapper: ReturnType<typeof mountEditor>, index: number)
   await titles[index]?.trigger('click');
   await wrapper.vm.$nextTick();
   await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+/** Submit the form and let the rejected promise settle. */
+async function saveForm(wrapper: ReturnType<typeof mountEditor>): Promise<void> {
+  await wrapper.findComponent({ name: 'VForm' }).trigger('submit');
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await wrapper.vm.$nextTick();
 }
 
 describe('PipelineEditorView', () => {
@@ -249,5 +258,85 @@ describe('PipelineEditorView engine settings', () => {
 
     expect(wrapper.text()).toContain('Scan resolution');
     expect(wrapper.text()).toContain('Recognize tables');
+  });
+});
+
+/**
+ * What a rejected save tells the user, and where.
+ *
+ * The server has always sent a reason per field — `validation-failed` carries
+ * `details.issues`, each with a dotted path — and the client read none of them. A save that
+ * failed on one bad value showed "The request body is not valid." at the top of a form eight
+ * expansion panels long, while the user was at the bottom looking at the Save button.
+ */
+describe('PipelineEditorView save errors', () => {
+  it('names the fields the server objected to', async () => {
+    const { ApiRequestError } = await import('../../../api/client');
+    pipelinesApi.create.mockRejectedValue(
+      new ApiRequestError(400, 'validation-failed', 'The request body is not valid.', {
+        issues: [
+          { path: 'options.output.outputPath', message: 'Choose where results should go.' },
+          { path: 'options.source.inputPath', message: 'Choose a folder to watch.' },
+        ],
+      }),
+    );
+
+    const wrapper = mountEditor();
+    await saveForm(wrapper);
+
+    expect(wrapper.text()).toContain('Choose where results should go.');
+    expect(wrapper.text()).toContain('Choose a folder to watch.');
+    expect(wrapper.text()).not.toContain('The request body is not valid.');
+  });
+
+  it('shows the error beside the Save button, not only at the top', async () => {
+    const { ApiRequestError } = await import('../../../api/client');
+    pipelinesApi.create.mockRejectedValue(
+      new ApiRequestError(400, 'validation-failed', 'Nope.', {
+        issues: [{ path: 'options.output.formats', message: 'Pick at least one format.' }],
+      }),
+    );
+
+    const wrapper = mountEditor();
+    await saveForm(wrapper);
+
+    // Two surfaces for one error: the form is long enough that one of them is always
+    // off-screen.
+    const alerts = wrapper.findAllComponents({ name: 'VAlert' });
+    const showing = alerts.filter((alert) => alert.text().includes('Pick at least one format.'));
+    expect(showing.length).toBe(2);
+  });
+
+  it('falls back to the plain message when there are no issues', async () => {
+    const { ApiRequestError } = await import('../../../api/client');
+    pipelinesApi.create.mockRejectedValue(
+      new ApiRequestError(409, 'conflict', 'A pipeline with that name exists.'),
+    );
+
+    const wrapper = mountEditor();
+    await saveForm(wrapper);
+
+    expect(wrapper.text()).toContain('A pipeline with that name exists.');
+  });
+
+  it('clears the complaint once the user edits something', async () => {
+    // It used to survive until the next save, so a corrected field kept its red message and
+    // the banner named a problem that no longer existed.
+    const { ApiRequestError } = await import('../../../api/client');
+    pipelinesApi.create.mockRejectedValue(
+      new ApiRequestError(400, 'validation-failed', 'Nope.', {
+        issues: [{ path: 'name', message: 'Give it a name.' }],
+      }),
+    );
+
+    const wrapper = mountEditor();
+    await saveForm(wrapper);
+    expect(wrapper.text()).toContain('Give it a name.');
+
+    const nameField = wrapper.findAllComponents({ name: 'VTextField' })[0];
+    await nameField?.setValue('Invoices');
+    await wrapper.vm.$nextTick();
+
+    expect(wrapper.text()).not.toContain('Give it a name.');
   });
 });

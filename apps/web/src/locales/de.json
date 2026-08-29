@@ -69,7 +69,8 @@
     "pause": "Diese Pipeline anhalten",
     "resume": "Diese Pipeline fortsetzen",
     "pauseFirst": "Halten Sie diese Pipeline an, bevor Sie sie bearbeiten oder löschen. Sonst verliert ein gerade gelesenes Dokument mittendrin seinen Datensatz.",
-    "nowProcessing": "Liest {file}"
+    "nowProcessing": "Liest {file}",
+    "viewDetails": "Details anzeigen"
   },
   "device": {
     "gpu": "GPU",
@@ -192,7 +193,8 @@
     "encodingLatin1": "Latin-1 (ISO 8859-1)",
     "encodingHint": "Betrifft nur die .txt-Datei. BOM wählen, wenn Excel Umlaute verstümmelt; Latin-1 nur für Altsysteme, da Zeichen außerhalb davon nicht schreibbar sind.",
     "sectionExpert": "Experteneinstellungen",
-    "modulesBuiltIn": "Die genaue Engine liest Layout, Tabellen und Formeln in einem Durchgang; dort gibt es nichts zu schalten. Die Renderauflösung wird automatisch gesetzt."
+    "modulesBuiltIn": "Die genaue Engine liest Layout, Tabellen und Formeln in einem Durchgang; dort gibt es nichts zu schalten. Die Renderauflösung wird automatisch gesetzt.",
+    "lastFormat": "das einzige verbleibende Format und daher nicht abwählbar"
   },
   "moduleTone": {
     "slow": "langsamer",
@@ -441,7 +443,9 @@
     "openFiles": "Ergebnis öffnen",
     "showInFolder": "Im Ordner anzeigen",
     "openMissing": "{name} ist nicht mehr vorhanden. Ergebnisse werden nach einiger Zeit entfernt.",
-    "openRefused": "{name} konnte nicht geöffnet werden."
+    "openRefused": "{name} konnte nicht geöffnet werden.",
+    "showMoreFiles": "{count} weitere anzeigen",
+    "showFewerFiles": "Weniger anzeigen"
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

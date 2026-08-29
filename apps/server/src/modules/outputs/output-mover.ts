@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { readdir, rm, stat } from 'node:fs/promises';
-import { dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import type {
   CollisionPolicy,
   OutputFormat,
@@ -155,6 +155,15 @@ export async function applyCollisionPolicy(
   }
 }
 
+/**
+ * Where a moved original goes inside the output folder.
+ *
+ * A subfolder rather than a suffix: in a folder of results, `report.pdf` and `report (2).pdf`
+ * are indistinguishable, and the one that is the user's own scan is the one they cannot
+ * afford to guess about.
+ */
+const ORIGINALS_DIRECTORY = 'originals';
+
 export interface PostActionRequest {
   sourcePath: string;
   inputRoot: string;
@@ -183,15 +192,26 @@ export async function applyPostAction(request: PostActionRequest): Promise<void>
       return;
     }
 
-    const root = action === 'move-to-archive' ? request.archivePath : request.outputRoot;
-    if (root === undefined) {
+    const configured = action === 'move-to-archive' ? request.archivePath : request.outputRoot;
+    if (configured === undefined) {
       logger.warn({ action }, 'No destination configured for the post-action; keeping source');
       return;
     }
 
-    // Preserve the input folder's structure so a moved original stays findable.
+    // Into a folder of its own when the destination is the output folder, because the two can
+    // collide by name and the result was unreadable: a pipeline writing a searchable PDF for
+    // `report.pdf` produces `report.pdf`, so the original was moved in beside it as
+    // `report (2).pdf` — a scan and its own OCR result, sitting together, told apart only by
+    // a number. An archive folder is already separate and needs no subfolder.
+    const root = action === 'move-to-output' ? join(configured, ORIGINALS_DIRECTORY) : configured;
+
+    // Preserve the input folder's structure so a moved original stays findable. Contained for
+    // the same reason `planDestinations` contains its outputs: a source that somehow sits
+    // outside the input root yields `..` segments here, and the move would land outside the
+    // folder the user nominated.
     const relativePath = relative(request.inputRoot, sourcePath);
-    const destination = await uniquePath(join(root, relativePath));
+    const targetDir = containWithin(root, dirname(relativePath));
+    const destination = await uniquePath(join(targetDir, basename(sourcePath)));
     await moveFile(sourcePath, destination);
   } catch (error) {
     logger.error({ err: error, sourcePath, action }, 'Post-action failed; source left in place');

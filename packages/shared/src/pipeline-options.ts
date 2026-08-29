@@ -212,6 +212,17 @@ export type PostAction = z.infer<typeof postActionSchema>;
 
 export const postProcessingOptionsSchema = z
   .object({
+    /**
+     * `keep` here is the *parse* default: what a stored pipeline written before this field
+     * existed, or a request that omits it, resolves to. It has to stay, and cannot become
+     * `move-to-archive`, because the refine below then demands an `archivePath` that such a
+     * document does not have.
+     *
+     * What a *new* pipeline starts with is a separate question, answered by
+     * `draftPipelineOptions`: there the answer is `move-to-archive`, because a watched folder
+     * that keeps everything it has processed grows without limit and stops meaning "not done
+     * yet". The editor no longer offers `keep` at all.
+     */
     onSuccess: postActionSchema.default('keep'),
     archivePath: absolutePathSchema.optional(),
   })
@@ -299,6 +310,11 @@ export function draftPipelineOptions(): PipelineOptions {
     ...defaults,
     source: { ...defaults.source, inputPath: '' },
     output: { ...defaults.output, outputPath: '' },
+    // Left where it is, a processed document is indistinguishable from one still waiting, and
+    // the folder grows for ever. `archivePath` is blank for the same reason the two folders
+    // above are: the schema will not describe a form nobody has filled in, and the editor
+    // asks for it before the pipeline can be saved.
+    postProcessing: { ...defaults.postProcessing, onSuccess: 'move-to-archive' },
   };
 }
 

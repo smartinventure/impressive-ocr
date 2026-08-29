@@ -25,6 +25,33 @@ export class ApiRequestError extends Error {
     const field = this.details?.field;
     return typeof field === 'string' ? field : null;
   }
+
+  /**
+   * Field-level reasons from a schema rejection.
+   *
+   * The server has always sent these -- `validation-failed` carries `details.issues`, each
+   * with a dotted `path` and its own message -- and nothing here ever read them. So a save
+   * that failed on one bad value showed "The request body is not valid." and left the user to
+   * guess which of thirty controls it meant.
+   *
+   * Paths arrive prefixed with the request body's own shape (`options.output.formats`). The
+   * prefix is stripped so they line up with the keys the form already uses for its inputs.
+   */
+  get issues(): { path: string; message: string }[] {
+    const raw = this.details?.issues;
+    if (!Array.isArray(raw)) {
+      return [];
+    }
+
+    return raw.flatMap((issue) => {
+      if (typeof issue !== 'object' || issue === null) return [];
+      const record = issue as Record<string, unknown>;
+      const path = typeof record.path === 'string' ? record.path : '';
+      const message = typeof record.message === 'string' ? record.message : '';
+      if (message === '') return [];
+      return [{ path: path.replace(/^options\./, ''), message }];
+    });
+  }
 }
 
 /** Same origin: the SPA is served by the very backend it talks to, in both modes. */

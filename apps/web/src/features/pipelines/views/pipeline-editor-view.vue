@@ -70,6 +70,35 @@ const options = ref<PipelineOptions>(blankOptions());
 const saving = ref(false);
 const formError = ref<string | null>(null);
 const fieldErrors = ref<Record<string, string>>({});
+
+/**
+ * Whether the message on screen came from a rejected save.
+ *
+ * Only those clear on edit. The other two things that write to `formError` are set while
+ * loading — a pipeline stored by an older release, or one that could not be fetched — and
+ * both are assigned *after* `options` is filled in, so a watcher that cleared everything
+ * would erase them before they were ever read.
+ */
+const errorFromSave = ref(false);
+
+/**
+ * Editing anything clears the last save's complaints.
+ *
+ * They used to survive until the *next* save, so a corrected field kept its red message and
+ * the banner went on naming a problem that no longer existed — which reads as the fix having
+ * been rejected. Cleared wholesale rather than per field: the server validates the document
+ * as a whole, so one edit can invalidate any of them, and a stale error is worse than none.
+ */
+watch(
+  [name, options],
+  () => {
+    if (!errorFromSave.value) return;
+    errorFromSave.value = false;
+    formError.value = null;
+    fieldErrors.value = {};
+  },
+  { deep: true },
+);
 const openPanels = ref<string[]>(['source', 'engine', 'output']);
 
 /**
@@ -142,6 +171,40 @@ const MODULES = [
   { key: 'sealRecognition', labelKey: 'module.seal', tone: 'slow' },
 ] as const;
 
+/**
+ * What a format produces, and why it may not be removable.
+ *
+ * One string for both, because there is one place to hover. A format that cannot be switched
+ * off needs to say so more than it needs to describe itself: something has to be written.
+ */
+function formatHint(format: { value: OutputFormat; labelKey: string; hintKey?: string }): string {
+  const described = format.hintKey === undefined ? t(format.labelKey) : t(format.hintKey);
+  return isLastSelectedFormat(format.value) ? `${described} — ${t('editor.lastFormat')}` : described;
+}
+
+/**
+ * What may happen to the original once its outputs are written.
+ *
+ * `keep` is deliberately absent. A watched folder that keeps everything it has processed
+ * grows without limit and gives no way to tell, by looking, which documents are still
+ * waiting — the input folder stops meaning anything. The value still exists and still parses,
+ * because Quick Mode pins it and older pipelines carry it; it is simply not a thing to choose
+ * for a folder that will be watched indefinitely.
+ *
+ * A pipeline already saved with `keep` keeps it, and the select shows it in that one case
+ * rather than silently displaying a different setting than the one in force.
+ */
+const onSuccessOptions = computed(() => {
+  const offered = [
+    { value: 'move-to-archive', title: t('editor.moveToArchive') },
+    { value: 'move-to-output', title: t('editor.moveToOutput') },
+    { value: 'delete', title: t('editor.deleteSource') },
+  ];
+  return options.value.postProcessing.onSuccess === 'keep'
+    ? [{ value: 'keep', title: t('editor.keepSource') }, ...offered]
+    : offered;
+});
+
 const availableProfiles = computed(() => store.system?.hardware.availableProfiles ?? ['fast']);
 
 const accurateUnavailable = computed(() => !availableProfiles.value.includes('accurate'));
@@ -188,6 +251,40 @@ function toggleFormat(format: OutputFormat): void {
   options.value.output.formats = current.filter((item) => item !== format);
 }
 
+/**
+ * Turn a rejected save into something the user can act on.
+ *
+ * A schema rejection used to surface as "The request body is not valid." and nothing else,
+ * even though the server sends a reason per field. Those reasons are listed in the banner and
+ * attached to the inputs that have a binding for them; the ones that do not -- formats,
+ * engine, schedule -- at least reach the banner rather than vanishing.
+ */
+function applyServerError(error: ApiRequestError): void {
+  errorFromSave.value = true;
+  const issues = error.issues;
+  const field = error.field;
+
+  if (field !== null) {
+    fieldErrors.value = { [field]: error.message };
+    formError.value = error.message;
+    return;
+  }
+
+  if (issues.length === 0) {
+    formError.value = error.message;
+    return;
+  }
+
+  fieldErrors.value = Object.fromEntries(
+    issues.filter((issue) => issue.path !== '').map((issue) => [issue.path, issue.message]),
+  );
+  // Named, because half of these have no input bound to them and a bare list of sentences
+  // does not say where to look.
+  formError.value = issues
+    .map((issue) => (issue.path === '' ? issue.message : `${issue.path}: ${issue.message}`))
+    .join('; ');
+}
+
 async function save(): Promise<void> {
   saving.value = true;
   formError.value = null;
@@ -203,14 +300,9 @@ async function save(): Promise<void> {
     await router.push({ name: 'pipeline-detail', params: { id: saved.id } });
   } catch (error) {
     if (error instanceof ApiRequestError) {
-      formError.value = error.message;
-      // Attach the message to the offending input rather than only showing a banner the
-      // user has to map back to a field themselves.
-      const field = error.field;
-      if (field !== null) {
-        fieldErrors.value = { [field]: error.message };
-      }
+      applyServerError(error);
     } else {
+      errorFromSave.value = true;
       formError.value = t('errors.saveFailed');
     }
   } finally {
@@ -454,20 +546,29 @@ onMounted(async () => {
                    defaults were ever visible, and because a hidden chip cannot be clicked, a
                    format could be removed from a pipeline but never added back. Selection is
                    shown by variant and colour instead, as Quick Mode already does. -->
-              <v-chip
+              <!-- The hint lives on a wrapping span rather than inside the chip. Inside, a
+                   full sentence ("The original scan, with the recognised text laid invisibly
+                   on top...") made that one chip take a whole row while its neighbours were
+                   word-sized. On the span rather than the chip because the last selected
+                   format is disabled, and a disabled element emits no pointer events -- a
+                   tooltip bound to it would never open, which is precisely the chip whose
+                   greying-out most needs explaining. -->
+              <span
                 v-for="format in FORMATS"
                 :key="format.value"
-                :variant="options.output.formats.includes(format.value) ? 'flat' : 'outlined'"
-                :color="options.output.formats.includes(format.value) ? 'primary' : undefined"
-                :disabled="isLastSelectedFormat(format.value)"
-                label
-                @click="toggleFormat(format.value)"
+                :title="formatHint(format)"
+                class="editor__format"
               >
-                {{ t(format.labelKey) }}
-                <span v-if="format.hintKey" class="editor__format-hint">
-                  {{ t(format.hintKey) }}
-                </span>
-              </v-chip>
+                <v-chip
+                  :variant="options.output.formats.includes(format.value) ? 'flat' : 'outlined'"
+                  :color="options.output.formats.includes(format.value) ? 'primary' : undefined"
+                  :disabled="isLastSelectedFormat(format.value)"
+                  label
+                  @click="toggleFormat(format.value)"
+                >
+                  {{ t(format.labelKey) }}
+                </v-chip>
+              </span>
             </div>
 
             <v-text-field
@@ -522,12 +623,7 @@ onMounted(async () => {
           <v-expansion-panel-text>
             <v-select
               v-model="options.postProcessing.onSuccess"
-              :items="[
-                { value: 'keep', title: t('editor.keepSource') },
-                { value: 'delete', title: t('editor.deleteSource') },
-                { value: 'move-to-output', title: t('editor.moveToOutput') },
-                { value: 'move-to-archive', title: t('editor.moveToArchive') },
-              ]"
+              :items="onSuccessOptions"
               :label="t('editor.onSuccess')"
               class="mb-4"
             >
@@ -638,6 +734,13 @@ onMounted(async () => {
         </v-expansion-panel>
       </v-expansion-panels>
 
+      <!-- The same error again, beside the button that caused it. The banner at the top of
+           the form is eight expansion panels away: someone who has scrolled down to Save sees
+           nothing happen when the save fails. -->
+      <v-alert v-if="formError" type="error" density="compact" class="mb-3">
+        {{ formError }}
+      </v-alert>
+
       <div class="editor__actions">
         <v-btn variant="text" :to="{ name: 'pipelines' }">{{ t('common.cancel') }}</v-btn>
         <v-btn type="submit" color="primary" :loading="saving">{{ t('common.save') }}</v-btn>
@@ -729,6 +832,11 @@ onMounted(async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+/* Inline-flex so the wrapper does not add a line box of its own around the chip. */
+.editor__format {
+  display: inline-flex;
 }
 
 .editor__format-hint {

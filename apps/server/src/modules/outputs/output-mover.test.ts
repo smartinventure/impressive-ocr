@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { mkdtemp, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
@@ -267,5 +267,112 @@ describe('planDestinations containment', () => {
     });
 
     expect(plan[0]?.to.startsWith(join(OTHER_DRIVE, 'scans', 'out'))).toBe(true);
+  });
+});
+
+/**
+ * Where the original goes when the pipeline is told to move it to the output folder.
+ *
+ * It used to land beside the results and be told apart from them by a number: a pipeline
+ * producing a searchable `report.pdf` moved the scan in as `report (2).pdf`. In a folder of
+ * outputs, the one file that is the user's own document was the one they had to guess about.
+ */
+describe('applyPostAction into the output folder', () => {
+  it('puts the original in its own subfolder, clear of the results', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ocr-post-'));
+    const input = join(root, 'in');
+    const output = join(root, 'out');
+    await mkdir(input, { recursive: true });
+    await mkdir(output, { recursive: true });
+
+    const source = join(input, 'report.pdf');
+    await writeFile(source, 'scan');
+    // The output the pipeline already wrote, with the very same name.
+    await writeFile(join(output, 'report.pdf'), 'searchable');
+
+    await applyPostAction({
+      sourcePath: source,
+      inputRoot: input,
+      outputRoot: output,
+      archivePath: undefined,
+      action: 'move-to-output',
+      logger,
+    });
+
+    expect(await exists(join(output, 'originals', 'report.pdf'))).toBe(true);
+    // The result is untouched and keeps its name.
+    expect(await readFile(join(output, 'report.pdf'), 'utf8')).toBe('searchable');
+    expect(await exists(join(output, 'report (2).pdf'))).toBe(false);
+    expect(await exists(source)).toBe(false);
+  });
+
+  it('mirrors the input subfolder inside it', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ocr-post-'));
+    const input = join(root, 'in');
+    const output = join(root, 'out');
+    await mkdir(join(input, 'january'), { recursive: true });
+    await mkdir(output, { recursive: true });
+
+    const source = join(input, 'january', 'report.pdf');
+    await writeFile(source, 'scan');
+
+    await applyPostAction({
+      sourcePath: source,
+      inputRoot: input,
+      outputRoot: output,
+      archivePath: undefined,
+      action: 'move-to-output',
+      logger,
+    });
+
+    expect(await exists(join(output, 'originals', 'january', 'report.pdf'))).toBe(true);
+  });
+
+  it('does not add a subfolder for an archive, which is already separate', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'ocr-post-'));
+    const input = join(root, 'in');
+    const archive = join(root, 'archive');
+    await mkdir(input, { recursive: true });
+
+    const source = join(input, 'report.pdf');
+    await writeFile(source, 'scan');
+
+    await applyPostAction({
+      sourcePath: source,
+      inputRoot: input,
+      outputRoot: join(root, 'out'),
+      archivePath: archive,
+      action: 'move-to-archive',
+      logger,
+    });
+
+    expect(await exists(join(archive, 'report.pdf'))).toBe(true);
+  });
+
+  it('keeps a source from outside the input root inside the destination', async () => {
+    // `relative()` yields `..` segments for one of those, and the move would land outside the
+    // folder the user nominated.
+    const root = await mkdtemp(join(tmpdir(), 'ocr-post-'));
+    const input = join(root, 'in');
+    const output = join(root, 'out');
+    const elsewhere = join(root, 'elsewhere');
+    await mkdir(input, { recursive: true });
+    await mkdir(output, { recursive: true });
+    await mkdir(elsewhere, { recursive: true });
+
+    const source = join(elsewhere, 'stray.pdf');
+    await writeFile(source, 'scan');
+
+    await applyPostAction({
+      sourcePath: source,
+      inputRoot: input,
+      outputRoot: output,
+      archivePath: undefined,
+      action: 'move-to-output',
+      logger,
+    });
+
+    expect(await exists(join(output, 'originals', 'stray.pdf'))).toBe(true);
+    expect(await exists(join(root, 'stray.pdf'))).toBe(false);
   });
 });

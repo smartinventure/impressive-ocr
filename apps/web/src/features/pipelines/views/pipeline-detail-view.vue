@@ -75,14 +75,31 @@ onMounted(async () => {
       >
         {{ pipeline.enabled ? t('detail.pause') : t('detail.resume') }}
       </v-btn>
-      <v-btn
-        prepend-icon="edit"
-        variant="tonal"
-        :to="{ name: 'pipeline-edit', params: { id: pipeline.id } }"
-      >
-        {{ t('common.edit') }}
-      </v-btn>
-      <v-btn icon="delete" variant="text" color="failed" @click="confirmingDelete = true" />
+      <!-- The same rule as the list: a pipeline is edited and deleted while paused. Enforcing
+           it in one place only would make it a suggestion, since this page is one click from
+           that one. -->
+      <!-- The hint sits on a wrapping span, not on the button: a disabled button emits no
+           pointer events, so a tooltip bound to it never opens and the control would grey out
+           with no explanation. -->
+      <span :title="pipeline.enabled ? t('pipelines.pauseFirst') : t('common.edit')">
+        <v-btn
+          prepend-icon="edit"
+          variant="tonal"
+          :disabled="pipeline.enabled"
+          :to="pipeline.enabled ? undefined : { name: 'pipeline-edit', params: { id: pipeline.id } }"
+        >
+          {{ t('common.edit') }}
+        </v-btn>
+      </span>
+      <span :title="pipeline.enabled ? t('pipelines.pauseFirst') : t('common.delete')">
+        <v-btn
+          icon="delete"
+          variant="text"
+          color="failed"
+          :disabled="pipeline.enabled"
+          @click="confirmingDelete = true"
+        />
+      </span>
     </header>
 
     <div v-if="pipeline.statusReason" class="ocr-alert-warning mb-4">

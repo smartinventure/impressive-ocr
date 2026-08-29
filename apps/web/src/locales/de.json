@@ -65,7 +65,10 @@
     "needsFolder": "Impressive OCR kann nur in freigegebenen Ordnern lesen und schreiben; bisher ist keiner festgelegt. Bitte zuerst einen hinzufügen.",
     "needsFolderTooltip": "Geben Sie in den Einstellungen einen Ordner frei, bevor Sie eine Pipeline anlegen.",
     "goToSettings": "Einstellungen öffnen",
-    "authorizeFolder": "Ordner freigeben"
+    "authorizeFolder": "Ordner freigeben",
+    "pause": "Diese Pipeline anhalten",
+    "resume": "Diese Pipeline fortsetzen",
+    "pauseFirst": "Halten Sie diese Pipeline an, bevor Sie sie bearbeiten oder löschen. Sonst verliert ein gerade gelesenes Dokument mittendrin seinen Datensatz."
   },
   "device": {
     "gpu": "GPU",

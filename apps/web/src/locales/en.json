@@ -65,7 +65,10 @@
     "needsFolder": "Impressive OCR can only read and write inside authorized folders, and none are set yet. Add one before creating a pipeline.",
     "needsFolderTooltip": "Authorize a folder in Settings before creating a pipeline.",
     "goToSettings": "Open Settings",
-    "authorizeFolder": "Authorize a folder"
+    "authorizeFolder": "Authorize a folder",
+    "pause": "Pause this pipeline",
+    "resume": "Resume this pipeline",
+    "pauseFirst": "Pause this pipeline before editing or deleting it. A document already being read would otherwise lose its record part-way through."
   },
   "device": {
     "gpu": "GPU",

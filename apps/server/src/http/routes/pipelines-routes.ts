@@ -43,8 +43,19 @@ export function registerPipelineRoutes(app: AppFastify, services: AppServices): 
 
   app.delete('/api/pipelines/:id', async (request, reply) => {
     const { id } = request.params as { id: string };
+
+    // Stop anything in flight before the row goes. `jobs.pipeline_id` cascades on delete, so
+    // a running job's record disappears underneath the executor: the sidecar keeps working,
+    // the writers still produce files, and every update lands on a row that no longer exists.
+    // The UI only offers this on a paused pipeline, but pausing does not stop a document that
+    // has already started, and a second tab or a script does not go through the UI at all.
+    const cancelled = services.scheduler.cancelForPipeline(id);
+
     if (!services.pipelines.delete(id)) {
       throw notFound('Pipeline');
+    }
+    if (cancelled > 0) {
+      request.log.info({ pipelineId: id, cancelled }, 'Cancelled in-flight jobs before deleting');
     }
     await services.watchers.sync();
     return reply.status(204).send();

@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import type { PipelineWithStatus } from '@impressive-ocr/shared';
 import { pipelinesApi, systemApi } from '../../../api/endpoints';
@@ -38,6 +38,43 @@ function chipStatus(pipeline: PipelineWithStatus): StatusKey {
 function progressPercent(pipeline: PipelineWithStatus): number {
   const { processed, total } = pipeline.stats;
   return total === 0 ? 0 : Math.round((processed / total) * 100);
+}
+
+/**
+ * Editing and deleting are offered only on a paused pipeline.
+ *
+ * Not squeamishness: `jobs.pipeline_id` cascades on delete, so removing a pipeline mid-document
+ * takes the running job's record with it while the sidecar carries on working. Changing a
+ * watched folder under a running pipeline is the same class of surprise. Pausing first makes
+ * the intent explicit, and the button says so rather than simply refusing.
+ *
+ * The server does not rely on this — it cancels in-flight jobs before deleting either way,
+ * because a second tab or a script never passes through here.
+ */
+function canModify(pipeline: PipelineWithStatus): boolean {
+  return !pipeline.enabled;
+}
+
+/** What the control does, or why it will not — on the wrapper, so a disabled button can say it. */
+function actionHint(pipeline: PipelineWithStatus, action: 'edit' | 'delete'): string {
+  return canModify(pipeline) ? t(`common.${action}`) : t('pipelines.pauseFirst');
+}
+
+const confirmingDelete = ref<PipelineWithStatus | null>(null);
+const deleting = ref(false);
+
+async function remove(): Promise<void> {
+  const target = confirmingDelete.value;
+  if (target === null) return;
+
+  deleting.value = true;
+  try {
+    await pipelinesApi.remove(target.id);
+    await store.refresh();
+    confirmingDelete.value = null;
+  } finally {
+    deleting.value = false;
+  }
 }
 
 async function toggle(pipeline: PipelineWithStatus): Promise<void> {
@@ -135,13 +172,44 @@ async function toggleAll(): Promise<void> {
             <StatusChip :status="chipStatus(pipeline)" dense />
           </div>
 
-          <v-btn
-            :icon="pipeline.enabled ? 'pause' : 'play_arrow'"
-            variant="tonal"
-            size="small"
-            :color="pipeline.enabled ? undefined : 'primary'"
-            @click="toggle(pipeline)"
-          />
+          <div class="pipeline-card__actions">
+            <v-btn
+              :icon="pipeline.enabled ? 'pause' : 'play_arrow'"
+              variant="tonal"
+              size="small"
+              :color="pipeline.enabled ? undefined : 'primary'"
+              :title="pipeline.enabled ? t('pipelines.pause') : t('pipelines.resume')"
+              @click="toggle(pipeline)"
+            />
+
+            <!-- Disabled rather than hidden while running: a control that vanishes leaves
+                 someone hunting for it, where a greyed one with a reason teaches the rule.
+                 The reason lives on a wrapping span because a disabled button emits no
+                 pointer events, so a tooltip attached to the button itself never opens —
+                 which would leave exactly the greying-out with no explanation. -->
+            <span :title="actionHint(pipeline, 'edit')">
+              <v-btn
+                icon="edit"
+                variant="text"
+                size="small"
+                :disabled="!canModify(pipeline)"
+                :to="
+                  canModify(pipeline) ? { name: 'pipeline-edit', params: { id: pipeline.id } } : undefined
+                "
+              />
+            </span>
+
+            <span :title="actionHint(pipeline, 'delete')">
+              <v-btn
+                icon="delete"
+                variant="text"
+                size="small"
+                color="failed"
+                :disabled="!canModify(pipeline)"
+                @click="confirmingDelete = pipeline"
+              />
+            </span>
+          </div>
         </div>
 
         <div class="pipeline-card__progress">
@@ -169,6 +237,25 @@ async function toggleAll(): Promise<void> {
         </div>
       </v-card>
     </div>
+
+    <!-- Named in the question, not "this pipeline": with fifteen cards on screen the one that
+         is about to go should be unambiguous. -->
+    <v-dialog :model-value="confirmingDelete !== null" max-width="440" @update:model-value="confirmingDelete = null">
+      <v-card class="pa-5">
+        <h2 class="text-h6 mb-2">{{ t('detail.deleteTitle') }}</h2>
+        <p class="text-body-2 mb-4">
+          {{ t('detail.deleteBody', { name: confirmingDelete?.name ?? '' }) }}
+        </p>
+        <div class="d-flex ga-2 justify-end">
+          <v-btn variant="text" :disabled="deleting" @click="confirmingDelete = null">
+            {{ t('common.cancel') }}
+          </v-btn>
+          <v-btn color="failed" variant="tonal" :loading="deleting" @click="remove">
+            {{ t('common.delete') }}
+          </v-btn>
+        </div>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
@@ -268,6 +355,15 @@ async function toggleAll(): Promise<void> {
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+/* Kept on one line and never wrapped: the pause control was here before edit and delete
+   joined it, and a row that reflows moves the button someone was already reaching for. */
+.pipeline-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
 .pipeline-card__progress {

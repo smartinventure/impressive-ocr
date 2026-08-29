@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { z } from 'zod';
 import type { AppFastify } from '../fastify-types';
+import type { BindAddress } from '@impressive-ocr/shared';
 import type { AppServices } from '../../app-services';
 import { HttpError } from '../errors';
 import { realpath } from 'node:fs/promises';
@@ -33,10 +34,14 @@ const createFolderSchema = z.object({
   scope: z.enum(['allowlist', 'system']).default('allowlist'),
 });
 
-export function registerFilesystemRoutes(app: AppFastify, services: AppServices): void {
+export function registerFilesystemRoutes(
+  app: AppFastify,
+  services: AppServices,
+  boundAddress: BindAddress,
+): void {
   app.get('/api/filesystem/browse', async (request) => {
     const query = browseQuerySchema.parse(request.query);
-    assertScopeAllowed(query.scope, services);
+    assertScopeAllowed(query.scope, services, boundAddress);
 
     try {
       return await browseFolders({
@@ -52,7 +57,7 @@ export function registerFilesystemRoutes(app: AppFastify, services: AppServices)
 
   app.post('/api/filesystem/create-folder', async (request, reply) => {
     const body = createFolderSchema.parse(request.body);
-    assertScopeAllowed(body.scope, services);
+    assertScopeAllowed(body.scope, services, boundAddress);
 
     try {
       const path = await createFolder(body.path, {
@@ -94,13 +99,25 @@ export function registerFilesystemRoutes(app: AppFastify, services: AppServices)
  * Loopback means the request came from this computer, where the user already has a file
  * manager; over the network it would be a remote filesystem-disclosure endpoint, so there it
  * requires authentication to be switched on.
+ *
+ * `boundAddress` is the address the server is actually listening on, and it has to be passed
+ * in rather than read from the settings store. A container sets `IMPRESSIVE_OCR_BIND_ADDRESS`
+ * to `0.0.0.0`, which is merged into the settings the HTTP layer is given but deliberately
+ * never written to the store — that is an operator's startup decision, not a stored
+ * preference. Reading the store here therefore saw `127.0.0.1`, the default nobody changed,
+ * and concluded that every containerised install was loopback. It was not: with
+ * authentication off by default, the whole container filesystem was browsable by anyone who
+ * could reach the port, and with the host mounted at `/host`, the whole machine.
  */
-function assertScopeAllowed(scope: 'allowlist' | 'system', services: AppServices): void {
+function assertScopeAllowed(
+  scope: 'allowlist' | 'system',
+  services: AppServices,
+  boundAddress: BindAddress,
+): void {
   if (scope === 'allowlist') {
     return;
   }
-  const settings = services.settings.get();
-  if (settings.bindAddress === '127.0.0.1' || settings.authEnabled) {
+  if (boundAddress === '127.0.0.1' || services.settings.get().authEnabled) {
     return;
   }
   throw new HttpError(

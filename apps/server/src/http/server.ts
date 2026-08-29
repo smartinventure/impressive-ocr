@@ -149,7 +149,11 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
   registerDashboardRoutes(app, options.services);
   registerJobRoutes(app, options.services);
   registerSystemRoutes(app, options.services);
-  registerFilesystemRoutes(app, options.services);
+  // The address actually bound, not the stored preference. A container binds all interfaces
+  // through `IMPRESSIVE_OCR_BIND_ADDRESS`, which is merged into these settings but never
+  // written to the store — so the stored value still reads `127.0.0.1` and the unconfined
+  // browse guard, which reads the store, believed every containerised install was loopback.
+  registerFilesystemRoutes(app, options.services, options.settings.bindAddress);
   registerEventRoutes(app, options.services);
 
   app.get('/api/health', () => ({ status: 'ok' }));

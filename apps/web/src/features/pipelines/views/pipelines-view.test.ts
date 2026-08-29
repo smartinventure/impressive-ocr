@@ -61,10 +61,11 @@ function pipeline(overrides: Record<string, unknown> = {}) {
   };
 }
 
-async function showing(pipelines: unknown[]) {
+async function showing(pipelines: unknown[], jobs: unknown[] = []) {
   setActivePinia(createPinia());
   const store = useLiveStore();
   store.pipelines = pipelines as never;
+  store.jobs = jobs as never;
   store.refresh = vi.fn();
 
   const wrapper = mount(PipelinesView, { global: { plugins: [vuetify, i18n, router] } });
@@ -124,5 +125,52 @@ describe('PipelinesView row actions', () => {
 
     expect(document.body.textContent).toContain('Invoices');
     expect(remove).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Which document is being read, on the list rather than only on the detail page.
+ *
+ * The counters beside it come from `pipeline.status`, which the server used to publish only
+ * when a job *finished* — so a card showed nothing at all until the work was over. This half
+ * needs no new event: `store.jobs` is kept live by `job.upserted` and already carries the
+ * name and the state.
+ */
+describe('PipelinesView running file', () => {
+  const runningJob = {
+    id: 'j1',
+    pipelineId: 'p1',
+    fileName: 'invoice-2026.pdf',
+    state: 'running',
+    pagesDone: 2,
+    pageCount: 8,
+  };
+
+  it('names the file currently being read', async () => {
+    const wrapper = await showing([pipeline({ enabled: true })], [runningJob]);
+
+    expect(wrapper.text()).toContain('invoice-2026.pdf');
+  });
+
+  it('says nothing when the pipeline is idle', async () => {
+    // An empty "Reading" line on every idle card would be noise on the busiest screen.
+    const wrapper = await showing([pipeline({ enabled: true })], []);
+
+    expect(wrapper.text()).not.toContain('Reading');
+  });
+
+  it('ignores a job belonging to another pipeline', async () => {
+    const wrapper = await showing(
+      [pipeline({ id: 'p1' })],
+      [{ ...runningJob, pipelineId: 'other' }],
+    );
+
+    expect(wrapper.text()).not.toContain('invoice-2026.pdf');
+  });
+
+  it('ignores a job that is queued rather than running', async () => {
+    const wrapper = await showing([pipeline()], [{ ...runningJob, state: 'pending' }]);
+
+    expect(wrapper.text()).not.toContain('invoice-2026.pdf');
   });
 });

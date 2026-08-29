@@ -74,5 +74,8 @@ class TestExtractTextBoxes:
         assert [box.text for box in extract_text_boxes(_Result(payload))] == _TEXTS
 
     def test_unrecognised_shape_yields_no_boxes(self) -> None:
+        # An empty `parsing_res_list` really is empty. A *populated* one is the PaddleOCR-VL
+        # shape and is covered below -- this assertion used to be the only mention of that key
+        # in the suite, which made "VL produces no boxes" look like settled behaviour.
         assert extract_text_boxes(_Result({"res": {"parsing_res_list": []}})) == []
         assert extract_text_boxes(object()) == []

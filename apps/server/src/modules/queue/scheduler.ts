@@ -228,6 +228,11 @@ export class Scheduler {
     });
 
     this.options.events.publish(stamp({ type: 'job.upserted', job }));
+    // And the pipeline's own counters, so a card turns to "running" when the work starts
+    // rather than when it ends. `job.upserted` only reaches the job list; the counters on the
+    // pipelines page come from `pipeline.status`, which used to be published in the
+    // `.finally()` below and nowhere else.
+    this.publishPipelineStatus(pipeline);
 
     void this.options.executor
       .execute(job, pipeline, controller.signal)
@@ -270,7 +275,14 @@ export class Scheduler {
     };
   }
 
-  private publishPipelineStatus(pipeline: Pipeline): void {
+  /**
+   * Recompute and broadcast one pipeline's counters.
+   *
+   * Public because the watcher needs it too: discovering a file changes `queued` and `total`,
+   * and the only event carrying those is this one. Without it a card sat unchanged until the
+   * job it had not admitted to having was finished.
+   */
+  publishPipelineStatus(pipeline: Pipeline): void {
     const stats = this.options.jobs.statsFor(pipeline.id);
     const running = [...this.running.values()].some((job) => job.pipelineId === pipeline.id);
     const verdict = isPipelineEligible(pipeline, {

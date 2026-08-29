@@ -303,6 +303,9 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     jobs,
     events,
     logger,
+    // Resolved when it runs, not when this is built: the scheduler is constructed below, and
+    // nothing queues a file before both exist.
+    onQueued: (pipeline) => scheduler.publishPipelineStatus(pipeline),
   });
 
   const pipelines = new PipelineService({

@@ -35,6 +35,18 @@ function chipStatus(pipeline: PipelineWithStatus): StatusKey {
   return pipeline.stats.queued > 0 ? 'queued' : 'succeeded';
 }
 
+/**
+ * The file this pipeline is reading right now, if any.
+ *
+ * Needs no new event: `store.jobs` already carries `fileName` and `state`, kept live by
+ * `job.upserted`. The counters beside it travel on `pipeline.status` instead, which is why
+ * they used to stand still while this was already moving.
+ */
+function runningFile(pipeline: PipelineWithStatus): string | null {
+  const running = store.jobsForPipeline(pipeline.id).find((job) => job.state === 'running');
+  return running?.fileName ?? null;
+}
+
 function progressPercent(pipeline: PipelineWithStatus): number {
   const { processed, total } = pipeline.stats;
   return total === 0 ? 0 : Math.round((processed / total) * 100);
@@ -230,6 +242,11 @@ async function toggleAll(): Promise<void> {
                 })
               }}
             </span>
+            <!-- Which document, not just how many. Opening the detail page to find out the
+                 name of the file that is holding everything up is a poor trade. -->
+            <span v-if="runningFile(pipeline)" class="pipeline-card__current ocr-mono">
+              {{ t('pipelines.nowProcessing', { file: runningFile(pipeline) }) }}
+            </span>
             <span v-if="pipeline.statusReason" class="pipeline-card__reason">
               {{ pipeline.statusReason }}
             </span>
@@ -359,6 +376,15 @@ async function toggleAll(): Promise<void> {
 
 /* Kept on one line and never wrapped: the pause control was here before edit and delete
    joined it, and a row that reflows moves the button someone was already reaching for. */
+/* Truncated rather than wrapped: a long scan name would otherwise push the counters onto a
+   second line and change the card's height every time the file changed. */
+.pipeline-card__current {
+  max-width: 40ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .pipeline-card__actions {
   display: flex;
   align-items: center;

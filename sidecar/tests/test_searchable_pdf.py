@@ -167,3 +167,53 @@ def test_a_page_the_document_does_not_have_is_ignored(tmp_path: Path, source_pdf
     written = SearchablePdfWriter().write(result, _context(tmp_path, source_pdf))
 
     assert len(written) == 1
+
+
+class TestAccurateProfileEndToEnd:
+    """From a PaddleOCR-VL result to a PDF a reader can actually search.
+
+    Nothing paired the VL engine with this writer, which is why a PDF of page images with an
+    empty text layer shipped as a success. Every other test here builds `TextBox` objects by
+    hand and so could not have caught it.
+    """
+
+    def test_a_vl_result_produces_selectable_text(self, tmp_path: Path, source_pdf: Path) -> None:
+        from impressive_ocr_sidecar.engines.result_adapter import to_page_result
+
+        class _VlResult:
+            def __init__(self) -> None:
+                self.json = {
+                    "res": {
+                        "parsing_res_list": [
+                            {
+                                "block_label": "text",
+                                "block_content": "Beitragsautorenvertrag",
+                                "block_bbox": [278, 278, 900, 340],
+                            }
+                        ]
+                    }
+                }
+
+        page = to_page_result(
+            _VlResult(), page_number=1, width=RASTER_WIDTH, height=RASTER_HEIGHT
+        )
+        document_result = DocumentResult(pages=[page], page_count=1)
+
+        written = SearchablePdfWriter().write(document_result, _context(tmp_path, source_pdf))
+
+        assert len(written) == 1
+        with pymupdf.open(str(written[0].path)) as document:
+            text = document[0].get_text()
+        assert "Beitragsautorenvertrag" in text
+
+    def test_a_result_with_no_boxes_still_writes_a_file_but_has_no_text(
+        self, tmp_path: Path, source_pdf: Path
+    ) -> None:
+        # The behaviour that hid the bug, pinned so it is a deliberate choice rather than an
+        # accident: the page images are still worth keeping, and the log now says what is
+        # missing. What must not happen is this passing for a working searchable PDF.
+        written = SearchablePdfWriter().write(_result([]), _context(tmp_path, source_pdf))
+
+        assert len(written) == 1
+        with pymupdf.open(str(written[0].path)) as document:
+            assert document[0].get_text().strip() == ""

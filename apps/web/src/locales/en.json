@@ -68,7 +68,8 @@
     "authorizeFolder": "Authorize a folder",
     "pause": "Pause this pipeline",
     "resume": "Resume this pipeline",
-    "pauseFirst": "Pause this pipeline before editing or deleting it. A document already being read would otherwise lose its record part-way through."
+    "pauseFirst": "Pause this pipeline before editing or deleting it. A document already being read would otherwise lose its record part-way through.",
+    "nowProcessing": "Reading {file}"
   },
   "device": {
     "gpu": "GPU",

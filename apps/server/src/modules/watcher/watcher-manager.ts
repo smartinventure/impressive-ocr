@@ -22,6 +22,13 @@ export interface WatcherManagerOptions {
   jobs: JobRepository;
   events: EventBus;
   logger: Logger;
+  /**
+   * Called after a file is queued, so the pipeline's counters go out with it.
+   *
+   * A function rather than the scheduler itself: this module must not depend on the queue,
+   * and the two are only introduced to each other in `app.ts`.
+   */
+  onQueued: (pipeline: Pipeline) => void;
 }
 
 export class WatcherManager {
@@ -133,6 +140,10 @@ export class WatcherManager {
     });
 
     this.options.events.publish(stamp({ type: 'job.upserted', job }));
+    // `job.upserted` reaches the job list and nothing else. The pipelines page reads
+    // `pipeline.stats`, which only travels on `pipeline.status` -- so without this a file
+    // dropped into a watched folder changed nothing on screen until it had been processed.
+    this.options.onQueued(pipeline);
   }
 
   /** Files seen but still inside their stability window, across all pipelines. */

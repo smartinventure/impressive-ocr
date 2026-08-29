@@ -17,6 +17,7 @@ highlights the words it belongs to, rather than a rectangle that drifts across t
 
 from __future__ import annotations
 
+import math
 from pathlib import Path
 
 import pymupdf
@@ -43,6 +44,9 @@ _HEIGHT_TO_FONTSIZE = 0.8
 #: Below this the text is decorative noise from a speckle, and a font size that small makes
 #: some viewers drop the glyph entirely.
 _MIN_FONTSIZE = 1.0
+
+#: Baseline-to-baseline distance as a multiple of the font size.
+_LINE_SPACING = 1.2
 
 
 class SearchablePdfWriter:
@@ -81,6 +85,11 @@ class SearchablePdfWriter:
 
     def _overlay(self, document: pymupdf.Document, result: DocumentResult) -> None:
         font = pymupdf.Font(fontfile=str(self._font_path))
+        # Counted so a document that comes out with no selectable text at all says so. It used
+        # to be written and reported as a success: a PDF of page images, an empty text layer,
+        # and nothing anywhere to suggest the one thing it was asked for had not happened.
+        pages_with_text = 0
+        pages_needing_text = 0
 
         for page_result in result.pages:
             index = page_result.page_number - 1
@@ -98,12 +107,26 @@ class SearchablePdfWriter:
                 # Laying our copy on top would duplicate every word in a copy-paste.
                 continue
 
+            pages_needing_text += 1
             if not page_result.text_boxes:
                 continue
 
             page = document[index]
             page.insert_font(fontname=_FONT_ALIAS, fontfile=str(self._font_path))
             _write_page_text(page, page_result, font)
+            pages_with_text += 1
+
+        if pages_needing_text > 0 and pages_with_text == 0:
+            _logger.warning(
+                "The searchable PDF has no selectable text: the engine returned no text boxes "
+                "for any page",
+                extra={"pages": pages_needing_text},
+            )
+        elif pages_with_text < pages_needing_text:
+            _logger.info(
+                "Some pages of the searchable PDF have no selectable text",
+                extra={"withText": pages_with_text, "expected": pages_needing_text},
+            )
 
 
 def _write_page_text(page: pymupdf.Page, page_result: PageResult, font: pymupdf.Font) -> None:
@@ -120,22 +143,22 @@ def _write_page_text(page: pymupdf.Page, page_result: PageResult, font: pymupdf.
         if width <= 0 or height <= 0:
             continue
 
-        fontsize = _fit_fontsize(text, font, width, height)
-        if fontsize < _MIN_FONTSIZE:
-            continue
+        for line, fontsize, bottom in _lay_out(text, font, width, height):
+            if fontsize < _MIN_FONTSIZE:
+                continue
 
-        # PyMuPDF pages use a top-left origin with y growing downward, and insert_text takes
-        # the baseline. `descender` is negative, so adding it lifts the baseline off the box's
-        # bottom edge by exactly the depth the descenders will occupy — which keeps "g" and
-        # "p" inside the box instead of hanging into the line below.
-        baseline_y = box.y1 * scale_y + font.descender * fontsize
-        page.insert_text(
-            pymupdf.Point(box.x0 * scale_x, baseline_y),
-            text,
-            fontname=_FONT_ALIAS,
-            fontsize=fontsize,
-            render_mode=_INVISIBLE_RENDER_MODE,
-        )
+            # PyMuPDF pages use a top-left origin with y growing downward, and insert_text
+            # takes the baseline. `descender` is negative, so adding it lifts the baseline off
+            # the line's bottom edge by exactly the depth the descenders will occupy — which
+            # keeps "g" and "p" inside the line instead of hanging into the next.
+            baseline_y = box.y0 * scale_y + bottom + font.descender * fontsize
+            page.insert_text(
+                pymupdf.Point(box.x0 * scale_x, baseline_y),
+                line,
+                fontname=_FONT_ALIAS,
+                fontsize=fontsize,
+                render_mode=_INVISIBLE_RENDER_MODE,
+            )
 
 
 def _scale_factors(page: pymupdf.Page, page_result: PageResult) -> tuple[float, float]:
@@ -147,6 +170,75 @@ def _scale_factors(page: pymupdf.Page, page_result: PageResult) -> tuple[float, 
     if page_result.width <= 0 or page_result.height <= 0:
         return 1.0, 1.0
     return page.rect.width / page_result.width, page.rect.height / page_result.height
+
+
+def _lay_out(
+    text: str, font: pymupdf.Font, width: float, height: float
+) -> list[tuple[str, float, float]]:
+    """Break one box's text into lines that fit it.
+
+    Each entry is `(line, fontsize, offset of the line's *bottom* from the box's top)`. The
+    bottom rather than the top, because the baseline is derived from it and a single-line box
+    must land exactly where it did before this existed — at the bottom of its own box.
+
+    A box holding a single recognised line needs none of this and gets one entry back, which
+    is every box the fast profile produces.
+
+    PaddleOCR-VL is the reason it exists. Its boxes are whole blocks and their text arrives as
+    one unbroken string, so a 563-character paragraph became a single line that had to shrink
+    to about a fifth of a point to fit the block's width — below the legibility floor, where
+    the writer dropped it. Four fifths of a page's text disappeared that way while the file
+    still reported success.
+
+    The size is chosen from the area rather than the height: a paragraph's box is as tall as
+    the paragraph, and sizing to that gives one enormous line. `0.5` is a rough average glyph
+    width as a fraction of the font size and `_LINE_SPACING` the height of a line, so the
+    product estimates how many characters the box can hold; solving for the size that makes
+    that equal the text length lands close, and the wrap below uses real metrics from there.
+    """
+    if not text:
+        return []
+
+    fontsize = height * _HEIGHT_TO_FONTSIZE
+    single_line = font.text_length(text, fontsize=fontsize)
+    if single_line <= width or single_line <= 0:
+        return [(text, fontsize, height)]
+
+    estimated = math.sqrt((width * height) / (0.5 * _LINE_SPACING * len(text)))
+    # Never larger than one line's worth of the box, which is what a short string in a tall
+    # box should still get.
+    fontsize = min(estimated, height * _HEIGHT_TO_FONTSIZE)
+    if fontsize < _MIN_FONTSIZE:
+        return []
+
+    lines = _wrap(text, font, fontsize, width)
+    step = fontsize * _LINE_SPACING
+
+    # More lines than the box can hold means the estimate was optimistic; keeping them all
+    # would run text past the bottom of the block and over whatever follows it.
+    return [
+        (line, fontsize, (index + 1) * step)
+        for index, line in enumerate(lines)
+        if (index + 1) * step <= height
+    ]
+
+
+def _wrap(text: str, font: pymupdf.Font, fontsize: float, width: float) -> list[str]:
+    """Greedy word wrap using the font's own measurements."""
+    lines: list[str] = []
+    current = ""
+
+    for word in text.split():
+        candidate = word if current == "" else f"{current} {word}"
+        if font.text_length(candidate, fontsize=fontsize) <= width or current == "":
+            current = candidate
+            continue
+        lines.append(current)
+        current = word
+
+    if current:
+        lines.append(current)
+    return lines
 
 
 def _fit_fontsize(text: str, font: pymupdf.Font, width: float, height: float) -> float:

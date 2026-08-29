@@ -68,7 +68,8 @@
     "authorizeFolder": "Ordner freigeben",
     "pause": "Diese Pipeline anhalten",
     "resume": "Diese Pipeline fortsetzen",
-    "pauseFirst": "Halten Sie diese Pipeline an, bevor Sie sie bearbeiten oder löschen. Sonst verliert ein gerade gelesenes Dokument mittendrin seinen Datensatz."
+    "pauseFirst": "Halten Sie diese Pipeline an, bevor Sie sie bearbeiten oder löschen. Sonst verliert ein gerade gelesenes Dokument mittendrin seinen Datensatz.",
+    "nowProcessing": "Liest {file}"
   },
   "device": {
     "gpu": "GPU",

@@ -19,6 +19,7 @@ from typing import Any
 from ..core.logging import get_logger
 from .base import PageResult, TextBox
 from .chart_text import append_chart_text
+from .vl_boxes import extract_vl_boxes
 
 _logger = get_logger()
 
@@ -117,12 +118,15 @@ def extract_text_boxes(result: Any) -> list[TextBox]:
     Returns an empty list when the shape is unrecognised; the searchable-PDF writer then
     reports that it cannot produce a text layer rather than emitting an empty one.
     """
-    payload = _ocr_payload(_as_mapping(result))
+    mapping = _as_mapping(result)
+    payload = _ocr_payload(mapping)
     texts = _first_present(payload, _TEXT_KEYS)
     polygons = _first_present(payload, _BOX_KEYS)
 
     if not isinstance(texts, list) or not isinstance(polygons, list):
-        return []
+        # PaddleOCR-VL has no detection stage and so none of those keys. Its blocks carry
+        # their own bounds, which is the only thing the searchable-PDF writer needs.
+        return extract_vl_boxes(mapping)
 
     scores = _first_present(payload, _SCORE_KEYS)
     scores_list = scores if isinstance(scores, list) else []
@@ -162,10 +166,19 @@ def to_page_result(
     # silently returns less.
     markdown = append_chart_text(markdown, result, boxes, height)
 
-    if not boxes and not markdown:
+    # Two different failures, and lumping them together hid the one that shipped. With no
+    # boxes the searchable PDF gets an empty text layer even when the markdown is perfect --
+    # which is exactly what PaddleOCR-VL used to produce, and why the old condition, which
+    # also required the markdown to be missing, never fired.
+    if not boxes:
         _logger.warning(
-            "Could not extract text from the PaddleOCR result; "
-            "txt and searchable-pdf output will be empty for this page",
+            "No text boxes in this result; a searchable PDF for this page would have no "
+            "selectable text",
+            extra={"page": page_number, "resultType": type(result).__name__},
+        )
+    if not markdown and not boxes:
+        _logger.warning(
+            "Could not extract any text from the PaddleOCR result for this page",
             extra={"page": page_number, "resultType": type(result).__name__},
         )
 

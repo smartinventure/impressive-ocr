@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { dirname } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
@@ -143,7 +143,7 @@ export class RuntimeService {
    * Bring the installed Python up to the version this build ships, before anything uses it.
    *
    * The sidecar is copied into the venv during setup and never touched again, so an app
-   * update ships new Python while the engine goes on running the old copy â€” silently, with a
+   * update ships new Python while the engine goes on running the old copy — silently, with a
    * healthy-looking runtime. That is not a hypothetical: a fix for documents taken from a
    * PDF's own text layer shipped in a release, and every existing install kept writing
    * nothing, because the Python that had the fix was sitting unused in the app's resources.
@@ -182,7 +182,7 @@ export class RuntimeService {
   /**
    * Fill in versions for a runtime installed before they were recorded.
    *
-   * Those installs stored nulls, and the System page shows a dash for each â€” so a perfectly
+   * Those installs stored nulls, and the System page shows a dash for each — so a perfectly
    * working runtime looks half-broken. Asking the interpreter costs one short subprocess at
    * startup, and only when something is actually missing.
    */
@@ -298,7 +298,7 @@ export class RuntimeService {
   /**
    * Whether this machine can run the engine, and what to do about it if not.
    *
-   * Not cached: the interesting answers change while the user is looking at the page â€” they
+   * Not cached: the interesting answers change while the user is looking at the page — they
    * install the Visual C++ runtime, or free up a drive, and want to see it clear.
    */
   async preflight(): Promise<PreflightReport> {
@@ -495,7 +495,7 @@ export class RuntimeService {
    * Update the status, persisting and broadcasting at a bounded rate.
    *
    * The installer reports a line at a time, and `uv` and the model fetcher both draw progress
-   * bars â€” tens of thousands of updates over a single install. Writing each one to SQLite and
+   * bars — tens of thousands of updates over a single install. Writing each one to SQLite and
    * pushing it down every SSE connection was pure waste; a progress bar that updates a few
    * times a second is indistinguishable to a human from one that updates a thousand.
    *

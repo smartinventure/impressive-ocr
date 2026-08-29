@@ -1,80 +1,38 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useDesktopBridge, type UpdateStatus } from '../../../composables/use-desktop-bridge';
+import { useAppUpdate } from '../../../composables/use-app-update';
 
 /**
  * The desktop updater's one visible surface.
  *
- * Everything behind it already existed — `UpdateService` checks, downloads and installs, and
- * the preload bridge exposed all three — but nothing in the SPA ever called them, so a user
+ * Everything behind it already existed -- `UpdateService` checks, downloads and installs, and
+ * the preload bridge exposed all three -- but nothing in the SPA ever called them, so a user
  * could never learn that a release existed. This card is that missing half.
+ *
+ * The state lives in `use-app-update` rather than here, because the dashboard shows a short
+ * notice about the same thing and two copies would mean two subscriptions, two checks, and
+ * the chance of them disagreeing.
  *
  * Renders nothing in a browser. The headless server is updated by whatever installed it, and
  * offering a "Restart and install" button that cannot work would be worse than silence.
  */
 
 const { t } = useI18n();
-const desktop = useDesktopBridge();
+const update = useAppUpdate();
 
-const status = ref<UpdateStatus>({
-  state: 'idle',
-  version: null,
-  progressPercent: 0,
-  releaseNotesUrl: null,
-  message: null,
-});
-const currentVersion = ref<string | null>(null);
-const busy = ref(false);
+const desktop = { isDesktop: update.isDesktop };
+const status = update.status;
+const currentVersion = update.currentVersion;
+const busy = update.busy;
 
-let unsubscribe: (() => void) | null = null;
+onMounted(update.watch);
+onUnmounted(update.unwatch);
 
-onMounted(async () => {
-  if (!desktop.isDesktop.value) {
-    return;
-  }
-  // Subscribed before the first check, so a download already running when this page opens
-  // shows its real progress rather than starting from "idle".
-  unsubscribe = desktop.onUpdateStatus((next) => {
-    status.value = next;
-  });
-  currentVersion.value = await desktop.getVersion();
-});
-
-onUnmounted(() => {
-  unsubscribe?.();
-  unsubscribe = null;
-});
-
-async function check(): Promise<void> {
-  busy.value = true;
-  try {
-    const result = await desktop.checkForUpdate();
-    if (result !== null) {
-      status.value = result;
-    }
-  } finally {
-    busy.value = false;
-  }
-}
-
-async function download(): Promise<void> {
-  busy.value = true;
-  try {
-    await desktop.downloadUpdate();
-  } finally {
-    busy.value = false;
-  }
-}
-
-/**
- * Restarts the app. Deliberately a separate, explicit action rather than something that
- * happens on quit: a pipeline may be mid-document, and the user picks the moment.
- */
-async function install(): Promise<void> {
-  await desktop.installUpdate();
-}
+const check = update.check;
+const download = update.download;
+const install = update.install;
 </script>
 
 <template>

@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dashboardApi, type DashboardSnapshot } from '../../../api/endpoints';
 import CompatibilityBanner from '../../../components/compatibility-banner.vue';
+import UpdateNotice from '../../../components/update-notice.vue';
 
 /**
  * The overview: what the machine is doing, and what it has got through.
@@ -71,6 +72,11 @@ onBeforeUnmount(() => {
     <!-- Whether the engine can run here at all, and what is missing if not. First thing on
          the page, because it decides whether anything below it matters. -->
     <CompatibilityBanner />
+
+    <!-- A newer release, or an engine older than this build. Below compatibility because an
+         update is worth knowing about and a machine that cannot run the workload at all is
+         worth knowing about first. -->
+    <UpdateNotice />
 
     <!-- Stated plainly, because every symptom of an emulated platform looks like a bug in
          this application rather than a machine that cannot run the workload. -->

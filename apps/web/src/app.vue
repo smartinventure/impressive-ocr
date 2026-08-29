@@ -9,6 +9,7 @@ import { useLiveStore } from './stores/live-store';
 import UpdateBadge from './components/update-badge.vue';
 import FirstRunDialog from './components/first-run-dialog.vue';
 import LicenseBanner from './components/license-banner.vue';
+import DonateLink from './components/donate-link.vue';
 import { useLicense } from './composables/use-license';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
 import { setLocale, type AppLocale } from './plugins/i18n';
@@ -152,6 +153,8 @@ onBeforeUnmount(() => store.stop());
 
           <!-- Beside the version it refers to, and silent unless there is an update. -->
           <UpdateBadge />
+
+          <DonateLink />
 
           <div class="shell__colophon">
             <span>&copy; Smart In Venture {{ COPYRIGHT_YEAR }}</span>

@@ -495,7 +495,10 @@
     "check": "Check now",
     "download": "Download",
     "install": "Restart and install",
-    "releaseNotes": "Release notes"
+    "releaseNotes": "Release notes",
+    "noticeApp": "Version {version} is available.",
+    "noticeEngine": "The OCR engine is older than this version of the application.",
+    "noticeAction": "Open System"
   },
   "engineHelp": {
     "trigger": "Which engine should I choose?",
@@ -756,5 +759,9 @@
     "commercialTrial": "You can try Impressive OCR for {days} days before entering a key.",
     "commercialPurchase": "Commercial licences are not self-service — a key comes with your purchase.",
     "commercialBuy": "Buy a licence"
+  },
+  "donate": {
+    "label": "Support this project",
+    "hint": "Impressive OCR is free under the AGPL. A donation helps keep it maintained."
   }
 }

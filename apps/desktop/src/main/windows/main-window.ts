@@ -1,4 +1,4 @@
-﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: AGPL-3.0-or-later
 import { BrowserWindow, shell } from 'electron';
 import { join } from 'node:path';
 
@@ -50,7 +50,7 @@ export function createMainWindow(url: string, iconPath: string | undefined): Bro
 /**
  * Confine the window to the local app.
  *
- * The page renders OCR output â€” text extracted from documents the user did not write. If a
+ * The page renders OCR output — text extracted from documents the user did not write. If a
  * link in that text could navigate the window or open a new one, a malicious PDF would have a
  * route to render attacker-controlled content inside a context holding the preload bridge.
  * External links are handed to the real browser, where they are harmless.
@@ -59,7 +59,7 @@ export function createMainWindow(url: string, iconPath: string | undefined): Bro
  * Whether a target belongs to the application itself.
  *
  * A target that will not parse is treated as foreign, so a malformed URL is refused rather
- * than throwing inside the main process â€” where an exception in a `will-navigate` listener
+ * than throwing inside the main process — where an exception in a `will-navigate` listener
  * has no sensible place to go.
  */
 export function isSameOrigin(target: string, appOrigin: string): boolean {

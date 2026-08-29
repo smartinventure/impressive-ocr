@@ -32,6 +32,17 @@ import { isoTimestampSchema } from './common';
 export const COMMERCIAL_LICENCE_URL = 'https://speedbits.io/infinity-license-commercial/';
 
 /**
+ * Where a donation goes, for people running the free AGPL build.
+ *
+ * The plain hosted-button URL rather than PayPal's button SDK. The SDK would need a script and
+ * an image from `paypalobjects.com` and calls of its own, which means widening three CSP
+ * directives on an application whose policy is `defaultSrc 'self'` because it is local-first --
+ * and it would report every launch to PayPal. This link does the same job and tells nobody
+ * anything until it is clicked.
+ */
+export const DONATE_URL = 'https://www.paypal.com/donate/?hosted_button_id=XTDULY8RYRQ4A';
+
+/**
  * Machines one personal registration covers.
  *
  * A courtesy limit rather than a technical one, and worth saying plainly in the UI: someone

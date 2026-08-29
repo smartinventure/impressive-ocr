@@ -1,51 +1,45 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+﻿<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useDesktopBridge, type UpdateStatus } from '../composables/use-desktop-bridge';
+import { useAppUpdate } from '../composables/use-app-update';
 
 /**
  * "There is a newer version", where someone will see it.
  *
  * The main process has always checked on start and on an interval, but the only surface was a
- * card on the System page — a page nobody visits when nothing is wrong. So a release could sit
+ * card on the System page -- a page nobody visits when nothing is wrong. So a release could sit
  * available indefinitely with the application never mentioning it.
  *
  * Silent unless there is something to say: no badge while up to date, while checking, or on a
  * failed check. An indicator that is always present is one nobody reads.
+ *
+ * The state comes from `use-app-update` rather than a local ref. This component, the card on
+ * the System page and the dashboard notice all describe the same fact, and a copy each meant
+ * three subscriptions to the main process and three checks on load.
  *
  * Renders nothing in a browser. The headless server is updated by whatever installed it, and
  * offering its users an update they cannot apply would be worse than saying nothing.
  */
 
 const { t } = useI18n();
-const desktop = useDesktopBridge();
+const update = useAppUpdate();
 
-const status = ref<UpdateStatus | null>(null);
-let unsubscribe: (() => void) | null = null;
-
-onMounted(async () => {
-  if (!desktop.isDesktop.value) {
-    return;
-  }
-  // Subscribe first: the main process checks at startup, and that event may already have
-  // fired before this component existed.
-  unsubscribe = desktop.onUpdateStatus((next) => {
-    status.value = next;
-  });
-  status.value = await desktop.checkForUpdate();
+onMounted(() => {
+  update.watch();
+  // The main process checks at startup, and that event may have fired before this existed;
+  // asking once covers a window the subscription cannot.
+  void update.check();
 });
-
-onUnmounted(() => {
-  unsubscribe?.();
-  unsubscribe = null;
-});
+onUnmounted(update.unwatch);
 
 /** `ready` too: downloaded but not installed still needs the user to act. */
-const show = computed(() => status.value?.state === 'available' || status.value?.state === 'ready');
+const show = computed(
+  () => update.status.value.state === 'available' || update.status.value.state === 'ready',
+);
 
 const label = computed(() =>
-  status.value?.state === 'ready' ? t('updateBadge.ready') : t('updateBadge.available'),
+  update.status.value.state === 'ready' ? t('updateBadge.ready') : t('updateBadge.available'),
 );
 </script>
 
@@ -62,7 +56,7 @@ const label = computed(() =>
   >
     {{ label }}
     <v-tooltip activator="parent" location="top">
-      {{ t('updateBadge.tooltip', { version: status?.version ?? '' }) }}
+      {{ t('updateBadge.tooltip', { version: update.status.value.version ?? '' }) }}
     </v-tooltip>
   </v-chip>
 </template>

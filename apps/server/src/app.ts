@@ -279,6 +279,10 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     // sidecar rather than needing a restart.
     cpuBudgetPercent: () => settingsService.get().cpuBudgetPercent,
     idleMinutes: () => settingsService.get().sidecarIdleMinutes,
+    // No worker starts against Python older than this build. The update itself runs in the
+    // background from `runtime.initialize()`, so it delays the first job rather than the
+    // server, and costs nothing at all on an installation that is already current.
+    whenEngineReady: () => runtime.whenEngineReady(),
     // Read fresh for the same reason: turning the fast backend off, or installing it from
     // the System page, applies to the next worker rather than needing a restart.
     vlServer: () =>

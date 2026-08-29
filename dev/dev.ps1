@@ -164,7 +164,7 @@ function Get-UvBinary {
     if ($env:IMPRESSIVE_OCR_UV_BINARY) { return $env:IMPRESSIVE_OCR_UV_BINARY }
     # Per-architecture, mirroring deploy/fetch-uv.mjs.
     $uvArch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'x64' }
-    return (Join-Path $RepoRoot "vendor\\uv-$uvArch\\uv.exe")
+    return (Join-Path $RepoRoot "vendor\uv-$uvArch\uv.exe")
 }
 
 function Test-DepsStale {

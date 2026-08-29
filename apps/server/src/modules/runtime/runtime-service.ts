@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later
+﻿// SPDX-License-Identifier: AGPL-3.0-or-later
 import { dirname } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, type Database_ } from '@impressive-ocr/db';
@@ -75,6 +75,8 @@ export class RuntimeService {
   private hardware: HardwareCapabilities | null = null;
   private install: { promise: Promise<void>; controller: AbortController } | null = null;
   private lastBroadcastMs = 0;
+  /** Resolved once any stale-engine update has finished; see `whenEngineReady`. */
+  private engineRefresh: Promise<void> = Promise.resolve();
 
   constructor(private readonly options: RuntimeServiceOptions) {}
 
@@ -112,14 +114,36 @@ export class RuntimeService {
     }
 
     await this.backfillVersions();
-    await this.refreshStaleSidecar();
+
+    // Started, not awaited. This used to block `initialize()`, which runs before `listen()`,
+    // so a package install sat in front of the HTTP server and the API answered nothing until
+    // it finished. The dev launcher gave up at ninety seconds and reported a working stack as
+    // broken.
+    //
+    // The requirement is unchanged -- no job may run against a sidecar older than this build
+    // -- but it belongs where a sidecar is handed out. `SidecarPool.acquire` awaits
+    // `whenEngineReady()`, so the wait falls on the first job rather than on startup, and on
+    // an installation that is already current there is no wait at all.
+    this.engineRefresh = this.refreshStaleSidecar();
+    void this.engineRefresh;
+  }
+
+  /**
+   * Resolves once the installed engine is known to match this build.
+   *
+   * Awaited before a sidecar is spawned. Never rejects: a failed update is logged and the
+   * previous engine is used, because refusing to process anything would be worse than
+   * processing it with last week's Python.
+   */
+  whenEngineReady(): Promise<void> {
+    return this.engineRefresh;
   }
 
   /**
    * Bring the installed Python up to the version this build ships, before anything uses it.
    *
    * The sidecar is copied into the venv during setup and never touched again, so an app
-   * update ships new Python while the engine goes on running the old copy — silently, with a
+   * update ships new Python while the engine goes on running the old copy â€” silently, with a
    * healthy-looking runtime. That is not a hypothetical: a fix for documents taken from a
    * PDF's own text layer shipped in a release, and every existing install kept writing
    * nothing, because the Python that had the fix was sitting unused in the app's resources.
@@ -158,7 +182,7 @@ export class RuntimeService {
   /**
    * Fill in versions for a runtime installed before they were recorded.
    *
-   * Those installs stored nulls, and the System page shows a dash for each — so a perfectly
+   * Those installs stored nulls, and the System page shows a dash for each â€” so a perfectly
    * working runtime looks half-broken. Asking the interpreter costs one short subprocess at
    * startup, and only when something is actually missing.
    */
@@ -274,7 +298,7 @@ export class RuntimeService {
   /**
    * Whether this machine can run the engine, and what to do about it if not.
    *
-   * Not cached: the interesting answers change while the user is looking at the page — they
+   * Not cached: the interesting answers change while the user is looking at the page â€” they
    * install the Visual C++ runtime, or free up a drive, and want to see it clear.
    */
   async preflight(): Promise<PreflightReport> {
@@ -471,7 +495,7 @@ export class RuntimeService {
    * Update the status, persisting and broadcasting at a bounded rate.
    *
    * The installer reports a line at a time, and `uv` and the model fetcher both draw progress
-   * bars — tens of thousands of updates over a single install. Writing each one to SQLite and
+   * bars â€” tens of thousands of updates over a single install. Writing each one to SQLite and
    * pushing it down every SSE connection was pure waste; a progress bar that updates a few
    * times a second is indistinguishable to a human from one that updates a thousand.
    *

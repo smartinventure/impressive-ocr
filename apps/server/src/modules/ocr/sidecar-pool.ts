@@ -28,6 +28,16 @@ export interface SidecarPoolOptions {
   /** Minutes an idle worker may keep its models; 0 keeps them until shutdown. Read fresh. */
   idleMinutes: () => number;
   /**
+   * Resolves once the installed Python matches this build.
+   *
+   * Awaited before a worker is started, because reinstalling the package under a process that
+   * has already imported it changes nothing until that process restarts -- so the update has
+   * to land before the first spawn, not merely before the first job finishes.
+   *
+   * Optional, so a pool built without one behaves exactly as it did before this existed.
+   */
+  whenEngineReady?: () => Promise<void>;
+  /**
    * How to start the inference server for the accurate profile, or null to use PaddleOCR's
    * own backend.
    *
@@ -78,6 +88,8 @@ export class SidecarPool {
 
   /** Get a ready client for the pair, starting or restarting the worker if necessary. */
   async acquire(profile: EngineProfile, device: ResolvedDevice): Promise<SidecarClient> {
+    // Before `ensureWorker`, which is what spawns the process that imports the package.
+    await this.options.whenEngineReady?.();
     const worker = await this.ensureWorker(profile, device);
     worker.busy = true;
     return worker.client;

@@ -28,6 +28,18 @@ export type JobState = z.infer<typeof jobStateSchema>;
 
 export const TERMINAL_JOB_STATES = ['succeeded', 'quarantined', 'cancelled'] as const;
 
+/**
+ * States in which a job still has work ahead of it.
+ *
+ * The complement of the terminal set: `failed` belongs here because a failed job is retried
+ * until it is quarantined, so it is still holding its place in the queue.
+ *
+ * This is what "one job per file at a time" has to mean. Taken as "one job per file, ever",
+ * a pipeline could never process a path a second time -- so replacing a corrected scan under
+ * the same name did nothing at all, silently and permanently.
+ */
+export const ACTIVE_JOB_STATES = ['discovered', 'pending', 'running', 'failed'] as const;
+
 export const jobOutputSchema = z.object({
   format: outputFormatSchema,
   path: z.string().min(1),

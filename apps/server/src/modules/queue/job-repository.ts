@@ -9,6 +9,7 @@ import {
   type JobRow,
   type NewJobRow,
 } from '@impressive-ocr/db';
+import { ACTIVE_JOB_STATES } from '@impressive-ocr/shared';
 import type { Job, JobEvent, JobState, OutputFormat, PipelineStats } from '@impressive-ocr/shared';
 import { createId } from '../../infra/ids';
 
@@ -113,11 +114,25 @@ export class JobRepository {
   }
 
   /** True when this exact path is already queued or running for the pipeline. */
+  /**
+   * Whether this pipeline already has this file in flight.
+   *
+   * The state filter is the point, and it was missing: the query matched any job row for the
+   * path, including one that succeeded weeks ago, so a file the pipeline had ever seen could
+   * never be queued again. Dropping a corrected scan in under the same name did nothing at
+   * all, with no log line and no error -- it simply never appeared.
+   */
   hasActiveJobForPath(pipelineId: string, sourcePath: string): boolean {
     const row = this.db
       .select({ id: jobs.id })
       .from(jobs)
-      .where(and(eq(jobs.pipelineId, pipelineId), eq(jobs.sourcePath, sourcePath)))
+      .where(
+        and(
+          eq(jobs.pipelineId, pipelineId),
+          eq(jobs.sourcePath, sourcePath),
+          inArray(jobs.state, [...ACTIVE_JOB_STATES]),
+        ),
+      )
       .get();
     return row !== undefined;
   }

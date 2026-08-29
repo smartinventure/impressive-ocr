@@ -55,6 +55,12 @@ load_env_file() {
     key="${line%%=*}"; value="${line#*=}"
     key="$(printf '%s' "$key" | tr -d '[:space:]')"
     value="${value#"${value%%[![:space:]]*}"}"
+    # Trailing whitespace too, and the carriage return above all: dev.env is edited on Windows
+    # and saved with CRLF, so every value arrived with a  glued to the end. The server then
+    # sent `impressiveocrcommunity` to the licence server, which refused it against its own
+    # `[A-Za-z0-9_-]+` pattern -- so every start logged a licence failure caused by nothing but
+    # a line ending. `dev.ps1` has always trimmed; this had not.
+    value="${value%"${value##*[![:space:]]}"}"
     export "$key=$value"
   done < "$ENV_FILE"
 }

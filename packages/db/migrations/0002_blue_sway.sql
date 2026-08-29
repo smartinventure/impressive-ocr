@@ -1,0 +1,2 @@
+DROP INDEX `jobs_pipeline_source_idx`;--> statement-breakpoint
+CREATE UNIQUE INDEX `jobs_pipeline_source_idx` ON `jobs` (`pipeline_id`,`source_path`) WHERE "jobs"."state" in ('discovered', 'pending', 'running', 'failed');

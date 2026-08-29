@@ -1,4 +1,5 @@
 ﻿// SPDX-License-Identifier: AGPL-3.0-or-later
+import { sql } from 'drizzle-orm';
 import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 import type { JobEventLevel, JobState, OutputFormat, ResolvedDevice } from '@impressive-ocr/shared';
 import { pipelines } from './pipelines';
@@ -36,8 +37,17 @@ export const jobs = sqliteTable(
     index('jobs_state_priority_idx').on(table.state, table.priority, table.discoveredAt),
     index('jobs_pipeline_state_idx').on(table.pipelineId, table.state),
     index('jobs_finished_idx').on(table.finishedAt),
-    /** A given file path is queued at most once per pipeline while still in flight. */
-    uniqueIndex('jobs_pipeline_source_idx').on(table.pipelineId, table.sourcePath),
+    /**
+     * A given file path is queued at most once per pipeline **while still in flight**.
+     *
+     * Partial, and that is the whole point. Unconditional, it also covered every finished
+     * job, so a path this pipeline had ever processed could never be queued again: replacing
+     * a corrected scan under the same name did nothing, permanently and without a word. The
+     * comment already said "while still in flight"; the index did not.
+     */
+    uniqueIndex('jobs_pipeline_source_idx')
+      .on(table.pipelineId, table.sourcePath)
+      .where(sql`${table.state} in ('discovered', 'pending', 'running', 'failed')`),
   ],
 );
 

@@ -60,11 +60,25 @@ export function planDestinations(
   // into the folder the user chose.
   const targetDir = containWithin(request.outputRoot, request.relativeDirectory);
 
+  // Counted per format, because the suffix exists only to keep several files of one format
+  // apart. A format that produced a single file needs none -- and used to get one anyway,
+  // which is why a one-page scan came out as `report_0.md` while its searchable PDF, written
+  // by a writer that names its own file, came out as `report.pdf`.
+  const perFormat = new Map<OutputFormat, number>();
+  for (const item of produced) {
+    perFormat.set(item.format, (perFormat.get(item.format) ?? 0) + 1);
+  }
+  const seen = new Map<OutputFormat, number>();
+
   return produced.map((item) => {
     const extension = extname(item.relativePath);
-    // Paddle writes one file per page for multi-page input and names them itself, so a
-    // per-page suffix is preserved rather than flattening several pages onto one name.
-    const pageSuffix = extractPageSuffix(item.relativePath, request.outputStem);
+    const index = seen.get(item.format) ?? 0;
+    seen.set(item.format, index + 1);
+
+    const pageSuffix =
+      (perFormat.get(item.format) ?? 0) > 1
+        ? pageSuffixFor(item.relativePath, request.outputStem, index)
+        : '';
     const fileName = `${request.outputStem}${pageSuffix}${extension}`;
 
     return {
@@ -95,20 +109,30 @@ function containWithin(root: string, relativeDirectory: string): string {
 }
 
 /**
- * Recover a `_page_003`-style suffix that PaddleOCR added.
+ * What distinguishes one page's file from the next, for a format that produced several.
  *
- * Without this, a 40-page scan producing 40 Markdown files would collapse onto one
- * destination name and the collision policy would either overwrite 39 of them or number
- * them in whatever order the filesystem happened to return.
+ * Without it a 40-page scan producing 40 Markdown files would collapse onto one destination
+ * name, and the collision policy would either overwrite 39 of them or number them in whatever
+ * order the filesystem happened to return.
+ *
+ * Paddle's own suffix is kept where it has one, since it carries the page number. Where it
+ * does not, the position in the list is used rather than Paddle's filename: for a PDF the
+ * rasterised page is named after the job's temporary directory, and appending that wholesale
+ * put `report_impressive-ocr-p1-8c2yltko.md` in the user's output folder -- a name made of an
+ * internal identifier that means nothing to them and differs on every run.
  */
-function extractPageSuffix(relativePath: string, stem: string): string {
-  const base = relativePath.split(/[\\/]/).pop() ?? '';
+function pageSuffixFor(relativePath: string, stem: string, index: number): string {
+  const base = basename(relativePath);
   const withoutExtension = base.slice(0, base.length - extname(base).length);
-  if (!withoutExtension.startsWith(stem)) {
-    // Paddle used a name of its own; keep it distinct by appending it wholesale.
-    return withoutExtension.length > 0 ? `_${withoutExtension}` : '';
+
+  if (withoutExtension.startsWith(stem)) {
+    const suffix = withoutExtension.slice(stem.length);
+    if (suffix !== '') return suffix;
   }
-  return withoutExtension.slice(stem.length);
+
+  // 1-based: `report_1`, `report_2` reads as pages to a person, where `report_0` reads as a
+  // programmer's index.
+  return `_${index + 1}`;
 }
 
 export async function moveOutputs(

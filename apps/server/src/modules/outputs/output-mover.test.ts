@@ -40,12 +40,63 @@ describe('planDestinations', () => {
   };
 
   it('renames a produced file onto the job output stem', () => {
+    // Paddle's own name is discarded, not appended. It names a PDF's rasterised page after
+    // the job's temporary directory, so appending it produced
+    // `invoice 4711_impressive-ocr-p1-8c2yltko.md` — an internal identifier in the user's
+    // output folder, different on every run. With one file for this format there is nothing
+    // to tell apart, so there is nothing to add.
     const plan = planDestinations(
       [{ format: 'markdown', relativePath: join('markdown', 'whatever.md') }],
       request,
     );
 
-    expect(plan[0]?.to).toBe(join(DRIVE, 'out', 'invoice 4711_whatever.md'));
+    expect(plan[0]?.to).toBe(join(DRIVE, 'out', 'invoice 4711.md'));
+  });
+
+  it('numbers several files whose names it cannot use', () => {
+    // The multi-page version of the same problem: the names carry no page number, so the
+    // position does. 1-based, because `_1`, `_2` reads as pages where `_0` reads as an index.
+    const plan = planDestinations(
+      [
+        { format: 'markdown', relativePath: join('markdown', 'tmp-aaa.md') },
+        { format: 'markdown', relativePath: join('markdown', 'tmp-bbb.md') },
+      ],
+      request,
+    );
+
+    expect(plan.map((entry) => entry.to)).toEqual([
+      join(DRIVE, 'out', 'invoice 4711_1.md'),
+      join(DRIVE, 'out', 'invoice 4711_2.md'),
+    ]);
+  });
+
+  it('drops the page suffix when a format produced only one file', () => {
+    // A one-page scan came out as `invoice 4711_0.md` while its searchable PDF, written by a
+    // writer that names its own file, came out clean. Same document, two conventions.
+    const plan = planDestinations(
+      [{ format: 'markdown', relativePath: join('markdown', 'invoice 4711_0.md') }],
+      request,
+    );
+
+    expect(plan[0]?.to).toBe(join(DRIVE, 'out', 'invoice 4711.md'));
+  });
+
+  it('keeps each format independent when counting', () => {
+    // Two Markdown pages and one Word file: the Word file is alone and takes no suffix.
+    const plan = planDestinations(
+      [
+        { format: 'markdown', relativePath: join('markdown', 'invoice 4711_0.md') },
+        { format: 'markdown', relativePath: join('markdown', 'invoice 4711_1.md') },
+        { format: 'docx', relativePath: join('docx', 'invoice 4711_0.docx') },
+      ],
+      request,
+    );
+
+    expect(plan.map((entry) => entry.to)).toEqual([
+      join(DRIVE, 'out', 'invoice 4711_0.md'),
+      join(DRIVE, 'out', 'invoice 4711_1.md'),
+      join(DRIVE, 'out', 'invoice 4711.docx'),
+    ]);
   });
 
   it('keeps a per-page suffix so a multi-page scan does not collapse onto one name', () => {

@@ -43,7 +43,12 @@
   "connection": {
     "connecting": "Connecting…",
     "open": "Live",
-    "reconnecting": "Reconnecting…"
+    "reconnecting": "Reconnecting…",
+    "tooltip": {
+      "connecting": "Opening the live connection to the service.",
+      "open": "Connected to the service. Jobs, progress and results appear here as they happen.",
+      "reconnecting": "The live connection dropped and is being re-established. Work already queued carries on regardless."
+    }
   },
   "pipelines": {
     "title": "Pipelines",
@@ -441,7 +446,11 @@
     "truncated": "Showing the most recent part of the log; older entries are in the file on disk.",
     "errorCount": "{count} error(s)",
     "loadFailed": "The log could not be read.",
-    "clearFailed": "The log could not be cleared."
+    "clearFailed": "The log could not be cleared.",
+    "levelAll": "All",
+    "levelWarnings": "Warnings",
+    "levelErrors": "Errors",
+    "errorCountHint": "Show only errors"
   },
   "dashboard": {
     "cpu": "Processor",

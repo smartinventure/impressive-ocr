@@ -43,19 +43,35 @@ const visible = computed(() => licence.status.value?.tier !== 'commercial');
 </template>
 
 <style scoped>
-/* Quiet on purpose: an ask that shouts competes with the navigation it sits under. */
+/*
+ * A bordered button spanning the drawer, rather than a line of text.
+ *
+ * The colour is the theme's `error` token, not a literal red. It is #B91C1C on a light
+ * surface and lifts to #F19191 on a dark one, which is the whole reason the token exists --
+ * the dark red is unreadable against the dark drawer, and hard-coding it would look right in
+ * exactly one theme.
+ */
 .donate {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgb(var(--v-theme-error));
+  border-radius: 6px;
   font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: center;
   text-decoration: none;
-  color: rgb(var(--v-theme-on-surface));
-  opacity: 0.72;
+  /* The heart inherits this, so there is one colour to change. */
+  color: rgb(var(--v-theme-error));
 }
 
 .donate:hover {
-  opacity: 1;
-  text-decoration: underline;
+  /* A wash rather than a fill: the drawer is navigation, and a solid red block in it would
+     outrank every actual destination. */
+  background: rgb(var(--v-theme-error) / 0.08);
 }
 </style>

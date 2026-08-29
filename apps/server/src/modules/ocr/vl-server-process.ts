@@ -2,7 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createServer } from 'node:net';
 import { createInterface } from 'node:readline';
-import { logSidecarLine, type Logger } from '../../infra/logger';
+import { createSidecarLineForwarder, type Logger } from '../../infra/logger';
 
 /**
  * Owns one `llama-server`: start it, wait until it can actually answer, watch it, stop it.
@@ -147,12 +147,16 @@ export class VlServerProcess {
   }
 
   private pipeOutput(child: ChildProcess): void {
+    // One forwarder for both streams of this process, because a traceback written to stderr
+    // is one sequence however the two are interleaved — and a forwarder each would let stdout
+    // reset the flag mid-traceback.
+    const forward = createSidecarLineForwarder(this.options.logger);
     for (const stream of [child.stdout, child.stderr]) {
       if (stream === null) {
         continue;
       }
       const reader = createInterface({ input: stream });
-      reader.on('line', (line) => logSidecarLine(this.options.logger, line));
+      reader.on('line', forward);
     }
   }
 

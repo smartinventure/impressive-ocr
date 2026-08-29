@@ -35,12 +35,32 @@ const POLL_INTERVAL_MS = 3000;
 
 let timer: ReturnType<typeof setInterval> | undefined;
 
+/**
+ * Severity to show, independent of the text search.
+ *
+ * The page could already say "11 error(s)" and offer no way to reach them: the only filter
+ * was a substring match, and finding an error meant guessing a word that appeared in one.
+ *
+ * `all` by default, because a log that hides things unless asked is worse than a noisy one.
+ */
+const levelFilter = ref<'all' | 'warn' | 'error'>('all');
+
+/** Pino's numeric levels: 40 is warn, 50 error, 60 fatal. */
+const LEVEL_FLOOR = { all: 0, warn: 40, error: 50 } as const;
+
 const visible = computed(() => {
   const needle = filter.value.trim().toLowerCase();
-  if (needle === '') return lines.value;
-  // Match the raw record, not the rendered message: the useful detail is usually in the
-  // fields — a job id, a path, an error code — rather than in the sentence.
-  return lines.value.filter((line) => line.raw.toLowerCase().includes(needle));
+  const floor = LEVEL_FLOOR[levelFilter.value];
+
+  // Both filters, not either: someone narrowing to errors and then typing a job id means the
+  // errors for that job.
+  return lines.value.filter((line) => {
+    if (line.level < floor) return false;
+    if (needle === '') return true;
+    // Match the raw record, not the rendered message: the useful detail is usually in the
+    // fields — a job id, a path, an error code — rather than in the sentence.
+    return line.raw.toLowerCase().includes(needle);
+  });
 });
 
 const sizeLabel = computed(() => `${(totalBytes.value / 1024 / 1024).toFixed(2)} MB`);
@@ -139,6 +159,14 @@ onBeforeUnmount(() => {
         clearable
         style="max-width: 320px"
       />
+      <!-- Beside the search rather than inside it: they narrow different things, and both
+           apply at once. -->
+      <v-btn-toggle v-model="levelFilter" density="compact" variant="outlined" mandatory>
+        <v-btn value="all" size="small">{{ t('logs.levelAll') }}</v-btn>
+        <v-btn value="warn" size="small">{{ t('logs.levelWarnings') }}</v-btn>
+        <v-btn value="error" size="small">{{ t('logs.levelErrors') }}</v-btn>
+      </v-btn-toggle>
+
       <v-switch
         v-model="follow"
         :label="t('logs.follow')"
@@ -147,7 +175,18 @@ onBeforeUnmount(() => {
         hide-details
       />
       <v-spacer />
-      <v-chip v-if="errorCount > 0" size="small" color="failed" variant="tonal" label>
+      <!-- The count was the only sign errors existed and offered no way to reach them.
+           Clicking it is the shortest path someone will actually try. -->
+      <v-chip
+        v-if="errorCount > 0"
+        size="small"
+        color="failed"
+        variant="tonal"
+        label
+        link
+        :title="t('logs.errorCountHint')"
+        @click="levelFilter = 'error'"
+      >
         {{ t('logs.errorCount', { count: errorCount }) }}
       </v-chip>
       <span class="text-caption text-medium-emphasis">{{ sizeLabel }}</span>

@@ -48,6 +48,18 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, ensure_ascii=False, default=str)
 
 
+#: Third-party loggers held at WARNING regardless of the configured level.
+#:
+#: The root logger is set to the level the backend asked for, and everything propagates
+#: through the JSON handler -- including libraries that narrate their own work. `httpx` logs
+#: one INFO line per request, and the accurate profile makes a request per layout region, so
+#: a single document wrote a hundred lines saying a POST had happened.
+#:
+#: They are quietened rather than silenced: at `debug` they come back, which is when someone
+#: is actually looking at why a request failed.
+_CHATTY_LIBRARIES = ("httpx", "httpcore", "urllib3")
+
+
 def configure_logging(level: str) -> logging.Logger:
     """Install the JSON handler on stderr and return the sidecar's root logger."""
     handler = logging.StreamHandler(sys.stderr)
@@ -63,6 +75,12 @@ def configure_logging(level: str) -> logging.Logger:
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers.clear()
         uvicorn_logger.propagate = True
+
+    # Left alone when the caller asked for debug or trace: that is someone looking into why a
+    # request failed, and the request log is the thing they came for.
+    if root.level > logging.DEBUG:
+        for name in _CHATTY_LIBRARIES:
+            logging.getLogger(name).setLevel(logging.WARNING)
 
     return logging.getLogger(LOGGER_NAME)
 

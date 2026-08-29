@@ -79,31 +79,69 @@ function teeTo(file: RotatingLogFile): { write(line: string): void } {
   };
 }
 
+/** Opens a Python traceback, and is the only reliable marker that one has started. */
+const TRACEBACK_START = 'Traceback (most recent call last):';
+
 /**
- * Forward a sidecar's stderr into our logger.
+ * Forward one sidecar process's stderr into our logger.
  *
- * The sidecar already emits one JSON object per line, so a parsed line becomes a real
- * structured record; anything unparseable (a Python traceback, a CUDA warning) is still
- * worth keeping verbatim rather than dropping.
+ * A forwarder per process rather than a free function, because deciding what to do with a
+ * line needs to know whether a traceback is in progress — and two sidecars interleaving their
+ * output must not share that flag.
+ *
+ * The sidecar emits one JSON object per line for everything it means to say, so a parsed line
+ * keeps the level it declared. What arrives unparsed is something that bypassed that handler:
+ * PaddleOCR announcing which model it is building, a CUDA notice, llama.cpp's banner. Those
+ * were logged at info and became the log: of 916 lines written in one day, 759 were this.
+ * They go to debug, where raising the level in Settings still brings them back.
+ *
+ * Tracebacks are the exception and are kept at warn, including their frames. A traceback's
+ * continuation lines are indented and its final line is an unindented `ExceptionType:
+ * message`, so the flag ends on that line rather than before it — the exception type is the
+ * part worth reading, and dropping it to debug would leave the frames without their reason.
  */
-export function logSidecarLine(logger: Logger, line: string): void {
-  const trimmed = line.trim();
-  if (trimmed.length === 0) {
-    return;
-  }
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (typeof parsed === 'object' && parsed !== null) {
-      const record = parsed as Record<string, unknown>;
-      const message = typeof record.msg === 'string' ? record.msg : 'sidecar';
-      const level = typeof record.level === 'string' ? record.level : 'info';
-      logger[normalizeLevel(level)]({ sidecar: record }, message);
+export function createSidecarLineForwarder(logger: Logger): (line: string) => void {
+  let inTraceback = false;
+
+  return (line: string): void => {
+    const trimmed = line.trim();
+    if (trimmed.length === 0) {
       return;
     }
-  } catch {
-    // Not JSON — fall through and keep the raw line.
-  }
-  logger.info({ sidecarRaw: trimmed }, 'sidecar');
+
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (typeof parsed === 'object' && parsed !== null) {
+        const record = parsed as Record<string, unknown>;
+        const message = typeof record.msg === 'string' ? record.msg : 'sidecar';
+        const level = typeof record.level === 'string' ? record.level : 'info';
+        // Structured output ends whatever unstructured spill preceded it.
+        inTraceback = false;
+        logger[normalizeLevel(level)]({ sidecar: record }, message);
+        return;
+      }
+    } catch {
+      // Not JSON — fall through and decide from the text.
+    }
+
+    if (trimmed.startsWith(TRACEBACK_START)) {
+      inTraceback = true;
+      logger.warn({ sidecarRaw: trimmed }, 'sidecar');
+      return;
+    }
+
+    if (inTraceback) {
+      // Unindented means this is the `ExceptionType: message` that closes the traceback: log
+      // it, then stop treating what follows as part of it.
+      if (!/^\s/.test(line)) {
+        inTraceback = false;
+      }
+      logger.warn({ sidecarRaw: trimmed }, 'sidecar');
+      return;
+    }
+
+    logger.debug({ sidecarRaw: trimmed }, 'sidecar');
+  };
 }
 
 function normalizeLevel(level: string): 'debug' | 'info' | 'warn' | 'error' {

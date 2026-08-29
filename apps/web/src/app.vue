@@ -147,14 +147,21 @@ onBeforeUnmount(() => store.stop());
 
       <template #append>
         <div class="shell__footer">
+          <!-- Above the status chips: an ask placed under them reads as a footnote to the
+               connection state rather than something addressed to the reader. -->
+          <DonateLink />
+
           <v-chip size="small" variant="tonal" :color="connectionColour" label>
             {{ t(`connection.${store.connection}`) }}
+            <!-- "Live" says nothing on its own. The tooltip is where it can say what it is
+                 actually reporting: the event stream, not the OCR engine or the licence. -->
+            <v-tooltip activator="parent" location="top" max-width="260">
+              {{ t(`connection.tooltip.${store.connection}`) }}
+            </v-tooltip>
           </v-chip>
 
           <!-- Beside the version it refers to, and silent unless there is an update. -->
           <UpdateBadge />
-
-          <DonateLink />
 
           <div class="shell__colophon">
             <span>&copy; Smart In Venture {{ COPYRIGHT_YEAR }}</span>

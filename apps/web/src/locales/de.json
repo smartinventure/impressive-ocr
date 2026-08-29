@@ -43,7 +43,12 @@
   "connection": {
     "connecting": "Verbindung wird aufgebaut…",
     "open": "Live",
-    "reconnecting": "Verbindung wird wiederhergestellt…"
+    "reconnecting": "Verbindung wird wiederhergestellt…",
+    "tooltip": {
+      "connecting": "Die Live-Verbindung zum Dienst wird aufgebaut.",
+      "open": "Mit dem Dienst verbunden. Aufträge, Fortschritt und Ergebnisse erscheinen hier, sobald sie eintreten.",
+      "reconnecting": "Die Live-Verbindung wurde unterbrochen und wird wiederhergestellt. Bereits eingereihte Arbeit läuft unabhängig davon weiter."
+    }
   },
   "pipelines": {
     "title": "Pipelines",
@@ -441,7 +446,11 @@
     "truncated": "Es wird der neueste Teil des Logs angezeigt; ältere Einträge stehen in der Datei auf der Festplatte.",
     "errorCount": "{count} Fehler",
     "loadFailed": "Das Log konnte nicht gelesen werden.",
-    "clearFailed": "Das Log konnte nicht geleert werden."
+    "clearFailed": "Das Log konnte nicht geleert werden.",
+    "levelAll": "Alle",
+    "levelWarnings": "Warnungen",
+    "levelErrors": "Fehler",
+    "errorCountHint": "Nur Fehler anzeigen"
   },
   "dashboard": {
     "cpu": "Prozessor",

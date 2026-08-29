@@ -2,7 +2,7 @@
 import { spawn, type ChildProcess } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { EngineProfile, ResolvedDevice } from '@impressive-ocr/shared';
-import { logSidecarLine, type Logger } from '../../infra/logger';
+import { createSidecarLineForwarder, type Logger } from '../../infra/logger';
 
 /**
  * Owns one Python sidecar process: start it, learn its port, watch it, stop it.
@@ -132,8 +132,11 @@ export class SidecarProcess {
     if (child.stderr === null) {
       return;
     }
+    // One forwarder per process: it tracks whether a traceback is in progress, and two
+    // sidecars interleaving their output must not share that.
+    const forward = createSidecarLineForwarder(this.options.logger);
     const reader = createInterface({ input: child.stderr });
-    reader.on('line', (line) => logSidecarLine(this.options.logger, line));
+    reader.on('line', forward);
   }
 
   private awaitHandshake(child: ChildProcess): Promise<SidecarHandshake> {

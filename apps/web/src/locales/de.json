@@ -252,7 +252,15 @@
     "noOutputs": "Es wurden keine Dateien geschrieben.",
     "timeline": "Verlauf",
     "results": "Ergebnisse",
-    "downloadResults": "Ergebnisse herunterladen"
+    "downloadResults": "Ergebnisse herunterladen",
+    "clear": "Leeren",
+    "clearFiltered": "Diese leeren",
+    "clearHint": "Abgeschlossene Aufträge aus dieser Liste entfernen.",
+    "clearTitle": "Auftragsverlauf leeren?",
+    "clearBody": "{count} abgeschlossene(r) Auftrag/Aufträge werden aus dieser Liste entfernt.",
+    "clearBodyFiltered": "{count} Auftrag/Aufträge mit Status „{state}“ werden aus dieser Liste entfernt.",
+    "clearKeeps": "Wartende und laufende Aufträge bleiben. Ihre Dokumente und deren Ergebnisse werden nicht angetastet — nur der Eintrag darüber wird entfernt.",
+    "cleared": "{count} Auftrag/Aufträge geleert."
   },
   "preflight": {
     "title": "Kompatibilität",

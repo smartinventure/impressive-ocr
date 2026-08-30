@@ -252,7 +252,15 @@
     "noOutputs": "No files were written.",
     "timeline": "Timeline",
     "results": "Results",
-    "downloadResults": "Download results"
+    "downloadResults": "Download results",
+    "clear": "Clear",
+    "clearFiltered": "Clear these",
+    "clearHint": "Remove finished jobs from this list.",
+    "clearTitle": "Clear job history?",
+    "clearBody": "{count} finished job(s) will be removed from this list.",
+    "clearBodyFiltered": "{count} {state} job(s) will be removed from this list.",
+    "clearKeeps": "Queued and running jobs stay. Your documents and their results are not touched — only the record of them is removed.",
+    "cleared": "{count} job(s) cleared."
   },
   "preflight": {
     "title": "Compatibility",

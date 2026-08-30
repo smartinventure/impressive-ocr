@@ -223,5 +223,5 @@ export const api = {
     request<TResult>(path, { method: 'POST', body }),
   patch: <TResult>(path: string, body: unknown): Promise<TResult> =>
     request<TResult>(path, { method: 'PATCH', body }),
-  delete: (path: string): Promise<void> => request<void>(path, { method: 'DELETE' }),
+  delete: <T = void>(path: string): Promise<T> => request<T>(path, { method: 'DELETE' }),
 };

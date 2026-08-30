@@ -40,6 +40,18 @@ export const TERMINAL_JOB_STATES = ['succeeded', 'quarantined', 'cancelled'] as 
  */
 export const ACTIVE_JOB_STATES = ['discovered', 'pending', 'running', 'failed'] as const;
 
+/**
+ * States a job has stopped in: nothing will pick it up again on its own.
+ *
+ * Deliberately not the complement of `ACTIVE_JOB_STATES`, which answers a different question --
+ * whether a path still holds its place in the queue. `failed` belongs to both sets, and that is
+ * correct: it holds its slot, but only `pending` is ever claimed, and a retryable failure is
+ * written back as `pending`. Nothing runs a `failed` job again unless the user asks.
+ *
+ * This is what both the retention sweep and the Clear button are allowed to delete.
+ */
+export const FINISHED_JOB_STATES = ['succeeded', 'failed', 'quarantined', 'cancelled'] as const;
+
 export const jobOutputSchema = z.object({
   format: outputFormatSchema,
   path: z.string().min(1),

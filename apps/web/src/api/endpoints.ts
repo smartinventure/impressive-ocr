@@ -110,6 +110,19 @@ export const jobsApi = {
   retry: (id: string) => api.post<Job>(`/jobs/${id}/retry`),
   cancel: (id: string) =>
     api.post<{ cancelled: boolean; wasRunning: boolean }>(`/jobs/${id}/cancel`),
+
+  /**
+   * Remove finished jobs from the history.
+   *
+   * `state` clears just one of them -- the failures, say -- and is rejected by the server for
+   * anything still queued or running.
+   */
+  /** How many rows a clear would take, for the confirmation. */
+  clearable: (state?: JobState): Promise<{ clearable: number }> =>
+    api.get(`/jobs/clearable${state === undefined ? '' : `?state=${state}`}`),
+
+  clear: (state?: JobState): Promise<{ cleared: number }> =>
+    api.delete(`/jobs${state === undefined ? '' : `?state=${state}`}`),
 };
 
 export const systemApi = {

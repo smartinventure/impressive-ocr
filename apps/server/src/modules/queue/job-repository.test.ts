@@ -114,3 +114,88 @@ describe('JobRepository.hasActiveJobForPath', () => {
     expect(repository.hasActiveJobForPath(OTHER_PIPELINE_ID, PATH)).toBe(false);
   });
 });
+
+/**
+ * Clearing the history from the Jobs page.
+ *
+ * The guarantee is one-sided and absolute: a job that is queued or running must survive, whatever
+ * is asked for. Deleting the row of a job the scheduler is about to claim -- or is mid-document
+ * on -- leaves the sidecar working on something no longer in the database, and `job_events`
+ * cascades away with it.
+ *
+ * `failed` is clearable even though `ACTIVE_JOB_STATES` contains it. The two sets answer
+ * different questions: that one is about holding a place in the queue, this one is about whether
+ * anything will run the job again. Only `pending` is ever claimed, and a retryable failure is
+ * written back as `pending`, so nothing picks a `failed` row up on its own.
+ */
+describe('JobRepository.clearFinished', () => {
+  it('removes a job that succeeded', () => {
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'succeeded');
+
+    expect(repository.clearFinished()).toBe(1);
+    expect(repository.list({ limit: 10, offset: 0 }).total).toBe(0);
+  });
+
+  it('keeps a running job, which the sidecar is still working on', () => {
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'running');
+
+    expect(repository.clearFinished()).toBe(0);
+    expect(repository.list({ limit: 10, offset: 0 }).total).toBe(1);
+  });
+
+  it('keeps a queued job, which is about to be claimed', () => {
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'pending');
+    insertJob(PIPELINE_ID, 'C:/in/b.pdf', 'discovered');
+
+    expect(repository.clearFinished()).toBe(0);
+    expect(repository.list({ limit: 10, offset: 0 }).total).toBe(2);
+  });
+
+  it('clears the finished ones and leaves the live ones alone', () => {
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'succeeded');
+    insertJob(PIPELINE_ID, 'C:/in/b.pdf', 'quarantined');
+    insertJob(PIPELINE_ID, 'C:/in/c.pdf', 'cancelled');
+    insertJob(PIPELINE_ID, 'C:/in/d.pdf', 'running');
+
+    expect(repository.clearFinished()).toBe(3);
+
+    const left = repository.list({ limit: 10, offset: 0 });
+    expect(left.items.map((job) => job.state)).toEqual(['running']);
+  });
+
+  it('clears one state without taking the others', () => {
+    // So the failures can be cleared off the page while the successes stay as a record.
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'succeeded');
+    insertJob(PIPELINE_ID, 'C:/in/b.pdf', 'quarantined');
+
+    expect(repository.clearFinished('quarantined')).toBe(1);
+    expect(repository.list({ limit: 10, offset: 0 }).items.map((j) => j.state)).toEqual([
+      'succeeded',
+    ]);
+  });
+
+  it('refuses to clear a live state even when named directly', () => {
+    // The route rejects this before it arrives; the repository must not be the only guard.
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'running');
+
+    expect(repository.clearFinished('running')).toBe(0);
+  });
+
+  it('counts what a clear would take, so the confirmation can name a number', () => {
+    insertJob(PIPELINE_ID, 'C:/in/a.pdf', 'succeeded');
+    insertJob(PIPELINE_ID, 'C:/in/b.pdf', 'running');
+
+    expect(repository.countFinished()).toBe(1);
+    expect(repository.countFinished('succeeded')).toBe(1);
+    expect(repository.countFinished('quarantined')).toBe(0);
+  });
+
+  it('lets the path be processed again once its finished job is cleared', () => {
+    // The partial unique index is keyed on the active states, so a cleared row frees the slot
+    // exactly as a finished one did.
+    insertJob(PIPELINE_ID, PATH, 'succeeded');
+    repository.clearFinished();
+
+    expect(() => insertJob(PIPELINE_ID, PATH, 'pending')).not.toThrow();
+  });
+});

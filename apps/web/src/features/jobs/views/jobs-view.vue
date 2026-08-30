@@ -2,10 +2,12 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { FINISHED_JOB_STATES } from '@impressive-ocr/shared';
 import type { Job, JobEvent, JobListItem, JobState } from '@impressive-ocr/shared';
 import { jobsApi, quickApi } from '../../../api/endpoints';
 import { useLiveStore } from '../../../stores/live-store';
 import StatusChip from '../../../components/status-chip.vue';
+import JobDetailDrawer from '../components/job-detail-drawer.vue';
 import type { StatusKey } from '../../../plugins/theme';
 
 /** Jobs across all pipelines, with a detail drawer carrying the page-by-page timeline. */
@@ -82,6 +84,59 @@ async function retry(job: Job): Promise<void> {
   await store.refresh();
   selected.value = null;
 }
+
+/**
+ * Clearing the history.
+ *
+ * History only: queued and running jobs stay, and the server refuses to be asked otherwise.
+ * Nothing on disk is touched -- the documents and their results outlive their rows, and the
+ * hashes that stop a watched pipeline re-reading a file it has already done are kept, so
+ * clearing the list does not quietly re-queue a folder.
+ *
+ * The count comes from the server when the dialog opens rather than from the rows on screen,
+ * which are capped and paged: counting those would print a number that is wrong exactly when
+ * it matters, on the long history somebody actually wants to clear.
+ */
+const confirmingClear = ref(false);
+const clearing = ref(false);
+const clearable = ref<number | null>(null);
+const clearError = ref<string | null>(null);
+const clearedCount = ref<number | null>(null);
+
+/** Clearing follows the state filter, so the failures can go without the successes. */
+const clearScope = computed(() =>
+  stateFilter.value !== null &&
+  (FINISHED_JOB_STATES as readonly JobState[]).includes(stateFilter.value)
+    ? stateFilter.value
+    : undefined,
+);
+
+async function openClear(): Promise<void> {
+  confirmingClear.value = true;
+  clearable.value = null;
+  clearError.value = null;
+  clearedCount.value = null;
+  try {
+    clearable.value = (await jobsApi.clearable(clearScope.value)).clearable;
+  } catch (error) {
+    clearError.value = error instanceof Error ? error.message : t('errors.saveFailed');
+  }
+}
+
+async function clearJobs(): Promise<void> {
+  clearing.value = true;
+  clearError.value = null;
+  try {
+    const { cleared } = await jobsApi.clear(clearScope.value);
+    await store.refresh();
+    clearedCount.value = cleared;
+    confirmingClear.value = false;
+  } catch (error) {
+    clearError.value = error instanceof Error ? error.message : t('errors.saveFailed');
+  } finally {
+    clearing.value = false;
+  }
+}
 </script>
 
 <template>
@@ -111,7 +166,32 @@ async function retry(job: Job): Promise<void> {
         hide-details
         style="max-width: 220px"
       />
+
+      <v-spacer />
+
+      <!-- Reads on what it will take, which the state filter narrows. Anything still queued or
+           running is out of its reach, and the server enforces that rather than trusting this. -->
+      <v-btn
+        variant="tonal"
+        prepend-icon="delete_sweep"
+        :title="t('jobs.clearHint')"
+        @click="openClear"
+      >
+        {{ clearScope === undefined ? t('jobs.clear') : t('jobs.clearFiltered') }}
+      </v-btn>
     </div>
+
+    <v-alert
+      v-if="clearedCount !== null"
+      type="success"
+      variant="tonal"
+      density="compact"
+      closable
+      class="mb-4"
+      @click:close="clearedCount = null"
+    >
+      {{ t('jobs.cleared', { count: clearedCount }) }}
+    </v-alert>
 
     <v-card>
       <v-table density="comfortable">
@@ -174,60 +254,49 @@ async function retry(job: Job): Promise<void> {
       </v-table>
     </v-card>
 
-    <v-navigation-drawer
-      :model-value="selected !== null"
-      location="right"
-      temporary
-      width="460"
-      @update:model-value="selected = null"
-    >
-      <div v-if="selected" class="pa-5">
-        <div class="d-flex align-center justify-space-between mb-3">
-          <h2 class="text-h6 ocr-mono">{{ selected.fileName }}</h2>
-          <v-btn icon="close" variant="text" size="small" @click="selected = null" />
-        </div>
+    <v-dialog v-model="confirmingClear" max-width="480">
+      <v-card>
+        <v-card-title class="text-subtitle-1">{{ t('jobs.clearTitle') }}</v-card-title>
+        <v-card-text>
+          <v-alert v-if="clearError" type="error" density="compact" class="mb-3">
+            {{ clearError }}
+          </v-alert>
+          <v-progress-circular v-else-if="clearable === null" indeterminate size="20" width="2" />
+          <p v-else class="mb-2">
+            {{
+              clearScope === undefined
+                ? t('jobs.clearBody', { count: clearable })
+                : t('jobs.clearBodyFiltered', {
+                    count: clearable,
+                    state: t(`status.${STATE_TO_CHIP[clearScope]}`),
+                  })
+            }}
+          </p>
+          <p class="text-body-2 text-medium-emphasis mb-0">{{ t('jobs.clearKeeps') }}</p>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer />
+          <v-btn variant="text" @click="confirmingClear = false">{{ t('common.cancel') }}</v-btn>
+          <v-btn
+            color="error"
+            variant="flat"
+            :loading="clearing"
+            :disabled="clearable === null || clearable === 0"
+            @click="clearJobs"
+          >
+            {{ t('jobs.clear') }}
+          </v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
 
-        <StatusChip :status="STATE_TO_CHIP[selected.state]" class="mb-4" />
-
-        <div v-if="selected.deviceFallbackReason" class="ocr-alert-warning mb-4">
-          {{ selected.deviceFallbackReason }}
-        </div>
-        <div v-if="selected.errorMessage" class="ocr-alert-error mb-4">
-          {{ selected.errorMessage }}
-        </div>
-
-        <h3 class="text-subtitle-2 mb-2">{{ t('jobs.outputs') }}</h3>
-        <p v-if="selected.outputs.length === 0" class="text-body-2 text-medium-emphasis mb-4">
-          {{ t('jobs.noOutputs') }}
-        </p>
-        <v-list v-else density="compact" class="mb-4 py-0">
-          <v-list-item v-for="output in selected.outputs" :key="output.path">
-            <v-list-item-title class="ocr-mono">{{ output.format }}</v-list-item-title>
-            <v-list-item-subtitle class="ocr-mono">{{ output.path }}</v-list-item-subtitle>
-          </v-list-item>
-        </v-list>
-
-        <h3 class="text-subtitle-2 mb-2">{{ t('jobs.timeline') }}</h3>
-        <ol class="jobs__timeline">
-          <li v-for="event in timeline" :key="event.id" :class="`jobs__event--${event.level}`">
-            <span class="ocr-mono jobs__event-time">
-              {{ new Date(event.createdAt).toLocaleTimeString() }}
-            </span>
-            <span>{{ event.message }}</span>
-          </li>
-        </ol>
-
-        <v-btn
-          v-if="selected.state === 'failed' || selected.state === 'quarantined'"
-          color="primary"
-          prepend-icon="replay"
-          class="mt-4"
-          @click="retry(selected)"
-        >
-          {{ t('common.retry') }}
-        </v-btn>
-      </div>
-    </v-navigation-drawer>
+    <JobDetailDrawer
+      :job="selected"
+      :events="timeline"
+      :chip-for="STATE_TO_CHIP"
+      @close="selected = null"
+      @retry="retry"
+    />
   </div>
 </template>
 
@@ -243,39 +312,11 @@ async function retry(job: Job): Promise<void> {
   display: flex;
   gap: 12px;
   flex-wrap: wrap;
+  align-items: center;
   margin-bottom: 16px;
 }
 
 .jobs__row {
   cursor: pointer;
-}
-
-.jobs__timeline {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
-}
-
-.jobs__timeline li {
-  display: flex;
-  gap: 10px;
-  align-items: baseline;
-}
-
-.jobs__event-time {
-  color: var(--ocr-on-surface-muted);
-  flex: none;
-}
-
-.jobs__event--error {
-  color: rgb(var(--v-theme-failed));
-}
-
-.jobs__event--warning {
-  color: rgb(var(--v-theme-paused));
 }
 </style>

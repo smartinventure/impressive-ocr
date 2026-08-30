@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { AppFastify } from '../fastify-types';
 import { z } from 'zod';
-import { jobStateSchema, paginationQuerySchema } from '@impressive-ocr/shared';
+import { FINISHED_JOB_STATES, jobStateSchema, paginationQuerySchema } from '@impressive-ocr/shared';
+import type { JobState } from '@impressive-ocr/shared';
 import { HttpError, notFound } from '../errors';
 import type { AppServices } from '../../app-services';
 
@@ -9,6 +10,13 @@ const jobListQuerySchema = paginationQuerySchema.extend({
   pipelineId: z.string().min(1).optional(),
   state: jobStateSchema.optional(),
 });
+
+/** Narrows a clear to one finished state, so clearing failures keeps the successes. */
+const clearJobsQuerySchema = z.object({ state: jobStateSchema.optional() });
+
+function isFinished(state: JobState): boolean {
+  return (FINISHED_JOB_STATES as readonly JobState[]).includes(state);
+}
 
 export function registerJobRoutes(app: AppFastify, services: AppServices): void {
   app.get('/api/jobs', (request) => {
@@ -31,6 +39,46 @@ export function registerJobRoutes(app: AppFastify, services: AppServices): void 
     });
 
     return { items: enriched, total, limit: query.limit, offset: query.offset };
+  });
+
+  /**
+   * Clear finished job history.
+   *
+   * History only. Queued and running jobs are refused outright rather than skipped quietly:
+   * a button that says "clear" and leaves rows behind with no explanation is worse than one
+   * that says what it will not do. Nothing on disk is touched -- the documents and everything
+   * written from them outlive their rows, and the content hashes that stop a watched pipeline
+   * re-reading a file it has already done are kept deliberately, so clearing the list does not
+   * quietly re-queue a folder.
+   */
+  /**
+   * How many rows a clear would take.
+   *
+   * Registered before `/api/jobs/:id` for readability; Fastify prefers a static segment over a
+   * parametric one either way. Asked when the confirmation opens, because the list the browser
+   * holds is capped and paged -- counting what it happens to have loaded would put a number on
+   * the dialog that is wrong exactly when it matters, on a long history.
+   */
+  app.get('/api/jobs/clearable', (request) => {
+    const query = clearJobsQuerySchema.parse(request.query);
+    if (query.state !== undefined && !isFinished(query.state)) {
+      return { clearable: 0 };
+    }
+    return { clearable: services.jobs.countFinished(query.state) };
+  });
+
+  app.delete('/api/jobs', (request) => {
+    const query = clearJobsQuerySchema.parse(request.query);
+
+    if (query.state !== undefined && !isFinished(query.state)) {
+      throw new HttpError(
+        400,
+        'job-not-clearable',
+        'Only finished jobs can be cleared. Cancel a job first to stop it.',
+      );
+    }
+
+    return { cleared: services.jobs.clearFinished(query.state) };
   });
 
   app.get('/api/jobs/:id', (request) => {

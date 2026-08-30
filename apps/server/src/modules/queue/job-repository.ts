@@ -9,7 +9,7 @@ import {
   type JobRow,
   type NewJobRow,
 } from '@impressive-ocr/db';
-import { ACTIVE_JOB_STATES } from '@impressive-ocr/shared';
+import { ACTIVE_JOB_STATES, FINISHED_JOB_STATES } from '@impressive-ocr/shared';
 import type { Job, JobEvent, JobState, OutputFormat, PipelineStats } from '@impressive-ocr/shared';
 import { createId } from '../../infra/ids';
 
@@ -355,13 +355,48 @@ export class JobRepository {
       .delete(jobs)
       .where(
         and(
-          inArray(jobs.state, ['succeeded', 'failed', 'quarantined', 'cancelled']),
+          inArray(jobs.state, [...FINISHED_JOB_STATES]),
           sql`${jobs.finishedAt} IS NOT NULL AND ${jobs.finishedAt} < ${cutoff.toISOString()}`,
         ),
       )
       .run();
     return result.changes;
   }
+
+  /**
+   * Delete finished jobs now, rather than waiting for the retention window.
+   *
+   * Queued and running jobs are never touched, whatever is asked for: deleting the row of a
+   * job the scheduler is about to claim -- or is mid-document on -- would leave the sidecar
+   * working on something no longer in the database, and `job_events` cascades away with it.
+   *
+   * `state` narrows it to one of the finished states, so clearing the failures does not also
+   * take the successes. Rows only; the documents and everything written from them are on
+   * disk and are not this repository's to remove.
+   */
+  clearFinished(state?: JobState): number {
+    const states = clearableStates(state);
+    if (states.length === 0) {
+      return 0;
+    }
+    const result = this.db.delete(jobs).where(inArray(jobs.state, states)).run();
+    return result.changes;
+  }
+
+  /** How many rows a clear would take, so the confirmation can name a number. */
+  countFinished(state?: JobState): number {
+    const states = clearableStates(state);
+    if (states.length === 0) {
+      return 0;
+    }
+    const row = this.db
+      .select({ total: sql<number>`count(*)` })
+      .from(jobs)
+      .where(inArray(jobs.state, states))
+      .get();
+    return row?.total ?? 0;
+  }
+
 
   private toJob(row: JobRow): Job {
     return {
@@ -396,4 +431,19 @@ export class JobRepository {
       durationMs: row.durationMs,
     };
   }
+}
+
+/**
+ * The states a clear is allowed to touch, given what was asked for.
+ *
+ * Empty when a live state is named. The route rejects that with a 400 before it gets here, but
+ * this is the boundary that actually protects the running job: a caller that reaches the
+ * repository directly -- another route, a future service, a test -- must not be able to delete
+ * a row the scheduler is mid-document on.
+ */
+function clearableStates(state?: JobState): JobState[] {
+  if (state === undefined) {
+    return [...FINISHED_JOB_STATES];
+  }
+  return (FINISHED_JOB_STATES as readonly JobState[]).includes(state) ? [state] : [];
 }

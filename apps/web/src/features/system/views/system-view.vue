@@ -29,6 +29,15 @@ const appVersion = APP_VERSION;
 
 const refreshing = ref(false);
 const refreshError = ref<string | null>(null);
+/**
+ * What the last check found.
+ *
+ * The button reinstalls the engine unconditionally, so on an up-to-date installation it did
+ * its work and changed nothing visible -- the label read the same before and after, and the
+ * only honest conclusion available to the user was that the button was broken. Saying which
+ * of the two things happened costs one line and is the entire difference.
+ */
+const refreshResult = ref<string | null>(null);
 
 /**
  * The engine's Python is a *copy* in the venv, not the source the app ships. It only changes
@@ -45,9 +54,15 @@ const engineOutdated = computed(() => {
 async function refreshEngine(): Promise<void> {
   refreshing.value = true;
   refreshError.value = null;
+  refreshResult.value = null;
+  // Read before the reinstall, which is what makes them agree afterwards.
+  const wasOutdated = engineOutdated.value;
   try {
     await systemApi.refreshSidecar();
     await store.refresh();
+    refreshResult.value = wasOutdated
+      ? t('runtime.engineUpdated', { version: appVersion })
+      : t('runtime.engineUpToDate', { version: appVersion });
   } catch (error) {
     refreshError.value = error instanceof Error ? error.message : t('errors.saveFailed');
   } finally {
@@ -236,7 +251,7 @@ onMounted(async () => {
 
       <!-- The sidecar is copied into the venv once and never touched again, so an app update
            leaves the engine running the previous Python. Nothing else would show that. -->
-      <div v-if="store.runtimeReady && engineOutdated" class="ocr-alert-warn mt-4">
+      <div v-if="store.runtimeReady && engineOutdated" class="ocr-alert-warning mt-4">
         {{
           t('runtime.engineOutdated', {
             engine: store.runtime?.sidecarVersion ?? '—',
@@ -254,17 +269,26 @@ onMounted(async () => {
           :loading="refreshing"
           @click="refreshEngine"
         >
-          {{ t('runtime.updateEngine') }}
+          {{ t('runtime.checkForUpdates') }}
         </v-btn>
         <span class="text-body-2 text-medium-emphasis ml-3">{{
           t('runtime.updateEngineHint')
         }}</span>
         <div v-if="refreshError" class="ocr-alert-error mt-3">{{ refreshError }}</div>
+        <v-alert
+          v-else-if="refreshResult"
+          type="success"
+          variant="tonal"
+          density="compact"
+          class="mt-3"
+        >
+          {{ refreshResult }}
+        </v-alert>
       </div>
 
       <!-- Absent only on installations set up before this engine existed. Everything still
            works without it; it is just ~28x slower, which is worth one prompt. -->
-      <div v-if="vlServerMissing" class="ocr-alert-warn mt-4">
+      <div v-if="vlServerMissing" class="ocr-alert-warning mt-4">
         {{ t('runtime.vlServerMissing') }}
         <div class="mt-3">
           <v-btn

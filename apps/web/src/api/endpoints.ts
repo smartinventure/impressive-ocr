@@ -196,12 +196,22 @@ export const quickApi = {
   upload: (files: File[], onProgress?: (fraction: number) => void): Promise<{ uploadId: string }> =>
     uploadFiles('/api/quick/uploads', files, onProgress),
 
+  /**
+   * What a folder holds, so the picker can show a count and offer only the types present.
+   *
+   * Per folder rather than for the whole selection: folders are added one at a time, and
+   * re-counting every one of them each time another is added would grow quadratically on a
+   * network share.
+   */
+  folderPreview: (path: string, signal?: AbortSignal): Promise<QuickFolderPreview> =>
+    api.get(`/quick/folder-preview?path=${encodeURIComponent(path)}`, signal),
+
   start: (body: {
     source: 'server' | 'upload';
     files?: string[];
-    /** A folder to take the files from, expanded on the server. Exclusive with `files`. */
-    folderPath?: string;
-    /** Which types to take from that folder, without the dot. */
+    /** Folders to take the files from, expanded on the server. Exclusive with `files`. */
+    folderPaths?: string[];
+    /** Which types to take from those folders, without the dot. */
     extensions?: string[];
     uploadId?: string;
     outputPath?: string;
@@ -233,6 +243,14 @@ export const quickApi = {
   discard: (pipelineId: string, runId: string): Promise<void> =>
     api.delete(`/quick/runs/${pipelineId}?runId=${encodeURIComponent(runId)}`),
 };
+
+export interface QuickFolderPreview {
+  path: string;
+  /** Only the types the folder actually holds, in a stable order. */
+  counts: { extension: string; files: number }[];
+  /** Files the engine cannot read, so a count smaller than the folder is explainable. */
+  other: number;
+}
 
 export interface QuickRunProgress {
   pipelineId: string;

@@ -110,14 +110,18 @@ export const startQuickRunRequestSchema = z
     /** Absolute file paths, for `server` runs that name their files individually. */
     files: z.array(absolutePathSchema).default([]),
     /**
-     * A folder to take the files from instead, for `server` runs.
+     * Folders to take the files from instead, for `server` runs.
      *
      * Expanded on the server rather than in the browser: the picker cannot read a directory,
      * and the desktop's own dialog returns the folder rather than its contents. Not recursive
-     * -- a Quick run is a one-off over a folder someone is looking at, and quietly walking a
+     * -- a Quick run is a one-off over folders someone is looking at, and quietly walking a
      * tree of thousands is not what "run this folder" is asking for.
+     *
+     * A list because one dialog returns one folder, and scans are routinely split across
+     * several of them. The alternative -- one run per folder -- gives up the single progress
+     * bar and the single output folder that are the point of Quick Mode.
      */
-    folderPath: absolutePathSchema.optional(),
+    folderPaths: z.array(absolutePathSchema).default([]),
     /**
      * Which file types to take from that folder, without the dot.
      *
@@ -132,7 +136,7 @@ export const startQuickRunRequestSchema = z
   })
   .refine(
     (value) =>
-      value.source !== 'server' || value.files.length > 0 || value.folderPath !== undefined,
+      value.source !== 'server' || value.files.length > 0 || value.folderPaths.length > 0,
     {
       message: 'Select at least one file, or a folder to take them from.',
       path: ['files'],
@@ -140,11 +144,11 @@ export const startQuickRunRequestSchema = z
   )
   // One or the other, not both: two sources for one run would leave the count on screen
   // disagreeing with what actually ran.
-  .refine((value) => value.folderPath === undefined || value.files.length === 0, {
-    message: 'Choose either files or a folder, not both.',
-    path: ['folderPath'],
+  .refine((value) => value.folderPaths.length === 0 || value.files.length === 0, {
+    message: 'Choose either files or folders, not both.',
+    path: ['folderPaths'],
   })
-  .refine((value) => value.folderPath === undefined || value.extensions.length > 0, {
+  .refine((value) => value.folderPaths.length === 0 || value.extensions.length > 0, {
     message: 'Choose at least one file type.',
     path: ['extensions'],
   })

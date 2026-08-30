@@ -1,35 +1,42 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import {
   isProcessableFile,
   PROCESSABLE_ACCEPT,
   PROCESSABLE_EXTENSIONS,
 } from '@impressive-ocr/shared';
-import { filesystemApi, type FolderEntry } from '../../../api/endpoints';
 import { useDesktopBridge } from '../../../composables/use-desktop-bridge';
+import { useFolderPreviews } from '../composables/use-folder-previews';
+import { parentFolderOf, recallInputFolder, rememberInputFolder } from '../composables/last-folder';
+import ServerFileBrowser from './server-file-browser.vue';
 
 /**
- * Choose the files for a Quick run.
+ * Choose what a Quick run reads: named files, or whole folders.
  *
  * Three situations, not two. In the desktop app the server *is* this computer, so the native
  * dialog hands back real paths and nothing is copied — one option, no choice to make. In a
  * browser there are genuinely two machines: this one (upload) and the server (browse). Upload
  * leads, because someone opening the UI in a browser is usually not sitting at the server.
  *
- * Selected files accumulate. Picking again adds to the list rather than replacing it, which is
- * what a plain file input does and what made adding a second file lose the first.
+ * Files and folders are mutually exclusive, and enforced by disabling rather than by clearing.
+ * They are not the same kind of choice — named files are a list the user curates, a folder is
+ * a standing instruction whose contents the server resolves — and a run mixing them would show
+ * a count that did not match what ran. Silently discarding one when the other is used looks
+ * like a bug; a disabled button that says why teaches the rule once.
  */
 
 const props = defineProps<{
   source: 'server' | 'upload';
   serverFiles: string[];
   uploadFiles: File[];
-  /** A folder to take the files from instead, expanded by the server. */
-  serverFolder: string;
-  /** Which types to take from that folder, without the dot. */
+  /** Folders to take the files from instead, expanded by the server. */
+  serverFolders: string[];
+  /** Which types to take from those folders, without the dot. */
   folderExtensions: string[];
+  /** What those folders and types come to; counted here, needed by the Start button. */
+  folderFileCount: number;
   disabled?: boolean;
 }>();
 
@@ -37,15 +44,16 @@ const emit = defineEmits<{
   'update:source': ['server' | 'upload'];
   'update:serverFiles': [string[]];
   'update:uploadFiles': [File[]];
-  'update:serverFolder': [string];
+  'update:serverFolders': [string[]];
   'update:folderExtensions': [string[]];
+  'update:folderFileCount': [number];
 }>();
 
 const { t } = useI18n();
 const desktop = useDesktopBridge();
 
 /**
- * True while a file dialog is being opened or a folder listed.
+ * True while a file dialog is being opened.
  *
  * The desktop path is the one that needed it: `selectFiles` crosses to the main process and
  * puts up a native modal, and until it comes back the window genuinely cannot repaint. With
@@ -53,40 +61,31 @@ const desktop = useDesktopBridge();
  * exactly how it was reported.
  */
 const picking = ref(false);
-
+const pickingFolder = ref(false);
 const browsing = ref(false);
-const currentPath = ref<string | null>(null);
-const parentPath = ref<string | null>(null);
-const entries = ref<FolderEntry[]>([]);
-const loading = ref(false);
-const browseError = ref<string | null>(null);
 const rejected = ref<string[]>([]);
 
 /** The hidden native input, driven by the visible button beside it. */
 const uploadInput = ref<HTMLInputElement | null>(null);
+const browser = ref<InstanceType<typeof ServerFileBrowser> | null>(null);
 
 /** The desktop has one machine, so offering a choice between two would be meaningless. */
 const showSourceChoice = computed(() => !desktop.isDesktop.value);
 
-const folders = computed(() => entries.value.filter((entry) => entry.isDirectory));
+const selectedExtensions = computed(() => props.folderExtensions);
+const previews = useFolderPreviews(selectedExtensions);
 
-/** Only what the engine can read; anything else would fail after the run started. */
-const files = computed(() =>
-  entries.value.filter((entry) => !entry.isDirectory && isProcessableFile(entry.name)),
-);
+// The count belongs to the Start button, which lives two components up. Emitted rather than
+// recomputed there because only this side holds the per-folder listings it comes from.
+watch(previews.selectedFileCount, (count) => emit('update:folderFileCount', count), {
+  immediate: true,
+});
 
-const hiddenFileCount = computed(
-  () => entries.value.filter((entry) => !entry.isDirectory).length - files.value.length,
-);
+/** Chips for types no chosen folder holds would offer a filter that does nothing. */
+const extensionChips = computed(() => previews.availableExtensions.value);
 
-const selected = computed(() =>
-  props.source === 'server'
-    ? props.serverFiles.map((path) => ({ key: path, label: path, size: null as number | null }))
-    : props.uploadFiles.map((file) => ({ key: file.name, label: file.name, size: file.size })),
-);
-
-/** Desktop: the native dialog. Browser: the server-side browser. */
-const pickingFolder = ref(false);
+const hasFolders = computed(() => props.serverFolders.length > 0);
+const hasFiles = computed(() => props.serverFiles.length > 0);
 
 /**
  * Only where a folder can actually be chosen.
@@ -97,27 +96,48 @@ const pickingFolder = ref(false);
  */
 const canPickFolder = computed(() => props.source === 'server' && desktop.isDesktop.value);
 
-/**
- * Pick a folder rather than its files.
- *
- * Clears any individually chosen files: a run taking some of each would show a count that did
- * not match what ran, and the two answers to "what is in this run" would disagree.
- */
+/** Why a button is greyed out, or what it does when it is not. */
+const addFilesHint = computed(() =>
+  hasFolders.value ? t('quick.filesBlockedByFolder') : t('quick.addFilesHint'),
+);
+const addFolderHint = computed(() =>
+  hasFiles.value ? t('quick.folderBlockedByFiles') : t('quick.addFolderHint'),
+);
+
+const selected = computed(() =>
+  props.source === 'server'
+    ? props.serverFiles.map((path) => ({ key: path, label: path, size: null as number | null }))
+    : props.uploadFiles.map((file) => ({ key: file.name, label: file.name, size: file.size })),
+);
+
+/** Add a folder to the list, count it, and remember where the dialog got to. */
 async function chooseServerFolder(): Promise<void> {
   pickingFolder.value = true;
   try {
-    const chosen = await desktop.selectFolder({ title: t('quick.chooseFolder') });
+    const startAt = recallInputFolder();
+    const chosen = await desktop.selectFolder({
+      title: t('quick.chooseFolder'),
+      ...(startAt === undefined ? {} : { defaultPath: startAt }),
+    });
     if (chosen === null) return;
-    emit('update:serverFiles', []);
-    emit('update:serverFolder', chosen);
+
+    rememberInputFolder(chosen);
+    // The same folder twice would double every count and queue every file twice.
+    if (!props.serverFolders.includes(chosen)) {
+      emit('update:serverFolders', [...props.serverFolders, chosen]);
+    }
+    await previews.load(chosen);
   } finally {
     pickingFolder.value = false;
   }
 }
 
-/** Choosing files again abandons the folder, for the same reason. */
-function clearFolder(): void {
-  if (props.serverFolder !== '') emit('update:serverFolder', '');
+function removeFolder(path: string): void {
+  previews.forget(path);
+  emit(
+    'update:serverFolders',
+    props.serverFolders.filter((entry) => entry !== path),
+  );
 }
 
 function toggleExtension(extension: string): void {
@@ -131,56 +151,33 @@ async function chooseServerFiles(): Promise<void> {
   picking.value = true;
   try {
     if (desktop.isDesktop.value) {
+      const startAt = recallInputFolder();
       const picked = await desktop.selectFiles({
         title: t('quick.chooseFiles'),
         extensions: [...PROCESSABLE_EXTENSIONS],
+        ...(startAt === undefined ? {} : { defaultPath: startAt }),
       });
-      if (picked.length > 0) addServerFiles(picked);
+      if (picked.length > 0) {
+        rememberInputFolder(parentFolderOf(picked[picked.length - 1] ?? ''));
+        addServerFiles(picked);
+      }
       return;
     }
 
     browsing.value = true;
-    await navigate(null);
+    await browser.value?.open(recallInputFolder() ?? null);
   } finally {
     picking.value = false;
   }
 }
 
-async function navigate(path: string | null): Promise<void> {
-  loading.value = true;
-  browseError.value = null;
-  try {
-    const result = await filesystemApi.browse(path, 'system', true);
-    currentPath.value = result.currentPath;
-    parentPath.value = result.parentPath;
-    entries.value = result.entries;
-  } catch (error) {
-    browseError.value = error instanceof Error ? error.message : t('quick.browseFailed');
-  } finally {
-    loading.value = false;
-  }
-}
-
 /** Add without duplicating: picking the same file twice should not queue it twice. */
 function addServerFiles(paths: readonly string[]): void {
-  // Naming files abandons a chosen folder: the run is one or the other.
-  clearFolder();
   const merged = [...props.serverFiles];
   for (const path of paths) {
     if (!merged.includes(path)) merged.push(path);
   }
   emit('update:serverFiles', merged);
-}
-
-function toggleServerFile(path: string): void {
-  if (props.serverFiles.includes(path)) {
-    emit(
-      'update:serverFiles',
-      props.serverFiles.filter((entry) => entry !== path),
-    );
-  } else {
-    addServerFiles([path]);
-  }
 }
 
 /**
@@ -274,67 +271,43 @@ function formatSize(bytes: number | null): string {
       <v-btn value="server" prepend-icon="dns">{{ t('quick.sourceServer') }}</v-btn>
     </v-btn-toggle>
 
-    <!-- What was chosen, and what will be taken from it. The chips are the only place the
-         run's scope is visible: the file list stays empty because the server does the
-         listing, so without them "run this folder" says nothing about what that means. -->
-    <div v-if="serverFolder !== ''" class="quick-picker__folder mb-3">
-      <div class="d-flex align-center ga-2 mb-2">
-        <v-icon icon="folder_open" size="18" />
-        <span class="ocr-mono text-body-2">{{ serverFolder }}</span>
-        <v-btn
-          icon="close"
-          size="x-small"
-          variant="text"
-          :title="t('quick.clearFolder')"
-          :disabled="disabled"
-          @click="emit('update:serverFolder', '')"
-        />
-      </div>
-      <div class="d-flex ga-2 flex-wrap">
-        <v-chip
-          v-for="extension in PROCESSABLE_EXTENSIONS"
-          :key="extension"
-          size="small"
-          label
-          :variant="folderExtensions.includes(extension) ? 'flat' : 'outlined'"
-          :color="folderExtensions.includes(extension) ? 'primary' : undefined"
-          :disabled="disabled"
-          @click="toggleExtension(extension)"
-        >
-          {{ extension.toUpperCase() }}
-        </v-chip>
-      </div>
-      <p v-if="folderExtensions.length === 0" class="text-caption text-error mt-2 mb-0">
-        {{ t('quick.noExtensions') }}
-      </p>
+    <!-- The two ways in, explained before they are offered. What happens to the originals is
+         the part that differs, and not something to discover afterwards. -->
+    <div v-if="source === 'server'" class="text-body-2 text-medium-emphasis mb-3">
+      <p class="mb-1">{{ t('quick.pickIntroFiles') }}</p>
+      <p class="mb-0">{{ t('quick.pickIntroFolders') }}</p>
     </div>
 
     <div class="d-flex ga-3 flex-wrap align-center mb-3">
-      <v-btn
-        v-if="source === 'server'"
-        variant="tonal"
-        color="primary"
-        prepend-icon="description"
-        :disabled="disabled"
-        :loading="picking"
-        @click="chooseServerFiles"
-      >
-        {{ t('quick.addFiles') }}
-      </v-btn>
+      <!-- A disabled button emits no pointer events, so a tooltip bound to one never opens.
+           The hint goes on a wrapping span, which does. -->
+      <span v-if="source === 'server'" :title="addFilesHint">
+        <v-btn
+          variant="tonal"
+          color="primary"
+          prepend-icon="description"
+          :disabled="disabled || hasFolders"
+          :loading="picking"
+          @click="chooseServerFiles"
+        >
+          {{ t('quick.addFiles') }}
+        </v-btn>
+      </span>
 
-      <!-- The whole folder, as an alternative to naming its files. The server lists it: a web
+      <!-- Whole folders, as an alternative to naming their files. The server lists them: a web
            page cannot read a directory, and the desktop's dialog hands back the folder rather
            than what is in it. -->
-      <v-btn
-        v-if="canPickFolder"
-        variant="tonal"
-        prepend-icon="folder_open"
-        :disabled="disabled"
-        :loading="pickingFolder"
-        @click="chooseServerFolder"
-      >
-        {{ t('quick.addFolder') }}
-      </v-btn>
+      <span v-if="canPickFolder" :title="addFolderHint">
+        <v-btn
+          variant="tonal"
+          prepend-icon="folder_open"
+          :disabled="disabled || hasFiles"
+          :loading="pickingFolder"
+          @click="chooseServerFolder"
+        >
+          {{ t('quick.addFolder') }}
+        </v-btn>
+      </span>
 
       <!-- Its own condition, not `v-else`. `v-else` binds to whatever `v-if` precedes it, so
            adding the folder button above silently re-pointed this at *that* condition: in a
@@ -379,6 +352,76 @@ function formatSize(bytes: number | null): string {
       </span>
     </div>
 
+    <!-- The folders, and what will be taken from them. The chips are the only place the run's
+         scope is visible: the file list stays empty because the server does the listing. -->
+    <div v-if="hasFolders" class="quick-picker__folder mb-3">
+      <div
+        v-for="folder in serverFolders"
+        :key="folder"
+        class="d-flex align-center ga-2 mb-1 flex-wrap"
+      >
+        <v-icon icon="folder_open" size="18" />
+        <span class="ocr-mono text-body-2">{{ folder }}</span>
+        <span v-if="previews.errors.value[folder]" class="text-caption text-error">
+          {{ previews.errors.value[folder] }}
+        </span>
+        <span v-else class="text-caption text-medium-emphasis">
+          {{ t('quick.folderFileCount', { count: previews.countFor(folder) }) }}
+        </span>
+        <v-btn
+          icon="close"
+          size="x-small"
+          variant="text"
+          :title="t('quick.clearFolder')"
+          :disabled="disabled"
+          @click="removeFolder(folder)"
+        />
+      </div>
+
+      <div v-if="extensionChips.length > 0" class="d-flex ga-2 flex-wrap mt-2">
+        <v-chip
+          v-for="extension in extensionChips"
+          :key="extension"
+          size="small"
+          label
+          :variant="folderExtensions.includes(extension) ? 'flat' : 'outlined'"
+          :color="folderExtensions.includes(extension) ? 'primary' : undefined"
+          :disabled="disabled"
+          @click="toggleExtension(extension)"
+        >
+          {{ extension.toUpperCase() }}
+        </v-chip>
+      </div>
+
+      <v-progress-circular
+        v-if="previews.loading.value"
+        indeterminate
+        size="16"
+        width="2"
+        class="mt-2"
+      />
+      <template v-else>
+        <p class="text-body-2 mt-2 mb-0">
+          {{ t('quick.folderTotal', { count: previews.selectedFileCount.value }) }}
+        </p>
+        <p v-if="previews.unreadableCount.value > 0" class="text-caption text-medium-emphasis mb-0">
+          {{ t('quick.folderUnreadable', { count: previews.unreadableCount.value }) }}
+        </p>
+        <p v-if="extensionChips.length === 0" class="text-caption text-error mt-2 mb-0">
+          {{ t('quick.folderNothingReadable') }}
+        </p>
+        <!-- Keyed on the count, not on the selection. The selection holds every readable type
+             by default, so unticking the one chip a folder actually offers leaves seven others
+             selected and this would never fire -- while nothing at all would be read. -->
+        <p
+          v-else-if="previews.selectedFileCount.value === 0"
+          class="text-caption text-error mt-2 mb-0"
+        >
+          {{ t('quick.noExtensions') }}
+        </p>
+      </template>
+    </div>
+
     <v-alert
       v-if="rejected.length > 0"
       type="warning"
@@ -408,79 +451,28 @@ function formatSize(bytes: number | null): string {
       </v-list-item>
     </v-list>
 
-    <p v-else class="text-body-2 text-medium-emphasis">{{ t('quick.noFilesYet') }}</p>
+    <p v-else-if="!hasFolders" class="text-body-2 text-medium-emphasis">
+      {{ t('quick.noFilesYet') }}
+    </p>
 
-    <v-dialog v-model="browsing" max-width="720">
-      <v-card>
-        <v-card-title class="text-subtitle-1">{{ t('quick.addFiles') }}</v-card-title>
-        <v-card-subtitle class="text-caption">
-          {{ currentPath ?? t('quick.thisComputer') }}
-        </v-card-subtitle>
-
-        <v-card-text style="max-height: 60vh; overflow-y: auto">
-          <v-alert v-if="browseError" type="error" density="compact" class="mb-3">
-            {{ browseError }}
-          </v-alert>
-          <v-progress-linear v-if="loading" indeterminate class="mb-2" />
-
-          <v-list density="compact">
-            <v-list-item
-              v-if="parentPath !== null"
-              prepend-icon="arrow_upward"
-              :title="t('quick.up')"
-              @click="navigate(parentPath)"
-            />
-            <v-list-item
-              v-for="folder in folders"
-              :key="folder.path"
-              prepend-icon="folder"
-              :title="folder.name"
-              :disabled="!folder.isAccessible"
-              @click="navigate(folder.path)"
-            />
-            <v-list-item
-              v-for="file in files"
-              :key="file.path"
-              :title="file.name"
-              :subtitle="formatSize(file.sizeBytes)"
-              @click="toggleServerFile(file.path)"
-            >
-              <template #prepend>
-                <v-checkbox-btn
-                  :model-value="serverFiles.includes(file.path)"
-                  density="compact"
-                  @click.stop="toggleServerFile(file.path)"
-                />
-              </template>
-            </v-list-item>
-          </v-list>
-
-          <p v-if="hiddenFileCount > 0" class="text-caption text-medium-emphasis mt-2">
-            {{ t('quick.hiddenFiles', { count: hiddenFileCount }) }}
-          </p>
-        </v-card-text>
-
-        <v-card-actions>
-          <span class="text-caption text-medium-emphasis ml-2">
-            {{ t('quick.selectedCount', { count: serverFiles.length }) }}
-          </span>
-          <v-spacer />
-          <v-btn variant="text" @click="browsing = false">{{ t('quick.done') }}</v-btn>
-        </v-card-actions>
-      </v-card>
-    </v-dialog>
+    <ServerFileBrowser
+      ref="browser"
+      v-model="browsing"
+      :selected="serverFiles"
+      @update:selected="emit('update:serverFiles', $event)"
+    />
   </div>
 </template>
 
 <style scoped>
-/* Driven by the button beside it; the native control is never shown. */
-/* Boxed so the folder and its types read as one choice rather than two loose rows. */
+/* Boxed so the folders and their types read as one choice rather than several loose rows. */
 .quick-picker__folder {
   border: 1px solid rgb(var(--v-theme-outline-variant));
   border-radius: 8px;
   padding: 12px;
 }
 
+/* Driven by the button beside it; the native control is never shown. */
 .quick-picker__input {
   display: none;
 }

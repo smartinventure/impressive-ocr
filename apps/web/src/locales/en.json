@@ -118,11 +118,13 @@
     "planFailed": "Could not work out what would be installed. Is the service still running?",
     "engineVersion": "OCR engine",
     "engineOutdated": "The OCR engine is version {engine}, but this application is {app}. It was installed once and is not updated automatically — update it to pick up recognition improvements.",
-    "updateEngine": "Update the OCR engine",
     "updateEngineHint": "Takes seconds and downloads nothing.",
     "vlServerMissing": "The fast inference engine is not installed. Accurate mode still works, but takes roughly 28 times longer per page and cannot run without a graphics card.",
     "installVlServer": "Install the fast engine",
-    "installVlServerHint": "About 1.9 GB, downloaded once."
+    "installVlServerHint": "About 1.9 GB, downloaded once.",
+    "checkForUpdates": "Check for updates",
+    "engineUpToDate": "You already have the latest version ({version}). Nothing to update.",
+    "engineUpdated": "The OCR engine was updated to {version}."
   },
   "errors": {
     "loadFailed": "Could not load data from the service.",
@@ -449,7 +451,17 @@
     "addFolder": "Add a folder",
     "chooseFolder": "Choose a folder to read",
     "clearFolder": "Remove this folder",
-    "noExtensions": "Choose at least one file type, or nothing will be read."
+    "noExtensions": "Choose at least one file type, or nothing will be read.",
+    "pickIntroFiles": "Add files — pick documents one by one. They are read where they are and nothing is moved.",
+    "pickIntroFolders": "Add a folder — read everything in one folder, without listing it. The folder is left exactly as it is: nothing is moved, renamed or deleted, and the results are written to the output folder below. Subfolders are not included.",
+    "addFilesHint": "Choose individual documents to read.",
+    "addFolderHint": "Read a whole folder at once. Add more than one if your scans are split up.",
+    "filesBlockedByFolder": "Remove the folders first. A run reads either named files or whole folders, not both.",
+    "folderBlockedByFiles": "Remove the chosen files first. A run reads either named files or whole folders, not both.",
+    "folderFileCount": "{count} readable file(s)",
+    "folderTotal": "{count} file(s) will be read.",
+    "folderUnreadable": "{count} other file(s) in these folders will be ignored — Impressive OCR cannot read them.",
+    "folderNothingReadable": "Nothing here can be read. These folders hold no PDFs or images."
   },
   "logs": {
     "subtitle": "Everything the service has recorded. Useful when a document fails and the reason is not obvious.",

@@ -118,11 +118,13 @@
     "planFailed": "Es konnte nicht ermittelt werden, was installiert würde. Läuft der Dienst noch?",
     "engineVersion": "OCR-Engine",
     "engineOutdated": "Die OCR-Engine hat Version {engine}, die Anwendung dagegen {app}. Sie wird einmalig installiert und nicht automatisch aktualisiert — jetzt aktualisieren, um Verbesserungen der Texterkennung zu erhalten.",
-    "updateEngine": "OCR-Engine aktualisieren",
     "updateEngineHint": "Dauert Sekunden und lädt nichts herunter.",
     "vlServerMissing": "Die schnelle Inferenz-Engine ist nicht installiert. Der Genau-Modus funktioniert weiterhin, benötigt aber rund 28-mal länger pro Seite und läuft nicht ohne Grafikkarte.",
     "installVlServer": "Schnelle Engine installieren",
-    "installVlServerHint": "Rund 1,9 GB, einmaliger Download."
+    "installVlServerHint": "Rund 1,9 GB, einmaliger Download.",
+    "checkForUpdates": "Nach Updates suchen",
+    "engineUpToDate": "Sie haben bereits die neueste Version ({version}). Es gibt nichts zu aktualisieren.",
+    "engineUpdated": "Die OCR-Engine wurde auf {version} aktualisiert."
   },
   "errors": {
     "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",
@@ -449,7 +451,17 @@
     "addFolder": "Ordner hinzufügen",
     "chooseFolder": "Ordner zum Einlesen wählen",
     "clearFolder": "Diesen Ordner entfernen",
-    "noExtensions": "Wählen Sie mindestens einen Dateityp, sonst wird nichts eingelesen."
+    "noExtensions": "Wählen Sie mindestens einen Dateityp, sonst wird nichts eingelesen.",
+    "pickIntroFiles": "Dateien hinzufügen — Dokumente einzeln auswählen. Sie werden dort gelesen, wo sie liegen; nichts wird verschoben.",
+    "pickIntroFolders": "Ordner hinzufügen — einen kompletten Ordner lesen, ohne ihn aufzulisten. Der Ordner bleibt genau so, wie er ist: nichts wird verschoben, umbenannt oder gelöscht, und die Ergebnisse landen im Ausgabeordner unten. Unterordner werden nicht einbezogen.",
+    "addFilesHint": "Einzelne Dokumente zum Lesen auswählen.",
+    "addFolderHint": "Einen ganzen Ordner auf einmal lesen. Mehrere hinzufügen, wenn die Scans verteilt liegen.",
+    "filesBlockedByFolder": "Erst die Ordner entfernen. Ein Lauf liest entweder einzelne Dateien oder ganze Ordner, nicht beides.",
+    "folderBlockedByFiles": "Erst die ausgewählten Dateien entfernen. Ein Lauf liest entweder einzelne Dateien oder ganze Ordner, nicht beides.",
+    "folderFileCount": "{count} lesbare Datei(en)",
+    "folderTotal": "{count} Datei(en) werden gelesen.",
+    "folderUnreadable": "{count} weitere Datei(en) in diesen Ordnern werden übergangen — Impressive OCR kann sie nicht lesen.",
+    "folderNothingReadable": "Hier ist nichts zu lesen. Diese Ordner enthalten keine PDFs oder Bilder."
   },
   "logs": {
     "subtitle": "Alles, was der Dienst aufgezeichnet hat. Hilfreich, wenn ein Dokument fehlschlägt und der Grund nicht offensichtlich ist.",

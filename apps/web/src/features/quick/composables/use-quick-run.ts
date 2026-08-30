@@ -157,15 +157,24 @@ export function useQuickRun() {
   const source = ref<'server' | 'upload'>(remembered?.source ?? 'upload');
   const serverFiles = ref<string[]>([]);
   /**
-   * A folder to take the files from, instead of naming them one by one.
+   * Folders to take the files from, instead of naming them one by one.
    *
-   * Empty unless the user picked one. The two are exclusive: choosing a folder clears any
-   * individually picked files and vice versa, because a run that took some of each would put
-   * a count on screen that did not match what ran.
+   * Empty unless the user picked one. Files and folders are mutually exclusive -- the picker
+   * disables whichever is not in use -- because a run that took some of each would put a
+   * count on screen that did not match what ran.
    */
-  const serverFolder = ref('');
-  /** File types to take from that folder, as chosen in the chips. */
+  const serverFolders = ref<string[]>([]);
+  /** File types to take from those folders, as chosen in the chips. */
   const folderExtensions = ref<string[]>([...PROCESSABLE_EXTENSIONS]);
+  /**
+   * How many files the chosen folders and types actually come to.
+   *
+   * Counted by the server and reported back up by the picker, because only the server can
+   * list a directory. Kept here so `canStart` can refuse a selection that would run nothing:
+   * a folder of PNGs with only PDF ticked is a valid-looking choice that produces the error
+   * "that folder is empty" after the click, which explains nothing.
+   */
+  const folderFileCount = ref(0);
   const uploadFiles = ref<File[]>([]);
   const outputPath = ref(remembered?.outputPath ?? '');
   const options = ref<QuickOptions>(remembered?.options ?? quickOptionsSchema.parse({}));
@@ -178,6 +187,28 @@ export function useQuickRun() {
     // The native dialog returns real paths, so the desktop never uploads to itself.
     source.value = 'server';
   }
+
+  /**
+   * Keep the output folder and the settings as they are chosen, not once a run is accepted.
+   *
+   * Storing them at the end of `start` meant that setting Quick Mode up and coming back to it
+   * later -- which is how it is usually met -- lost the output folder every time. The reason
+   * it was done there was to avoid restoring something the server had refused; `recallSettings`
+   * already re-parses on the way back in, so a value a later build no longer accepts is
+   * dropped then. What is left is the smaller risk that a path the server rejected is offered
+   * again, which is visible and correctable, unlike silently forgetting it.
+   */
+  watch(
+    [options, source, outputPath],
+    () => {
+      rememberSettings({
+        options: options.value,
+        source: source.value,
+        outputPath: outputPath.value,
+      });
+    },
+    { deep: true },
+  );
 
   /**
    * Preselect the better profile once the machine's capabilities are known.
@@ -226,14 +257,17 @@ export function useQuickRun() {
     source.value === 'server' ? serverFiles.value.length : uploadFiles.value.length,
   );
 
-  /** A folder run has files too; the server counts them, so this side cannot. */
-  const hasFolder = computed(() => source.value === 'server' && serverFolder.value.trim() !== '');
+  /** A folder run has files too; the server lists them, so this side only counts them. */
+  const hasFolder = computed(() => source.value === 'server' && serverFolders.value.length > 0);
 
   const canStart = computed(() => {
     if (busy.value || run.value !== null) return false;
     // A folder stands in for the files: how many there are is only known on the server.
     if (fileCount.value === 0 && !hasFolder.value) return false;
     if (hasFolder.value && folderExtensions.value.length === 0) return false;
+    // Zero is also what a folder still being counted reports, which is the right answer: the
+    // button should not go live until the count it is guarding is known.
+    if (hasFolder.value && folderFileCount.value === 0) return false;
     // Uploads always come back as a download; only a server-side run needs somewhere to put
     // its results.
     return source.value === 'upload' || outputPath.value.trim().length > 0;
@@ -420,20 +454,13 @@ export function useQuickRun() {
           source: 'server',
           files: hasFolder.value ? [] : [...serverFiles.value],
           ...(hasFolder.value
-            ? { folderPath: serverFolder.value.trim(), extensions: [...folderExtensions.value] }
+            ? { folderPaths: [...serverFolders.value], extensions: [...folderExtensions.value] }
             : {}),
           outputPath: outputPath.value.trim(),
           options: options.value,
         });
       }
       rememberRun(run.value);
-      // Stored only once a run has actually been accepted, so a setting that the server
-      // refused is never the one waiting for the user next time.
-      rememberSettings({
-        options: options.value,
-        source: source.value,
-        outputPath: outputPath.value,
-      });
       startPolling();
     } catch (caught) {
       error.value = caught instanceof ApiRequestError ? caught.message : 'Could not start the run.';
@@ -536,8 +563,9 @@ export function useQuickRun() {
     error,
     fileCount,
     canStart,
-    serverFolder,
+    serverFolders,
     folderExtensions,
+    folderFileCount,
     hasFolder,
     isRunning,
     isFinished,

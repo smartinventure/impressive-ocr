@@ -16,7 +16,7 @@ import { archiveFileName, buildResultArchive } from '../../modules/quick/result-
 import type { AppServices } from '../../app-services';
 import type { AppFastify } from '../fastify-types';
 import { HttpError } from '../errors';
-import { expandFolder } from '../../modules/quick/folder-expansion';
+import { expandFolders, previewFolder } from '../../modules/quick/folder-expansion';
 
 /**
  * Quick Mode: OCR a few files once, without configuring a watched folder.
@@ -97,13 +97,13 @@ export function registerQuickRoutes(app: AppFastify, services: AppServices): voi
         });
       }
 
-      // A folder is turned into its files here, where the filesystem is. The path goes
+      // Folders are turned into their files here, where the filesystem is. Each path goes
       // through the same allowlist check a pipeline's would: browsing a folder is not consent
       // to read everything in it.
       const files =
-        body.folderPath === undefined
+        body.folderPaths.length === 0
           ? body.files
-          : await filesFromFolder(body.folderPath, body.extensions, services);
+          : await filesFromFolders(body.folderPaths, body.extensions, services);
 
       return await quick.start({
         source: 'server',
@@ -116,6 +116,30 @@ export function registerQuickRoutes(app: AppFastify, services: AppServices): voi
         throw new HttpError(400, error.reason, error.message);
       }
       throw error;
+    }
+  });
+
+  /**
+   * What a folder holds, before it is run.
+   *
+   * Asked as soon as a folder is chosen, so the picker can offer only the file types that are
+   * actually in there and put a number against the run. Choosing a folder from a dialog tells
+   * the user its name and nothing else; "18 PDFs and 4 JPEGs" is the part they need to decide
+   * whether it is the right folder at all.
+   *
+   * Authorised exactly as starting a run is: counting files in a folder is reading a
+   * directory, and this endpoint must not become a way to probe the filesystem.
+   */
+  app.get('/api/quick/folder-preview', async (request) => {
+    const query = folderPreviewQuerySchema.parse(request.query);
+    const resolved = await services.resolveFolder(query.path, true);
+
+    try {
+      return { path: query.path, ...(await previewFolder(resolved)) };
+    } catch {
+      // The folder passed the allowlist but could not be listed -- removed since it was
+      // picked, or no permission. Generic on purpose; the detail is in the server log.
+      throw new HttpError(400, 'folder-unreadable', 'That folder could not be read.');
     }
   });
 
@@ -256,28 +280,33 @@ function sanitizeUploadName(filename: string, index: number): string {
   return cleaned.length > 0 ? cleaned : `upload-${index + 1}`;
 }
 
+const folderPreviewQuerySchema = z.object({ path: z.string().min(1).max(4096) });
+
 /**
- * The files inside a folder the user chose, authorised and filtered.
+ * The files inside the folders the user chose, authorised and filtered.
  *
  * The empty case is an error rather than an empty run: "nothing happened" with no reason is
  * the least useful outcome, and the two reasons -- wrong folder, or wrong file types -- call
  * for different corrections.
  */
-async function filesFromFolder(
-  folderPath: string,
+async function filesFromFolders(
+  folderPaths: readonly string[],
   extensions: readonly string[],
   services: AppServices,
 ): Promise<string[]> {
-  const resolved = await services.resolveFolder(folderPath, true);
-  const expansion = await expandFolder(resolved, extensions);
+  const resolved: string[] = [];
+  for (const folderPath of folderPaths) {
+    resolved.push(await services.resolveFolder(folderPath, true));
+  }
+  const expansion = await expandFolders(resolved, extensions);
 
   if (expansion.files.length === 0) {
     throw new HttpError(
       400,
       'no-files',
       expansion.skipped > 0
-        ? 'That folder has no files of the types you chose.'
-        : 'That folder is empty.',
+        ? 'Those folders have no files of the types you chose.'
+        : 'Those folders are empty.',
     );
   }
   return expansion.files;

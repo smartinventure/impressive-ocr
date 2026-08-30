@@ -139,15 +139,74 @@ async function listRoots(options: BrowseOptions): Promise<BrowseResult> {
   };
 }
 
+/**
+ * How long a probed drive list is trusted before it is asked for again.
+ *
+ * Drives are mapped and unmapped by hand, minutes apart at the very fastest, so a minute of
+ * staleness costs nothing a refresh does not fix.
+ */
+const SYSTEM_ROOTS_TTL_MS = 60_000;
+
+let systemRootsCache: { roots: string[]; at: number } | null = null;
+let systemRootsInFlight: Promise<string[]> | null = null;
+
+/**
+ * The machine's drives, remembered between browses.
+ *
+ * Not an optimisation -- a correctness fix for the rest of the process. `access` on a drive
+ * root is the only way Node can ask whether a letter is mapped, and on a *disconnected*
+ * network drive Windows takes its time answering: measured at 63 seconds for a stale `L:`
+ * mapping on one machine here. `withTimeout` abandons the promise after three seconds so the
+ * user still gets their list, but it cannot cancel the syscall underneath. The libuv thread
+ * stays pinned until Windows returns, and libuv has four of those by default -- so four root
+ * listings in one process is every thread gone, and every other file operation, including
+ * reading a document to OCR it, queues behind a drive nobody asked about.
+ *
+ * Probing once per TTL instead of once per browse holds that to a single pinned thread, and
+ * makes every listing after the first instant. `systemRootsInFlight` matters as much as the
+ * cache: two browses arriving together must share one probe rather than start two.
+ *
+ * Module-level state is deliberate, and is the same exception the sidecar's warm-model cache
+ * is granted: this is a memo of the machine's own shape, not service state. Nothing reads it
+ * but the function below.
+ */
 async function systemRoots(): Promise<string[]> {
+  const cached = systemRootsCache;
+  if (cached !== null && Date.now() - cached.at < SYSTEM_ROOTS_TTL_MS) {
+    return cached.roots;
+  }
+  if (systemRootsInFlight !== null) {
+    return systemRootsInFlight;
+  }
+
+  systemRootsInFlight = probeSystemRoots()
+    .then((roots) => {
+      systemRootsCache = { roots, at: Date.now() };
+      return roots;
+    })
+    .finally(() => {
+      systemRootsInFlight = null;
+    });
+
+  return systemRootsInFlight;
+}
+
+/** Forget the probed drive list, so the next browse asks the machine again. */
+export function resetSystemRootsCache(): void {
+  systemRootsCache = null;
+  systemRootsInFlight = null;
+}
+
+async function probeSystemRoots(): Promise<string[]> {
   if (process.platform !== 'win32') {
     // The host mount first when there is one: in a container the operator came looking for
     // their own machine, and `/` is this container's short and unfamiliar tree.
     const host = (await hasHostMount()) ? [HOST_MOUNT] : [];
     return [...host, '/', homedir()];
   }
-  // No API enumerates drives without a native dependency, so probe the letters. Each check
-  // is a cheap `access`, and an unmapped letter fails immediately.
+  // No API enumerates drives without a native dependency, so probe the letters. An unmapped
+  // letter fails immediately; a *disconnected* one does not, which is why this runs at most
+  // once a minute -- see `systemRoots` above.
   const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
   const found = await Promise.all(
     letters.map(async (letter) => {

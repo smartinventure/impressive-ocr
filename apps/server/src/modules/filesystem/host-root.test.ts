@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 /**
  * `/host` as a browse root, which is the half of the feature a unit test can still reach.
@@ -24,7 +24,7 @@ vi.mock('./host-mount', async (importOriginal) => {
   return { ...actual, hasHostMount };
 });
 
-const { browseFolders } = await import('./folder-browser');
+const { browseFolders, resetSystemRootsCache } = await import('./folder-browser');
 
 /**
  * A container is Linux, and this suite runs on whatever the developer has.
@@ -39,8 +39,18 @@ function pretendLinux(): void {
   Object.defineProperty(process, 'platform', { value: 'linux', configurable: true });
 }
 
+/**
+ * The drive list is probed at most once a minute and remembered in between, so without this
+ * the second test in the file is answered from the first one's cache -- and a machine with a
+ * host mount goes on reporting one after it has been taken away.
+ */
+beforeEach(() => {
+  resetSystemRootsCache();
+});
+
 afterEach(() => {
   Object.defineProperty(process, 'platform', { value: realPlatform, configurable: true });
+  resetSystemRootsCache();
 });
 
 async function systemRootNames(): Promise<string[]> {

@@ -336,7 +336,12 @@ function formatSize(bytes: number | null): string {
         {{ t('quick.addFolder') }}
       </v-btn>
 
-      <template v-else>
+      <!-- Its own condition, not `v-else`. `v-else` binds to whatever `v-if` precedes it, so
+           adding the folder button above silently re-pointed this at *that* condition: in a
+           browser, where a folder cannot be picked, the upload branch rendered beside the
+           server one and Quick Mode showed two buttons both saying "Add files". Stated
+           positively, it cannot be broken by inserting something above it again. -->
+      <template v-if="source === 'upload'">
         <input
           ref="uploadInput"
           type="file"

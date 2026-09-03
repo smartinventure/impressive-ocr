@@ -67,6 +67,13 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Build secrets for deploy/build-local.*: installer keys, and the Azure and Apple signing
+# credentials. Covered by `.env.local` above, which is unanchored and so matches at any
+# depth - but named explicitly because this one file is the difference between an unsigned
+# test build and a leaked signing credential, and it must not depend on a pattern above it
+# surviving a future edit. The `.example` alongside it carries no values and is committed.
+/deploy/.env.local
+
 # Test artifacts
 coverage/
 playwright-report/

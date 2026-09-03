@@ -61,6 +61,7 @@ feed, so it could never see itself as up to date. Always go through these script
 | File | Purpose |
 |---|---|
 | `release.ps1` / `release.sh` | Cut a release: bump, check, commit, tag, push |
+| `build-local.ps1` / `build-local.sh` | Build artifacts on this machine, publishing nothing |
 | `set-version.mjs` | Writes one version into every file that carries it |
 | `fetch-uv.mjs` | Downloads the pinned `uv` binary into `vendor/uv-<arch>/` |
 | `package-server.mjs` | Builds the headless payload — a tarball, or `--stage-only` for the image |
@@ -68,6 +69,43 @@ feed, so it could never see itself as up to date. Always go through these script
 | `check-tracked-sources.mjs` | Fails if a source file is excluded by `.gitignore` |
 | `docker/Dockerfile` | The headless server image |
 | `docker/docker-compose.yml` | A worked example for operators |
+
+## Building locally, without releasing
+
+`release.sh` publishes nothing itself. It bumps, commits and pushes a tag, and the tag is what
+makes CI build every artifact on the public repository. There is no way to get an installer out
+of it without cutting a public release first.
+
+`build-local` is the other half: it builds the artifacts here, from the working tree as it
+stands, and pushes nothing anywhere.
+
+```sh
+cp deploy/.env.local.example deploy/.env.local    # then fill in what you have
+./deploy/build-local.sh --list                    # what can this host build?
+./deploy/build-local.sh                           # everything it can
+./deploy/build-local.sh desktop docker
+```
+
+```powershell
+./deploy/build-local.ps1 -List
+./deploy/build-local.ps1 desktop, docker -Checks
+```
+
+Secrets live in `deploy/.env.local`, which is gitignored by an anchored rule of its own and
+never reaches the repository. Without it the build still runs: you get unsigned artifacts whose
+licence client reports it cannot reach the server, which is exactly what you want when what you
+are testing is the build. The committed `.env.local.example` documents every variable.
+
+Nothing in this script touches git, and the container image is tagged `-local` and loaded into
+the local daemon rather than pushed, so it cannot be confused with the published `ghcr.io`
+image.
+
+### Why it cannot build all three desktop platforms
+
+electron-builder needs the target platform's own toolchain, and macOS signing and notarisation
+need macOS. A Windows host builds the Windows installer and nothing else. Shipping all three
+means three machines, which is the reason the tagged CI release exists — `build-local` is for
+testing a build, not for cutting a release.
 
 ## Building the pieces by hand
 

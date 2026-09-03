@@ -397,7 +397,6 @@ export class JobRepository {
     return row?.total ?? 0;
   }
 
-
   private toJob(row: JobRow): Job {
     return {
       id: row.id,

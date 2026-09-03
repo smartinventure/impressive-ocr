@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { eq } from 'drizzle-orm';
 import { APP_STATE_KEYS, appState, createDatabase } from '@impressive-ocr/db';
-import { APP_VERSION,
+import {
+  APP_VERSION,
   SESSION_IDLE_TIMEOUT_MINUTES,
   type AppSettings,
   type BindAddress,
@@ -286,12 +287,8 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     // Read fresh for the same reason: turning the fast backend off, or installing it from
     // the System page, applies to the next worker rather than needing a restart.
     vlServer: () =>
-      resolveVlServer(
-        settingsService.get(),
-        runtime.getHardware(),
-        paths.vlServerDir,
-        logger,
-      ).options,
+      resolveVlServer(settingsService.get(), runtime.getHardware(), paths.vlServerDir, logger)
+        .options,
     logger,
   });
 

@@ -171,7 +171,7 @@ describe('HttpLicenseClient', () => {
       });
     });
 
-    it('prefers the server\'s own wording over ours', async () => {
+    it("prefers the server's own wording over ours", async () => {
       respondWith(403, {
         success: false,
         error_code: 'NO_SEATS_AVAILABLE',

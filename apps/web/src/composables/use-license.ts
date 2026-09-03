@@ -98,7 +98,11 @@ export function useLicense() {
     // the address was not, and sending someone back to "personal or commercial?" to correct a
     // typo would lose the rest of what they typed.
     if (state === 'invalid') return 'activate';
-    return chosenTier.value === null ? 'choose' : chosenTier.value === 'personal' ? 'register' : 'activate';
+    return chosenTier.value === null
+      ? 'choose'
+      : chosenTier.value === 'personal'
+        ? 'register'
+        : 'activate';
   });
 
   /** Both forms need an address; only registration needs a country. */

@@ -85,12 +85,7 @@ export type LicenseTier = z.infer<typeof licenseTierSchema>;
  * - `active` — a key was accepted and this machine holds a seat.
  * - `invalid` — the server refused the key, or every seat is in use.
  */
-export const licenseStateSchema = z.enum([
-  'unregistered',
-  'awaiting-key',
-  'active',
-  'invalid',
-]);
+export const licenseStateSchema = z.enum(['unregistered', 'awaiting-key', 'active', 'invalid']);
 export type LicenseState = z.infer<typeof licenseStateSchema>;
 
 /**
@@ -175,8 +170,6 @@ export const licenseStatusSchema = z.object({
 });
 
 export type LicenseStatus = z.infer<typeof licenseStatusSchema>;
-
-
 
 /**
  * Ask for a free personal licence.

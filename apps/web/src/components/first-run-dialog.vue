@@ -88,12 +88,7 @@ function goToSystem(): void {
 
       <v-card-actions class="px-6 pb-5">
         <v-spacer />
-        <v-btn
-          color="primary"
-          variant="flat"
-          :loading="accepting"
-          @click="accept"
-        >
+        <v-btn color="primary" variant="flat" :loading="accepting" @click="accept">
           {{ t('firstRun.consent.agree') }}
         </v-btn>
       </v-card-actions>

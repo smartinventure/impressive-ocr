@@ -200,7 +200,7 @@ describe('Scheduler', () => {
       hardware: gpuHardware,
       isRuntimeReady: () => true,
       isGloballyPaused: () => false,
-    canProcess: () => true,
+      canProcess: () => true,
       maxConcurrentDocuments: () => 1,
     };
     const scheduler = new Scheduler(options);

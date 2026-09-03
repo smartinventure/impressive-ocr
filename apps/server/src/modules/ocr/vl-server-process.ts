@@ -178,9 +178,7 @@ export class VlServerProcess {
       }
       await delay(READY_POLL_MS);
     }
-    throw new VlServerStartupError(
-      `Inference server was not ready within ${READY_TIMEOUT_MS} ms`,
-    );
+    throw new VlServerStartupError(`Inference server was not ready within ${READY_TIMEOUT_MS} ms`);
   }
 
   /**

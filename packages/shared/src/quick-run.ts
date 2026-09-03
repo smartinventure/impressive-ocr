@@ -135,8 +135,7 @@ export const startQuickRunRequestSchema = z
     options: quickOptionsSchema.default({}),
   })
   .refine(
-    (value) =>
-      value.source !== 'server' || value.files.length > 0 || value.folderPaths.length > 0,
+    (value) => value.source !== 'server' || value.files.length > 0 || value.folderPaths.length > 0,
     {
       message: 'Select at least one file, or a folder to take them from.',
       path: ['files'],

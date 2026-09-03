@@ -86,7 +86,9 @@ onMounted(async () => {
           prepend-icon="edit"
           variant="tonal"
           :disabled="pipeline.enabled"
-          :to="pipeline.enabled ? undefined : { name: 'pipeline-edit', params: { id: pipeline.id } }"
+          :to="
+            pipeline.enabled ? undefined : { name: 'pipeline-edit', params: { id: pipeline.id } }
+          "
         >
           {{ t('common.edit') }}
         </v-btn>

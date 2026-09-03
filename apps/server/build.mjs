@@ -45,9 +45,7 @@ function licenseBuildDefaults() {
   const present = Object.fromEntries(
     Object.entries(values).filter(([, value]) => (value ?? '') !== ''),
   );
-  return Object.keys(present).length === 0
-    ? {}
-    : { __LICENSE_BUILD__: JSON.stringify(present) };
+  return Object.keys(present).length === 0 ? {} : { __LICENSE_BUILD__: JSON.stringify(present) };
 }
 
 /**

@@ -54,8 +54,7 @@ function storeStatus(status: Partial<RuntimeStatus>): void {
     errorMessage: null,
     ...status,
   };
-  db
-    .insert(appState)
+  db.insert(appState)
     .values({
       key: APP_STATE_KEYS.runtime,
       value: full,

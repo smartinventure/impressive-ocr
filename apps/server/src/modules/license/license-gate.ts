@@ -84,7 +84,12 @@ function trialGate(record: LicenseRecord, now: Date): LicenseGate {
   const remaining = daysBetween(now, deadline);
 
   return remaining <= 0
-    ? { state: 'blocked', canProcess: false, daysRemaining: 0, gracePeriodEndsAt: deadline.toISOString() }
+    ? {
+        state: 'blocked',
+        canProcess: false,
+        daysRemaining: 0,
+        gracePeriodEndsAt: deadline.toISOString(),
+      }
     : {
         state: 'trial',
         canProcess: true,

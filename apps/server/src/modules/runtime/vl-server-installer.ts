@@ -115,13 +115,15 @@ async function installWeights(
 ): Promise<void> {
   const model = 'Downloading the OCR language model';
   onMessage(model);
-  await download(MODEL_ASSETS.weights, join(vlServerDir, 'model-bf16.gguf'), signal,
-    (chunk) => onBytes(chunk, model));
+  await download(MODEL_ASSETS.weights, join(vlServerDir, 'model-bf16.gguf'), signal, (chunk) =>
+    onBytes(chunk, model),
+  );
 
   const encoder = 'Downloading the vision encoder';
   onMessage(encoder);
-  await download(MODEL_ASSETS.projector, join(vlServerDir, 'mmproj.gguf'), signal,
-    (chunk) => onBytes(chunk, encoder));
+  await download(MODEL_ASSETS.projector, join(vlServerDir, 'mmproj.gguf'), signal, (chunk) =>
+    onBytes(chunk, encoder),
+  );
   await download(MODEL_ASSETS.chatTemplate, join(vlServerDir, 'chat_template.jinja'), signal);
 }
 

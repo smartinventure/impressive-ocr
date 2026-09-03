@@ -237,7 +237,10 @@ export class SidecarPool {
       modelCacheDir: this.options.modelCacheDir,
       logLevel: this.options.logLevel,
       cpuBudgetPercent: this.options.cpuBudgetPercent(),
-      vlServer: vlServerUrl === null ? null : { backend: LLAMA_CPP_BACKEND, url: vlServerUrl, maxConcurrency },
+      vlServer:
+        vlServerUrl === null
+          ? null
+          : { backend: LLAMA_CPP_BACKEND, url: vlServerUrl, maxConcurrency },
       logger: this.options.logger,
     });
 

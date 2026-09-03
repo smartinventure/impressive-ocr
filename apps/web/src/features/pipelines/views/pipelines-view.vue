@@ -218,7 +218,9 @@ async function toggleAll(): Promise<void> {
                 size="small"
                 :disabled="!canModify(pipeline)"
                 :to="
-                  canModify(pipeline) ? { name: 'pipeline-edit', params: { id: pipeline.id } } : undefined
+                  canModify(pipeline)
+                    ? { name: 'pipeline-edit', params: { id: pipeline.id } }
+                    : undefined
                 "
               />
             </span>
@@ -269,7 +271,11 @@ async function toggleAll(): Promise<void> {
 
     <!-- Named in the question, not "this pipeline": with fifteen cards on screen the one that
          is about to go should be unambiguous. -->
-    <v-dialog :model-value="confirmingDelete !== null" max-width="440" @update:model-value="confirmingDelete = null">
+    <v-dialog
+      :model-value="confirmingDelete !== null"
+      max-width="440"
+      @update:model-value="confirmingDelete = null"
+    >
       <v-card class="pa-5">
         <h2 class="text-h6 mb-2">{{ t('detail.deleteTitle') }}</h2>
         <p class="text-body-2 mb-4">

@@ -179,7 +179,9 @@ const MODULES = [
  */
 function formatHint(format: { value: OutputFormat; labelKey: string; hintKey?: string }): string {
   const described = format.hintKey === undefined ? t(format.labelKey) : t(format.hintKey);
-  return isLastSelectedFormat(format.value) ? `${described} — ${t('editor.lastFormat')}` : described;
+  return isLastSelectedFormat(format.value)
+    ? `${described} — ${t('editor.lastFormat')}`
+    : described;
 }
 
 /**
@@ -512,8 +514,6 @@ onMounted(async () => {
                 </p>
               </div>
             </template>
-
-
           </v-expansion-panel-text>
         </v-expansion-panel>
 

@@ -42,8 +42,7 @@ const bridge: DesktopBridge = {
 
   getVersion: () => ipcRenderer.invoke(IPC_CHANNELS.getVersion) as Promise<string>,
 
-  getDataLocation: () =>
-    ipcRenderer.invoke(IPC_CHANNELS.getDataLocation) as Promise<DataLocation>,
+  getDataLocation: () => ipcRenderer.invoke(IPC_CHANNELS.getDataLocation) as Promise<DataLocation>,
 
   setDataLocation: (dataDir: string | null) =>
     ipcRenderer.invoke(IPC_CHANNELS.setDataLocation, dataDir) as Promise<DataLocation>,

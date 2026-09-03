@@ -38,9 +38,7 @@ const message = computed(() => {
 
   // Blocked, and the two reasons need different advice: one is "register", the other is
   // "get online". Telling an offline paying customer to register would be nonsense.
-  return props.status?.state === 'active'
-    ? t('licence.offlineBlocked')
-    : t('licence.trialBlocked');
+  return props.status?.state === 'active' ? t('licence.offlineBlocked') : t('licence.trialBlocked');
 });
 </script>
 

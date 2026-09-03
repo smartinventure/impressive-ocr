@@ -90,8 +90,12 @@ function writeInstallerLicense() {
   const notice = readFileSync(join(repoRoot, 'LICENSING.txt'), 'utf8');
   const agpl = readFileSync(join(repoRoot, 'LICENSE'), 'utf8');
   const target = join(outDir, 'installer-license.txt');
-  writeFileSync(target, `${notice}
-${agpl}`, 'utf8');
+  writeFileSync(
+    target,
+    `${notice}
+${agpl}`,
+    'utf8',
+  );
   return target;
 }
 

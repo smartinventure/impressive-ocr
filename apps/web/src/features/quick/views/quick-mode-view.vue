@@ -510,7 +510,11 @@ function toggleFormat(format: OutputFormat): void {
            written-to path above is all we can honestly offer. -->
       <div v-if="quick.files.value.length > 0" class="quick__files mt-5">
         <div class="text-subtitle-2 mb-2">
-          {{ canOpenFiles ? t('quick.openFiles') : t('quick.downloadFiles', { count: quick.files.value.length }) }}
+          {{
+            canOpenFiles
+              ? t('quick.openFiles')
+              : t('quick.downloadFiles', { count: quick.files.value.length })
+          }}
         </div>
         <v-list density="compact" class="quick__file-list" rounded="md">
           <v-list-item

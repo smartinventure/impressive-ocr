@@ -84,8 +84,7 @@ export const INSTALL_HEADROOM_BYTES = VL_QUANTISATION_PEAK_BYTES + 1_000_000_000
  * The GPU figure, because the check runs before the hardware is known to the installer and
  * asking for too much is a warning while asking for too little is a failed install.
  */
-export const REQUIRED_INSTALL_BYTES =
-  INSTALLED_BYTES_BY_FLAVOR.gpu + INSTALL_HEADROOM_BYTES;
+export const REQUIRED_INSTALL_BYTES = INSTALLED_BYTES_BY_FLAVOR.gpu + INSTALL_HEADROOM_BYTES;
 
 export interface DiskSpace {
   freeBytes: number;

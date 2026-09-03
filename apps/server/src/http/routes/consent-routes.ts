@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import type { AppFastify } from '../fastify-types';
-import {
-  acceptConsentRequestSchema,
-  type ConsentStatus,
-} from '@impressive-ocr/shared';
+import { acceptConsentRequestSchema, type ConsentStatus } from '@impressive-ocr/shared';
 import { ConsentVersionMismatchError } from '../../modules/consent/consent-service';
 import type { AppServices } from '../../app-services';
 

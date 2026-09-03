@@ -74,9 +74,7 @@ async function showing(pipelines: unknown[], jobs: unknown[] = []) {
 }
 
 function buttonWithIcon(wrapper: Awaited<ReturnType<typeof showing>>, icon: string) {
-  return wrapper
-    .findAllComponents({ name: 'VBtn' })
-    .find((button) => button.html().includes(icon));
+  return wrapper.findAllComponents({ name: 'VBtn' }).find((button) => button.html().includes(icon));
 }
 
 beforeEach(() => {

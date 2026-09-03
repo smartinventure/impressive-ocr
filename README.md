@@ -1,3 +1,25 @@
+<p align="center">
+  <img src=".github/assets/logo.png" alt="Impressive OCR" width="320">
+</p>
+
+<p align="center">
+  <a href="https://www.speedbits.io"><strong>www.speedbits.io</strong></a>
+</p>
+
+---
+
+> ### Licensing in one paragraph
+>
+> **Free for personal and private use**, under the AGPL-3.0.
+>
+> **Companies may evaluate it for one month.** Beyond that, commercial use requires a paid
+> licence **per machine**, from [www.speedbits.io](https://www.speedbits.io). A licence is
+> perpetual and includes a year of updates.
+>
+> The full terms, and why there are two of them, are in [Licence](#licence) below.
+
+---
+
 # Impressive OCR
 
 A local-first OCR workstation. It watches folders, queues whatever lands in them, and turns
@@ -11,6 +33,16 @@ contracts are exactly the material this is built for.
 Ships as a **desktop app** for Windows, macOS and Linux, and as a **headless server** — the
 same backend either way, so a spare machine can do the processing while everyone else uses a
 browser.
+
+## A look at it
+
+**Quick Mode** — drop a few files in, pick the formats, press start. No configuration.
+
+![Quick Mode](.github/assets/screenshot-quick-mode.jpg)
+
+**Pipelines** — a watched folder that keeps working on its own.
+
+![Pipelines](.github/assets/screenshot-pipelines.jpg)
 
 ## What it does
 
@@ -181,11 +213,11 @@ third-party components.
 
 **Free for personal and private use.** Install it, use it, keep your documents.
 
-**Organisations need a commercial licence**, available from
-[www.speedbits.io](https://www.speedbits.io). A licence is **perpetual** — the version you have
-keeps working indefinitely, with every feature — and includes **one year of automatic
-updates**. After that year the software carries on exactly as before; only the automatic
-updates stop.
+**Companies get one month to evaluate it.** After that, commercial use needs a paid licence
+**per machine**, available from [www.speedbits.io](https://www.speedbits.io). A licence is
+**perpetual** — the version you have keeps working indefinitely, with every feature — and
+includes **one year of automatic updates**. After that year the software carries on exactly as
+before; only the automatic updates stop.
 
 Both statements are true at once because Impressive OCR is **dual licensed**. Anyone may use
 it under the AGPL-3.0, which is what makes it free for personal use — and the AGPL comes with
@@ -196,3 +228,14 @@ not a restriction on top of the AGPL; it is an alternative to it.
 
 If you are running it inside a company, ask your legal team which of the two you want to be
 under. Nothing here is legal advice.
+
+## Contact and commercial licences
+
+Pricing, commercial licences, support and everything else:
+**[www.speedbits.io](https://www.speedbits.io)**
+
+<p align="center">
+  <img src=".github/assets/logo.png" alt="Impressive OCR" width="200">
+  <br>
+  <sub>© Smart In Venture — <a href="https://www.speedbits.io">www.speedbits.io</a></sub>
+</p>

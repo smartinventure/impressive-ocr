@@ -174,10 +174,42 @@ Then open <http://127.0.0.1:8084>. The port is bound to loopback on purpose: the
 and write every folder on its allowlist, so publish it further only behind a reverse proxy
 with authentication enabled.
 
+Or let the installer do all of it, including the one-click updates described below:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/smartinventure/impressive-ocr/main/deploy/installer/install-impressive-ocr.sh | bash
+```
+
 On first start the app downloads its Python runtime, the OCR models and the inference engine
 — about 8.5 GB in total on an NVIDIA machine, 2.25 GB of that the inference engine. It happens
 once, and it picks the CPU or GPU build of each after probing the hardware, which is why none
 of it is bundled. The exact figures are shown for confirmation before anything is fetched.
+
+## Keeping it up to date
+
+**The desktop app updates itself.** It checks for a new release, downloads it in the
+background and then offers to restart — it never restarts on its own, because a pipeline may
+be halfway through a 2,000-page backlog and an update that interrupts that at 3am destroys the
+unattended reliability the product exists to provide.
+
+**The server cannot**, and the reason is worth stating plainly: a container cannot pull a new
+image and recreate the container it is running in. That has to happen on the host.
+
+The common workaround is to give the application container the Docker socket. That is
+root-equivalent access to the machine, granted to a service whose whole job is opening
+untrusted documents, so this product does not do it. Instead the installer puts a small script
+on the host that watches for a request; the app writes an empty file to ask, and the host
+script runs one fixed command. Nothing inside the container can influence what runs outside
+it.
+
+The result is a working **Update now** button in the app. If you started the container by hand
+without the installer, the app shows the command to run instead:
+
+```sh
+docker compose pull && docker compose up -d
+```
+
+The full mechanism is in [deploy/installer/](deploy/installer/).
 
 ## Building from source
 

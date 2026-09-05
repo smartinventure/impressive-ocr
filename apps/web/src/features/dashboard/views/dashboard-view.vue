@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { dashboardApi, type DashboardSnapshot } from '../../../api/endpoints';
 import CompatibilityBanner from '../../../components/compatibility-banner.vue';
 import UpdateNotice from '../../../components/update-notice.vue';
+import ServerUpdateBanner from '../../../components/server-update-banner.vue';
 
 /**
  * The overview: what the machine is doing, and what it has got through.
@@ -76,6 +77,7 @@ onBeforeUnmount(() => {
     <!-- A newer release, or an engine older than this build. Below compatibility because an
          update is worth knowing about and a machine that cannot run the workload at all is
          worth knowing about first. -->
+    <ServerUpdateBanner />
     <UpdateNotice />
 
     <!-- Stated plainly, because every symptom of an emulated platform looks like a bug in

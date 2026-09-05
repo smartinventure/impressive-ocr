@@ -36,6 +36,9 @@ import { AuthService } from './modules/auth/auth-service';
 /** The licence service, overridable so a staging instance can be used without a rebuild. */
 const DEFAULT_LICENSE_URL = 'https://license.speedbits.io';
 
+/** Where release checks look. `owner/repo`, not a URL: the GitHub API composes the rest. */
+const RELEASE_REPOSITORY = 'smartinventure/impressive-ocr';
+
 import { ConsentService } from './modules/consent/consent-service';
 import { HttpLicenseClient } from './modules/license/license-client';
 import { LicenseService } from './modules/license/license-service';
@@ -43,6 +46,9 @@ import { createSessionStore } from './modules/auth/session-store';
 import { QuickRunService } from './modules/quick/quick-run-service';
 import { QuickRunStore } from './modules/quick/quick-run-store';
 import { SettingsService } from './modules/settings/settings-service';
+import { HostUpdateBridge } from './modules/update/host-update-bridge';
+import { GitHubReleaseClient, DEFAULT_RELEASE_TIMEOUT_MS } from './modules/update/release-client';
+import { ServerUpdateService } from './modules/update/server-update-service';
 import { WatcherManager } from './modules/watcher/watcher-manager';
 import { createHttpServer } from './http/server';
 import type { AppServices } from './app-services';
@@ -361,6 +367,27 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
   // before startup would sensibly expect.
   let actualPort = 0;
 
+  /**
+   * Headless-server updates.
+   *
+   * `controlDir` is the bind-mounted directory the installer sets up, and its absence is what
+   * makes the one-click button stay hidden: a desktop build and a hand-started container both
+   * arrive here with null and are told to use the manual command. Read from the environment
+   * rather than derived from the data directory, because the two are mounted differently on
+   * purpose -- data is a named volume the host does not look inside, and this is a tiny bind
+   * mount that exists solely so a host script can see one file.
+   */
+  const updateControlDir = process.env.IMPRESSIVE_OCR_UPDATE_CONTROL_DIR ?? null;
+  const updateService = new ServerUpdateService({
+    releases: new GitHubReleaseClient(
+      { repository: RELEASE_REPOSITORY, timeoutMs: DEFAULT_RELEASE_TIMEOUT_MS },
+      logger,
+    ),
+    host: new HostUpdateBridge({ controlDir: updateControlDir, logger }),
+    isCheckEnabled: () => settingsService.get().autoUpdateEnabled,
+    logger,
+  });
+
   const services: AppServices = {
     pipelines,
     jobs,
@@ -373,6 +400,7 @@ export async function createApp(options: CreateAppOptions = {}): Promise<AppHand
     quick,
     quickStore,
     runtime,
+    update: updateService,
     scheduler,
     watchers,
     pool,

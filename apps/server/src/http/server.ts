@@ -20,6 +20,7 @@ import { registerAuthHook } from './auth-hook';
 import { registerRequestLogging } from './request-logging';
 import { registerAuthRoutes } from './routes/auth-routes';
 import { registerConsentRoutes } from './routes/consent-routes';
+import { registerUpdateRoutes } from './routes/update-routes';
 import { registerLicenseRoutes } from './routes/license-routes';
 import { registerEventRoutes } from './routes/events-routes';
 import { registerFilesystemRoutes } from './routes/filesystem-routes';
@@ -141,6 +142,7 @@ export async function createHttpServer(options: HttpServerOptions): Promise<AppF
 
   registerAuthRoutes(app, options.services);
   registerConsentRoutes(app, options.services);
+  registerUpdateRoutes(app, options.services);
   registerLicenseRoutes(app, options.services);
 
   registerPipelineRoutes(app, options.services);

@@ -13,6 +13,7 @@ import type { JobRepository } from './modules/queue/job-repository';
 import type { Scheduler } from './modules/queue/scheduler';
 import type { RuntimeService } from './modules/runtime/runtime-service';
 import type { SettingsService } from './modules/settings/settings-service';
+import type { ServerUpdateService } from './modules/update/server-update-service';
 import type { WatcherManager } from './modules/watcher/watcher-manager';
 
 /**
@@ -36,6 +37,8 @@ export interface AppServices {
   resources: ResourceMonitor;
   quickStore: QuickRunStore;
   runtime: RuntimeService;
+  /** Headless-server updates. The desktop build uses electron-updater instead. */
+  update: ServerUpdateService;
   scheduler: Scheduler;
   watchers: WatcherManager;
   pool: SidecarPool;

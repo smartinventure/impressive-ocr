@@ -543,6 +543,18 @@
     "noticeEngine": "Die OCR-Engine ist älter als diese Version der Anwendung.",
     "noticeAction": "System öffnen"
   },
+  "serverUpdate": {
+    "applyNow": "Jetzt aktualisieren",
+    "available": "Version {latest} ist verfügbar. Dieser Server läuft mit {current}.",
+    "dialogTitle": "Impressive OCR aktualisieren",
+    "dialogVersions": "Dieser Server läuft mit {current}. Version {latest} ist verfügbar.",
+    "downtimeWarning": "Beim Aktualisieren wird der Container gestoppt und neu erstellt. Er ist etwa 30 bis 60 Sekunden nicht erreichbar, und ein gerade laufender Auftrag wird abgebrochen. Datenbank, Einstellungen und Dokumente liegen auf getrennten Volumes und bleiben erhalten.",
+    "installerHint": "Das Installationsskript richtet einen Host-Updater ein, damit dies direkt von hier aus möglich ist. Den Einzeiler dazu finden Sie in der Dokumentation.",
+    "manualIntro": "Auf diesem Rechner ist kein Host-Updater installiert. Das Update muss daher in einem Terminal auf dem Host ausgeführt werden:",
+    "pending": "Ein Update wurde angefordert. Der Server startet in Kürze neu.",
+    "releaseNotes": "Versionshinweise lesen",
+    "review": "Details"
+  },
   "engineHelp": {
     "trigger": "Welche Engine soll ich wählen?",
     "title": "Die OCR-Engine wählen",

@@ -8,6 +8,8 @@ import type {
   FolderValidation,
   AuthStatus,
   ConsentStatus,
+  ServerUpdateStatus,
+  ServerUpdateTriggerResult,
   SetPasswordRequest,
   CreatePipelineRequest,
   HardwareCapabilities,
@@ -151,6 +153,17 @@ export const systemApi = {
 export const consentApi = {
   get: () => api.get<ConsentStatus>('/consent'),
   accept: (version: number) => api.post<ConsentStatus>('/consent/accept', { version }),
+};
+
+/**
+ * Updating the headless server. The desktop app uses electron-updater and never calls these.
+ *
+ * `trigger` answers 409 when no host updater is installed, which the composable turns into
+ * the manual command rather than an error.
+ */
+export const updateApi = {
+  check: () => api.get<ServerUpdateStatus>('/update/check'),
+  trigger: () => api.post<ServerUpdateTriggerResult>('/update/trigger'),
 };
 
 export const settingsApi = {

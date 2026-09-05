@@ -39,6 +39,21 @@ services:
       # Where output files are written. Must be writable.
       - ./output:/output
 
+      # OPTIONAL: the update handshake.
+      #
+      # Uncomment this and the environment variable below to get the one-click "Update now"
+      # button in the app. A container cannot pull a new image and recreate itself, so the
+      # app writes an empty file here and a script on the host acts on it — see
+      # deploy/installer/install-impressive-ocr.sh, which sets both sides up for you.
+      #
+      # A bind mount rather than a volume precisely because the host has to see inside it. It
+      # holds two empty files. Create it first and give it to the container's user, or the
+      # app cannot write the request:
+      #
+      #     mkdir -p ./control && sudo chown 10001:10001 ./control
+      #
+      # - ./control:/control
+
       # OPTIONAL, and a serious grant — read the whole comment before uncommenting.
       #
       # Mounting the host root at /host makes the entire machine browsable from the folder
@@ -64,6 +79,9 @@ services:
       # an operator most often wants to change.
       IMPRESSIVE_OCR_PORT: '8084'
       IMPRESSIVE_OCR_DATA_DIR: /data
+      # Paired with the ./control mount above. Its absence is what keeps the one-click update
+      # button hidden, so leave both commented out unless a host updater is actually running.
+      # IMPRESSIVE_OCR_UPDATE_CONTROL_DIR: /control
 
     # PaddleOCR is memory-hungry and a large scanned PDF can spike well past a gigabyte.
     # Without a limit an OOM takes the host down with it; with one, only this container dies

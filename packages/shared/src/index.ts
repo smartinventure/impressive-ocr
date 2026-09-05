@@ -22,3 +22,4 @@ export * from './license';
 export * from './quick-run';
 export * from './events';
 export * from './sidecar';
+export * from './update';

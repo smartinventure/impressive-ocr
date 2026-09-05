@@ -543,6 +543,18 @@
     "noticeEngine": "The OCR engine is older than this version of the application.",
     "noticeAction": "Open System"
   },
+  "serverUpdate": {
+    "applyNow": "Update now",
+    "available": "Version {latest} is available. This server is running {current}.",
+    "dialogTitle": "Update Impressive OCR",
+    "dialogVersions": "This server runs {current}. Version {latest} is available.",
+    "downtimeWarning": "Updating stops and recreates the container. It is unavailable for roughly 30 to 60 seconds, and any job running at that moment is interrupted. Your database, settings and documents are on separate volumes and are preserved.",
+    "installerHint": "The installer script sets up a host updater so this can be done from here. See the documentation for the one-line command.",
+    "manualIntro": "No host updater is installed on this machine, so the update has to be applied from a terminal on the host:",
+    "pending": "An update has been requested. The server will restart shortly.",
+    "releaseNotes": "Read the release notes",
+    "review": "Details"
+  },
   "engineHelp": {
     "trigger": "Which engine should I choose?",
     "title": "Choosing an OCR engine",

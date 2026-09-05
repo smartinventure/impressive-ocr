@@ -144,28 +144,58 @@ install it, then *My Certificates* → right-click `Developer ID Application: �
 > only a limited number of Developer ID certificates per account, and they cannot be
 > re-downloaded with the private key. Losing it is genuinely painful.
 
-### 3. Create an App Store Connect **team** API key
+### 3. Notarisation credentials
+
+Two options. The API key is better, but it is **not available on day one**, so read both
+before deciding which to start with.
+
+#### 3a. App Store Connect API key — preferred, but gated
 
 [appstoreconnect.apple.com](https://appstoreconnect.apple.com) → **Users and Access** →
-**Integrations** → **App Store Connect API** → **Team Keys** tab → ➕
+**Integrations** → **App Store Connect API**.
+
+**On a new account there is no "Team Keys" tab — only a `Request Access` button.** API access
+is a one-time opt-in that has to be granted before any key can be created:
+
+1. Click **Request Access**.
+2. Tick the box to accept the terms, and **Submit**.
+
+Two things about that request:
+
+- **Only the Account Holder can make it.** For anyone else the button is disabled, and no
+  Admin can substitute.
+- **It is not instant.** Apple's documentation says the request "is reviewed and approved on
+  a case-by-case basis" and gives no timeline.
+
+Once granted, the **Team Keys** and **Individual Keys** tabs appear. Then → **Team Keys** → ➕
 
 - Name it something like `notarization-ci`.
 - Access: **Developer** is enough.
 
-Two things to get right:
-
 - It must be a **Team Key**, not an Individual Key. Individual keys cannot notarise —
-  `notarytool` rejects them, and the error does not say why.
+  `notarytool` rejects them and the error does not say why.
 - The `.p8` file **downloads exactly once**. Save it immediately and back it up.
 
-You now have three values: the `AuthKey_XXXXXXXXXX.p8` file, the **Key ID** (in the filename
-and the table), and the **Issuer ID** (a UUID shown above the key list).
+That gives three values: the `AuthKey_XXXXXXXXXX.p8` file, the **Key ID** (in the filename and
+the table) and the **Issuer ID** (a UUID above the key list).
 
-> **Why an API key rather than your Apple ID and an app-specific password?** Both work.
-> The API key is scoped to notarisation instead of being your whole Apple account, does not
-> break when you change your password or your 2FA device, and is what electron-builder's own
-> documentation recommends for CI. If you already have Apple-ID credentials working, see the
-> warning in Part 3 before adding an API key alongside them.
+#### 3b. Apple ID and an app-specific password — the fallback
+
+Works immediately, notarises identically, and is the sensible way to get a release out while
+the API request is pending. The only difference is breadth: this credential is tied to your
+whole Apple account rather than scoped to notarisation, and it breaks when you change your
+password or your 2FA device.
+
+[account.apple.com](https://account.apple.com) → **Sign-In and Security** →
+**App-Specific Passwords** → ➕. Name it `notarization-ci`. You get `abcd-efgh-ijkl-mnop`,
+shown once.
+
+You need the Apple ID email, that password, and your Team ID.
+
+**The build picks whichever set you have configured**, preferring the API key when both are
+present, and warns in the log while it is using an Apple ID. Migrating later means adding the
+three API-key secrets — nothing in the workflow changes, and you can delete the Apple-ID pair
+afterwards.
 
 ---
 
@@ -174,14 +204,31 @@ and the table), and the **Issuer ID** (a UUID shown above the key list).
 Repository → **Settings → Secrets and variables → Actions → Secrets** → *New repository
 secret*. All six are **secrets**, not variables — a value on the Variables tab is public.
 
+Always, whichever notarisation route you took:
+
 | Secret | Value |
 |---|---|
 | `APPLE_CERT_BASE64` | The `.p12`, base64-encoded |
 | `APPLE_CERT_PASSWORD` | The `.p12` export password |
+| `APPLE_TEAM_ID` | Team ID, e.g. `A1B2C3D4E5` |
+
+Then **either** the API key (3a):
+
+| Secret | Value |
+|---|---|
 | `APPLE_API_KEY_BASE64` | The `.p8`, base64-encoded |
 | `APPLE_API_KEY_ID` | Key ID, e.g. `ABC123XYZ9` |
 | `APPLE_API_ISSUER` | Issuer ID, the UUID |
-| `APPLE_TEAM_ID` | Team ID, e.g. `A1B2C3D4E5` |
+
+**or** the Apple ID (3b):
+
+| Secret | Value |
+|---|---|
+| `APPLE_ID` | The Apple ID email |
+| `APPLE_APP_PASSWORD` | The app-specific password, `abcd-efgh-ijkl-mnop` |
+
+Setting both is safe — the API key wins and the build says so. Setting neither, with a
+certificate present, fails the build rather than shipping something un-notarised.
 
 Encoding the two files — the flags differ per platform, and a wrapped base64 string is the
 single most common cause of a failed setup:
@@ -227,8 +274,13 @@ unnecessary. Advice telling you to nest signing options under `mac.sign` is abou
 
 **Apple-ID credentials silently beat the API key.** electron-builder checks `APPLE_ID` and
 `APPLE_APP_SPECIFIC_PASSWORD` *first*, and if **either** is set it commits to that path and
-throws if the rest is missing. It never falls back to the API key. So do not set both. Our
-workflow deliberately leaves the Apple-ID variables unset.
+throws if the rest is missing. It never falls back to the API key — so passing both through
+would quietly use the weaker one, and a half-configured Apple ID would fail a build that had
+a perfectly good API key sitting next to it.
+
+Our workflow therefore chooses **one** set in a step of its own and puts only that into scope,
+rather than handing electron-builder everything and hoping. If you write your own, do the
+same: an empty string is falsy to electron-builder, but an accidentally-set `APPLE_ID` is not.
 
 The configuration this needs is already in `apps/desktop/electron-builder.yml`:
 
@@ -306,6 +358,8 @@ never for something you hand to anyone.
 | `APPLE_ID env var needs to be set` | Something set `APPLE_ID` or `APPLE_APP_SPECIFIC_PASSWORD`; electron-builder took that path and ignored the API key |
 | `skipped macOS notarization: options were unable to be generated` | No credentials resolved. The build **succeeds** and ships an un-notarised app — this is the dangerous one, and why CI checks the staple |
 | `Team ID is not valid` / `Unable to notarize` | An Individual API key instead of a Team key |
+| No **Team Keys** tab, only `Request Access` | API access has not been granted yet. Only the Account Holder can request it, and Apple reviews it. Use 3b meanwhile |
+| `Request Access` is greyed out | You are not the Account Holder |
 | `The specified item could not be found in the keychain` | `APPLE_CERT_BASE64` is truncated, wrapped, or the wrong file |
 | Notarised, but crashes at launch | Missing `allow-jit` / `allow-unsigned-executable-memory` entitlements |
 | `spctl` says `source=Unnotarized Developer ID` | Signed but never notarised |

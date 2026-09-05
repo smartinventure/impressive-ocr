@@ -162,6 +162,8 @@ jobs:
       APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
       APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
       APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_ID: ${{ secrets.APPLE_ID }}
+      APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
     steps:
@@ -171,17 +173,31 @@ jobs:
         run: |
           set -eu
           missing=""
-          [ -n "${APPLE_CERT_BASE64:-}" ]    || missing="$missing APPLE_CERT_BASE64"
-          [ -n "${APPLE_CERT_PASSWORD:-}" ]  || missing="$missing APPLE_CERT_PASSWORD"
-          [ -n "${APPLE_API_KEY_BASE64:-}" ] || missing="$missing APPLE_API_KEY_BASE64"
-          [ -n "${APPLE_API_KEY_ID:-}" ]     || missing="$missing APPLE_API_KEY_ID"
-          [ -n "${APPLE_API_ISSUER:-}" ]     || missing="$missing APPLE_API_ISSUER"
-          [ -n "${APPLE_TEAM_ID:-}" ]        || missing="$missing APPLE_TEAM_ID"
+          [ -n "${APPLE_CERT_BASE64:-}" ]   || missing="$missing APPLE_CERT_BASE64"
+          [ -n "${APPLE_CERT_PASSWORD:-}" ] || missing="$missing APPLE_CERT_PASSWORD"
+          [ -n "${APPLE_TEAM_ID:-}" ]       || missing="$missing APPLE_TEAM_ID"
           if [ -n "$missing" ]; then
-            echo "::error::Not configured (all six are secrets):$missing"
+            echo "::error::Not configured (all are secrets):$missing"
             exit 1
           fi
-          echo "team: $APPLE_TEAM_ID   key id: $APPLE_API_KEY_ID"
+
+          # Either notarisation credential set will do. The API key is preferred, but Apple
+          # reviews API access case by case, so an Apple ID has to be usable meanwhile -
+          # otherwise this job cannot prove a setup that the release workflow would accept.
+          if [ -n "${APPLE_API_KEY_BASE64:-}" ]; then
+            [ -n "${APPLE_API_KEY_ID:-}" ] && [ -n "${APPLE_API_ISSUER:-}" ] || {
+              echo '::error::APPLE_API_KEY_BASE64 is set but APPLE_API_KEY_ID/APPLE_API_ISSUER are not.'
+              exit 1
+            }
+            echo "team: $APPLE_TEAM_ID   notarising with API key $APPLE_API_KEY_ID"
+          elif [ -n "${APPLE_APP_PASSWORD:-}" ]; then
+            [ -n "${APPLE_ID:-}" ] || {
+              echo '::error::APPLE_APP_PASSWORD is set but APPLE_ID is not.'; exit 1; }
+            echo "team: $APPLE_TEAM_ID   notarising with Apple ID $APPLE_ID"
+          else
+            echo '::error::No notarisation credentials. Set APPLE_API_KEY_BASE64 + APPLE_API_KEY_ID + APPLE_API_ISSUER, or APPLE_ID + APPLE_APP_PASSWORD.'
+            exit 1
+          fi
 
       - uses: actions/checkout@v7
 
@@ -202,24 +218,35 @@ jobs:
           node deploy/fetch-uv.mjs --target mac --arch arm64
           node deploy/fetch-uv.mjs --target mac --arch x64
 
-      - name: Prepare the Apple notarisation key
+      - name: Choose the Apple notarisation credentials
+        # Exactly one set is put into scope, never both: electron-builder checks the
+        # Apple-ID variables first and, if either is present, commits to that path and throws
+        # when the rest is missing rather than falling back to the API key.
         run: |
           set -eu
-          key_path="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
-          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
-          head -1 "$key_path" | grep -q 'BEGIN PRIVATE KEY' \
-            || { echo '::error::APPLE_API_KEY_BASE64 did not decode to a .p8 private key.'; exit 1; }
-          chmod 600 "$key_path"
-          echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+          if [ -n "${APPLE_API_KEY_BASE64:-}" ]; then
+            key_path="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
+            echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
+            head -1 "$key_path" | grep -q 'BEGIN PRIVATE KEY' \
+              || { echo '::error::APPLE_API_KEY_BASE64 did not decode to a .p8 private key.'; exit 1; }
+            chmod 600 "$key_path"
+            echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+          else
+            echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_PASSWORD" >> "$GITHUB_ENV"
+          fi
 
       - name: Package, sign and notarise
+        # APPLE_ID is blanked here on purpose. It is set at job level for the credential
+        # check above, and electron-builder treats its mere presence as "use the Apple-ID
+        # path", which in API-key mode means throwing over a password that was never meant
+        # to be used. An empty value is falsy to it and the API key wins.
         # Identical to the release workflow's signed path, so a pass here means that path
         # works too. APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD stay unset on purpose:
         # electron-builder prefers them over the API key and throws if they are incomplete.
         env:
           CSC_LINK: ${{ secrets.APPLE_CERT_BASE64 }}
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
-          APPLE_API_KEY: ${{ env.APPLE_API_KEY }}
+          APPLE_ID: ${{ env.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_ID || '' }}
         run: pnpm --filter @impressive-ocr/desktop package --mac
 
       - name: The app must be signed by Developer ID, hardened and stapled

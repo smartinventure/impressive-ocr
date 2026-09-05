@@ -64,10 +64,22 @@ Certificate Authority*, choose "Saved to disk".
 **On Windows or Linux** — no Mac is needed for this, which matters because most Apple guides
 assume one.
 
-> **Windows: run these in Git Bash, not PowerShell.** OpenSSL is not on the PowerShell PATH;
-> Git for Windows ships it at `C:\Program Files\Git\usr\bin\openssl.exe`, which Git Bash
-> already has. The `\` line-continuations below are shell syntax that PowerShell does not
-> understand either — it uses a backtick.
+> **Windows: use WSL or Git Bash, not PowerShell.** OpenSSL is not on the PowerShell PATH —
+> Git for Windows ships it at `C:\Program Files\Git\usr\bin\openssl.exe` — and the `\`
+> line-continuations below are shell syntax PowerShell does not accept; it uses a backtick.
+>
+> **WSL is the easier of the two**, because it is real Linux: no path mangling, so
+> `MSYS_NO_PATHCONV=1` does nothing there and can be left in or dropped as you prefer.
+>
+> If you use WSL, work in a Windows directory rather than the WSL home directory:
+>
+> ```sh
+> mkdir -p /mnt/c/Users/<you>/apple-signing && cd $_
+> ```
+>
+> You have to upload the `.csr` from a Windows browser and pick the `.cer` back up out of
+> Windows Downloads, and a file under `/mnt/c` is visible to both sides with no copying.
+> Keep that folder outside any git repository, and move it to offline backup when you are done.
 
 ```sh
 # Git Bash, macOS or Linux.
@@ -88,6 +100,12 @@ Check it recorded what you meant before uploading anything:
 openssl req -in developer-id.csr -noout -subject
 # subject=emailAddress=you@example.com, CN=Your Company Name, C=DE
 ```
+
+Do not agonise over those values. Apple **ignores** the CN and email in the request for a
+Developer ID certificate: the issued certificate is always named
+`Developer ID Application: <your team name> (<TEAMID>)`, taken from your account rather than
+from the CSR. What must be right is the key — RSA 2048, which is what `-newkey rsa:2048`
+above produces.
 
 Upload `developer-id.csr`, download the resulting `developerID_application.cer`, then combine
 it with your private key into the `.p12` electron-builder wants:

@@ -270,7 +270,6 @@ jobs:
             exit 1
           fi
 
-
       - name: Import the signing certificate into a keychain
         if: matrix.target == 'mac' && env.APPLE_CERT_BASE64 != ''
         # The keychain is built here rather than left to electron-builder, because its own

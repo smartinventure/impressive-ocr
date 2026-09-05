@@ -235,9 +235,8 @@ jobs:
             echo "APPLE_APP_SPECIFIC_PASSWORD=$APPLE_APP_PASSWORD" >> "$GITHUB_ENV"
           fi
 
-
       - name: Import the signing certificate into a keychain
-        
+
         # The keychain is built here rather than left to electron-builder, because its own
         # implementation cannot work on a current macOS runner. `createKeychain` makes the
         # keychain with a random password:

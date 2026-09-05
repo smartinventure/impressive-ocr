@@ -221,6 +221,8 @@ jobs:
         # build that runs on the machine that made it and is blocked by Gatekeeper on every
         # machine that downloads it.
         env:
+          APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+          APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
           APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
@@ -233,6 +235,40 @@ jobs:
           [ -n "${APPLE_TEAM_ID:-}" ] \
             || { echo '::error::APPLE_TEAM_ID is not set.'; exit 1; }
           echo "APPLE_TEAM_ID=$APPLE_TEAM_ID" >> "$GITHUB_ENV"
+
+          # The certificate is checked here, before twenty minutes of building, because the
+          # failure it produces downstream is actively misleading. macOS `security import`
+          # understands only a SHA-1 MAC; OpenSSL 3 - every current Linux, WSL and Git for
+          # Windows install - writes SHA-256 by default, and the resulting error is
+          #
+          #   SecKeychainItemImport: MAC verification failed during PKCS12 import
+          #   (wrong password?)
+          #
+          # which sends people to check a password that was right all along.
+          cert="${RUNNER_TEMP}/cert-check.p12"
+          echo "$APPLE_CERT_BASE64" | base64 --decode > "$cert"
+          [ -s "$cert" ] \
+            || { echo '::error::APPLE_CERT_BASE64 did not decode to anything.'; exit 1; }
+
+          info=$(openssl pkcs12 -in "$cert" -info -noout -passin env:APPLE_CERT_PASSWORD 2>&1 || true)
+          # Order matters: a wrong password still prints the MAC line before failing, so
+          # the password branch has to be tested before the "MAC: sha1" one or a bad
+          # password reports a healthy certificate.
+          case "$info" in
+            *"Mac verify error"*|*"invalid password"*)
+              echo '::error::APPLE_CERT_PASSWORD does not open the .p12. A trailing newline in the secret is the usual cause.'
+              exit 1 ;;
+            *"MAC: sha1"*)
+              echo 'Certificate OK - SHA-1 MAC, and the password opens it.' ;;
+            *"MAC:"*)
+              echo "::error::The .p12 uses $(printf '%s' "$info" | sed -n 's/.*\(MAC: [a-z0-9]*\).*/\1/p'), but macOS only imports a SHA-1 MAC. Re-export it with: openssl pkcs12 -export -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 ..."
+              exit 1 ;;
+            *)
+              # LibreSSL and other builds word this differently. Not worth failing a release
+              # over an unrecognised report, so say so and let electron-builder decide.
+              echo '::warning::Could not determine the .p12 MAC algorithm; continuing.' ;;
+          esac
+          rm -f "$cert"
 
           if [ -n "${APPLE_API_KEY_BASE64:-}" ]; then
             missing=""

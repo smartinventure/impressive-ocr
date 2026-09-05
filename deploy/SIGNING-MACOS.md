@@ -116,7 +116,25 @@ openssl pkcs12 -export \
   -inkey developer-id.key \
   -in developer-id.pem \
   -out developer-id.p12 \
-  -name "Developer ID Application"
+  -name "Developer ID Application" \
+  -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+```
+
+**Those three algorithm flags are not optional on OpenSSL 3**, which is what every current
+Linux, WSL and Git for Windows install ships. OpenSSL 3 defaults to a **SHA-256 MAC**, and
+macOS `security import` only understands a **SHA-1** one. Without them the build fails with
+
+```text
+security: SecKeychainItemImport: MAC verification failed during PKCS12 import (wrong password?)
+```
+
+which sends you hunting through a password that was correct all along. Check what you actually
+produced:
+
+```sh
+openssl pkcs12 -in developer-id.p12 -info -noout
+# MAC: sha1, Iteration 2048        <- required
+# MAC: sha256, Iteration 2048      <- macOS will refuse this
 ```
 
 It asks for an export password. Choose a strong one — it becomes `APPLE_CERT_PASSWORD`.
@@ -124,18 +142,9 @@ It asks for an export password. Choose a strong one — it becomes `APPLE_CERT_P
 `developer-id.key` is the private half and never leaves your machine; Apple only ever sees the
 `.csr`. Keep the key until the `.p12` exists, then back both up together.
 
-> **If the CI runner later fails to import the `.p12`**, re-export with the older algorithms
-> macOS has always accepted — OpenSSL 3 defaults to AES-256, which some `security import`
-> paths reject:
->
-> ```sh
-> openssl pkcs12 -export -inkey developer-id.key -in developer-id.pem \
->   -out developer-id.p12 -name "Developer ID Application" \
->   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
-> ```
->
-> Do not reach for `-legacy` instead: it needs OpenSSL's legacy provider, which a default Git
-> for Windows install does not load.
+> Do not reach for `-legacy` as a shortcut for those flags: it needs OpenSSL's legacy
+> provider, which a default Git for Windows install does not load. The three explicit flags
+> work everywhere.
 
 **On a Mac**, the `.p12` comes out of Keychain Access instead: double-click the `.cer` to
 install it, then *My Certificates* → right-click `Developer ID Application: …` → Export.
@@ -332,6 +341,45 @@ steps.
 
 ---
 
+## Using the same credentials in several repositories
+
+GitHub secrets are **write-only**: once saved, no one can read them back, so there is nothing
+to export. Two ways to share them.
+
+**If the repositories live under an organisation**, create the secrets once at organisation
+level (Settings → Secrets and variables → Actions → *New organization secret*) and grant them
+to selected repositories. One place to update, one place to revoke. This is the right answer
+whenever it is available — note it needs an organisation account, not a personal one.
+
+**Otherwise**, set them per repository from the files you already have. `gh secret set` reads
+from a file or stdin, so nothing has to go through the clipboard or a shell history:
+
+```sh
+# From the folder holding developer-id.p12 and AuthKey_XXXXXXXXXX.p8.
+KEY_ID=ABC123XYZ9
+ISSUER=00000000-0000-0000-0000-000000000000
+TEAM_ID=A1B2C3D4E5
+
+for repo in smartinventure/repo-one smartinventure/repo-two; do
+  base64 -w0 developer-id.p12          | gh secret set APPLE_CERT_BASE64    --repo "$repo"
+  base64 -w0 "AuthKey_${KEY_ID}.p8"    | gh secret set APPLE_API_KEY_BASE64 --repo "$repo"
+  printf %s "$KEY_ID"                  | gh secret set APPLE_API_KEY_ID     --repo "$repo"
+  printf %s "$ISSUER"                  | gh secret set APPLE_API_ISSUER     --repo "$repo"
+  printf %s "$TEAM_ID"                 | gh secret set APPLE_TEAM_ID        --repo "$repo"
+  # The .p12 password, typed once, not left in the script.
+  gh secret set APPLE_CERT_PASSWORD --repo "$repo"
+done
+```
+
+`printf %s` rather than `echo`, deliberately: `echo` appends a newline, and a trailing newline
+inside `APPLE_API_KEY_ID` or `APPLE_TEAM_ID` produces failures that read as "wrong key".
+
+The same certificate and API key are reusable across every app you ship — they identify the
+team, not the product. Revoking one revokes it everywhere, which is the trade for having one
+place to update.
+
+---
+
 ## Building on a Mac by hand
 
 `deploy/build-local.sh` signs and notarises too, from `deploy/.env.local`:
@@ -362,6 +410,7 @@ never for something you hand to anyone.
 | `Team ID is not valid` / `Unable to notarize` | An Individual API key instead of a Team key |
 | No **Team Keys** tab, only `Request Access` | API access has not been granted yet. Only the Account Holder can request it; it is normally granted on submitting the form. Use 3b if it is not |
 | `Request Access` is greyed out | You are not the Account Holder |
+| `MAC verification failed during PKCS12 import (wrong password?)` | Almost never the password. The `.p12` has a SHA-256 MAC; re-export it with `-macalg sha1` as above |
 | `The specified item could not be found in the keychain` | `APPLE_CERT_BASE64` is truncated, wrapped, or the wrong file |
 | Notarised, but crashes at launch | Missing `allow-jit` / `allow-unsigned-executable-memory` entitlements |
 | `spctl` says `source=Unnotarized Developer ID` | Signed but never notarised |

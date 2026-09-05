@@ -326,6 +326,11 @@ still reports success:
 4. **`xcrun stapler validate`** — the only local proof Apple notarised it, rather than
    electron-builder having skipped the step with a warning nobody read.
 
+It then mounts each `.dmg` and repeats those checks on the app **inside** it, because that
+is the file a user actually downloads. The DMG's own signature is not checked: electron-builder
+signs a disk image only when `dmg.sign: true` is set, so an unsigned DMG is the default and
+not a fault. What matters is that the app it carries is notarised and stapled.
+
 Then `spctl --assess --type exec` reports what Gatekeeper will say on a user's machine. A
 notarised app prints:
 

@@ -410,6 +410,7 @@ never for something you hand to anyone.
 | `Team ID is not valid` / `Unable to notarize` | An Individual API key instead of a Team key |
 | No **Team Keys** tab, only `Request Access` | API access has not been granted yet. Only the Account Holder can request it; it is normally granted on submitting the form. Use 3b if it is not |
 | `Request Access` is greyed out | You are not the Account Holder |
+| `set-key-partition-list ... SecKeychainUnlock: The user name or passphrase you entered is not correct` | Not your password. electron-builder creates its keychain with a random password and then presents the *certificate* password to `set-key-partition-list`. Build the keychain yourself and pass `CSC_KEYCHAIN` instead of `CSC_LINK`, as both workflows here do |
 | `MAC verification failed during PKCS12 import (wrong password?)` | Almost never the password. The `.p12` has a SHA-256 MAC; re-export it with `-macalg sha1` as above |
 | `The specified item could not be found in the keychain` | `APPLE_CERT_BASE64` is truncated, wrapped, or the wrong file |
 | Notarised, but crashes at launch | Missing `allow-jit` / `allow-unsigned-executable-memory` entitlements |

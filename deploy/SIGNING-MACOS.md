@@ -164,8 +164,10 @@ Two things about that request:
 
 - **Only the Account Holder can make it.** For anyone else the button is disabled, and no
   Admin can substitute.
-- **It is not instant.** Apple's documentation says the request "is reviewed and approved on
-  a case-by-case basis" and gives no timeline.
+- **It is usually instant, but Apple does not promise that.** The documentation says the
+  request "is reviewed and approved on a case-by-case basis" and gives no timeline; in
+  practice, on a new organisation account, access was granted immediately on submitting the
+  form. Assume instant, and fall back to 3b only if it is not.
 
 Once granted, the **Team Keys** and **Individual Keys** tabs appear. Then → **Team Keys** → ➕
 
@@ -181,10 +183,10 @@ the table) and the **Issuer ID** (a UUID above the key list).
 
 #### 3b. Apple ID and an app-specific password — the fallback
 
-Works immediately, notarises identically, and is the sensible way to get a release out while
-the API request is pending. The only difference is breadth: this credential is tied to your
-whole Apple account rather than scoped to notarisation, and it breaks when you change your
-password or your 2FA device.
+Only needed if 3a did not grant access immediately, or if the person setting this up is not
+the Account Holder. It notarises identically; the difference is breadth, as this credential is
+tied to your whole Apple account rather than scoped to notarisation, and it breaks when you
+change your password or your 2FA device.
 
 [account.apple.com](https://account.apple.com) → **Sign-In and Security** →
 **App-Specific Passwords** → ➕. Name it `notarization-ci`. You get `abcd-efgh-ijkl-mnop`,
@@ -358,7 +360,7 @@ never for something you hand to anyone.
 | `APPLE_ID env var needs to be set` | Something set `APPLE_ID` or `APPLE_APP_SPECIFIC_PASSWORD`; electron-builder took that path and ignored the API key |
 | `skipped macOS notarization: options were unable to be generated` | No credentials resolved. The build **succeeds** and ships an un-notarised app — this is the dangerous one, and why CI checks the staple |
 | `Team ID is not valid` / `Unable to notarize` | An Individual API key instead of a Team key |
-| No **Team Keys** tab, only `Request Access` | API access has not been granted yet. Only the Account Holder can request it, and Apple reviews it. Use 3b meanwhile |
+| No **Team Keys** tab, only `Request Access` | API access has not been granted yet. Only the Account Holder can request it; it is normally granted on submitting the form. Use 3b if it is not |
 | `Request Access` is greyed out | You are not the Account Holder |
 | `The specified item could not be found in the keychain` | `APPLE_CERT_BASE64` is truncated, wrapped, or the wrong file |
 | Notarised, but crashes at launch | Missing `allow-jit` / `allow-unsigned-executable-memory` entitlements |

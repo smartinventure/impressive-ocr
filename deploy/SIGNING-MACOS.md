@@ -47,21 +47,50 @@ Pick **Developer ID Application**, not "Mac App Distribution" and not "Developer
 Installer". Those are for the Mac App Store and for `.pkg` installers respectively; we ship a
 `.dmg` containing a `.app`, which is what "Developer ID Application" signs.
 
-Apple asks for a Certificate Signing Request. **On a Mac:** Keychain Access → Certificate
-Assistant → *Request a Certificate From a Certificate Authority*, choose "Saved to disk".
+**Then Apple asks which intermediate certificate authority to use. Choose
+`Developer ID G2 Sub-CA`** — the default.
 
-**Without a Mac** — and this matters, because our own development machine is Windows — you can
-make the CSR with OpenSSL and never touch a Mac:
+The alternative exists only for signing software that must run through Xcode older than
+11.4.1 (2020), which is irrelevant here: this is electron-builder, not Xcode, and notarisation
+needs current tooling anyway. It is also a trap, because Apple's own note on that screen says
+certificates on the previous Sub-CA **expire on 01 February 2027** regardless of when they are
+created. Choosing it buys a certificate with months of life instead of five years.
+
+### Creating the Certificate Signing Request
+
+**On a Mac:** Keychain Access → Certificate Assistant → *Request a Certificate From a
+Certificate Authority*, choose "Saved to disk".
+
+**On Windows or Linux** — no Mac is needed for this, which matters because most Apple guides
+assume one.
+
+> **Windows: run these in Git Bash, not PowerShell.** OpenSSL is not on the PowerShell PATH;
+> Git for Windows ships it at `C:\Program Files\Git\usr\bin\openssl.exe`, which Git Bash
+> already has. The `\` line-continuations below are shell syntax that PowerShell does not
+> understand either — it uses a backtick.
 
 ```sh
-openssl req -new -newkey rsa:2048 -nodes \
+# Git Bash, macOS or Linux.
+#
+# MSYS_NO_PATHCONV=1 applies to Windows only, and there it is not optional: without it Git
+# Bash rewrites the leading slash of -subj into a Windows path and openssl fails with
+#   "This name is not in that format: 'C:/Program Files/Git/emailAddress=...'"
+# It is harmless everywhere else, so the command stays the same on every platform.
+MSYS_NO_PATHCONV=1 openssl req -new -newkey rsa:2048 -nodes \
   -keyout developer-id.key \
   -out developer-id.csr \
   -subj "/emailAddress=you@example.com/CN=Your Company Name/C=DE"
 ```
 
-Upload the `.csr`, download the resulting `developerID_application.cer`, and combine it back
-with your private key into the `.p12` that electron-builder wants:
+Check it recorded what you meant before uploading anything:
+
+```sh
+openssl req -in developer-id.csr -noout -subject
+# subject=emailAddress=you@example.com, CN=Your Company Name, C=DE
+```
+
+Upload `developer-id.csr`, download the resulting `developerID_application.cer`, then combine
+it with your private key into the `.p12` electron-builder wants:
 
 ```sh
 openssl x509 -inform DER -in developerID_application.cer -out developer-id.pem
@@ -74,12 +103,28 @@ openssl pkcs12 -export \
 
 It asks for an export password. Choose a strong one — it becomes `APPLE_CERT_PASSWORD`.
 
-> **Back up `developer-id.p12` and its password somewhere safe and offline.** Apple lets you
-> create only a limited number of Developer ID certificates per account, and they cannot be
-> re-downloaded with the private key. Losing it is genuinely painful.
+`developer-id.key` is the private half and never leaves your machine; Apple only ever sees the
+`.csr`. Keep the key until the `.p12` exists, then back both up together.
 
-**On a Mac instead**, after double-clicking the `.cer` to install it: Keychain Access → *My
-Certificates* → right-click `Developer ID Application: …` → Export → `.p12`.
+> **If the CI runner later fails to import the `.p12`**, re-export with the older algorithms
+> macOS has always accepted — OpenSSL 3 defaults to AES-256, which some `security import`
+> paths reject:
+>
+> ```sh
+> openssl pkcs12 -export -inkey developer-id.key -in developer-id.pem \
+>   -out developer-id.p12 -name "Developer ID Application" \
+>   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1
+> ```
+>
+> Do not reach for `-legacy` instead: it needs OpenSSL's legacy provider, which a default Git
+> for Windows install does not load.
+
+**On a Mac**, the `.p12` comes out of Keychain Access instead: double-click the `.cer` to
+install it, then *My Certificates* → right-click `Developer ID Application: …` → Export.
+
+> **Back up `developer-id.p12` and its password somewhere safe and offline.** Apple allows
+> only a limited number of Developer ID certificates per account, and they cannot be
+> re-downloaded with the private key. Losing it is genuinely painful.
 
 ### 3. Create an App Store Connect **team** API key
 
@@ -124,17 +169,22 @@ Encoding the two files — the flags differ per platform, and a wrapped base64 s
 single most common cause of a failed setup:
 
 ```sh
-# macOS
+# macOS — Terminal
 base64 -i developer-id.p12 | pbcopy
 base64 -i AuthKey_ABC123XYZ9.p8 | pbcopy
 
-# Linux — -w0 keeps it on one line
+# Linux — any shell. -w0 keeps it on one line
+base64 -w0 developer-id.p12
+base64 -w0 AuthKey_ABC123XYZ9.p8
+
+# Windows — Git Bash. Note -w0, as on Linux
 base64 -w0 developer-id.p12
 base64 -w0 AuthKey_ABC123XYZ9.p8
 ```
 
 ```powershell
-# Windows
+# Windows — PowerShell. This one is PowerShell, unlike the openssl commands above,
+# which need Git Bash. Copies straight to the clipboard, always on a single line.
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("developer-id.p12")) | Set-Clipboard
 [Convert]::ToBase64String([IO.File]::ReadAllBytes("AuthKey_ABC123XYZ9.p8")) | Set-Clipboard
 ```
@@ -233,6 +283,8 @@ never for something you hand to anyone.
 
 | Symptom | Cause |
 |---|---|
+| `This name is not in that format: 'C:/Program Files/Git/emailAddress=...'` | Git Bash rewrote the `-subj` path. Prefix the command with `MSYS_NO_PATHCONV=1` |
+| `openssl: command not found` in PowerShell | OpenSSL ships with Git, not Windows. Run it in Git Bash |
 | `APPLE_ID env var needs to be set` | Something set `APPLE_ID` or `APPLE_APP_SPECIFIC_PASSWORD`; electron-builder took that path and ignored the API key |
 | `skipped macOS notarization: options were unable to be generated` | No credentials resolved. The build **succeeds** and ships an un-notarised app — this is the dangerous one, and why CI checks the staple |
 | `Team ID is not valid` / `Unable to notarize` | An Individual API key instead of a Team key |

@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-name: Verify Windows signing
+name: Verify code signing
 
 # Manual only. This exists so the signing setup can be proved before a release depends on it.
 #
@@ -13,6 +13,12 @@ name: Verify Windows signing
 # can be inspected by hand.
 on:
   workflow_dispatch:
+    inputs:
+      platform:
+        description: Which signing setup to prove
+        type: choice
+        default: both
+        options: [both, windows, macos]
 
 permissions:
   contents: read
@@ -22,8 +28,9 @@ env:
   PNPM_VERSION: '9.15.4'
 
 jobs:
-  sign:
+  sign-windows:
     name: Build and sign a Windows installer
+    if: inputs.platform != 'macos'
     runs-on: windows-latest
     timeout-minutes: 40
     env:
@@ -134,4 +141,129 @@ jobs:
           path: dist/release/*.exe
           if-no-files-found: error
           # Short: this is a test build, not something anyone should install from.
+          retention-days: 3
+
+  # -------------------------------------------------------------------------------------
+  # macOS: Developer ID signing plus Apple notarisation.
+  #
+  # Two separate things, and the second is the one that catches people out. A signed but
+  # un-notarised app runs perfectly on the machine that built it and is blocked by Gatekeeper
+  # on every machine that downloads it, so the only honest test is `stapler validate` on a
+  # freshly built app.
+  # -------------------------------------------------------------------------------------
+  sign-macos:
+    name: Build, sign and notarise a macOS app
+    if: inputs.platform != 'windows'
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
+      APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+      APPLE_API_KEY_BASE64: ${{ secrets.APPLE_API_KEY_BASE64 }}
+      APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+      APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+    steps:
+      - name: The credentials must be present
+        # First, before forty minutes of building. Saving a value on the Variables tab
+        # instead of Secrets, or misspelling a name, looks identical from in here.
+        run: |
+          set -eu
+          missing=""
+          [ -n "${APPLE_CERT_BASE64:-}" ]    || missing="$missing APPLE_CERT_BASE64"
+          [ -n "${APPLE_CERT_PASSWORD:-}" ]  || missing="$missing APPLE_CERT_PASSWORD"
+          [ -n "${APPLE_API_KEY_BASE64:-}" ] || missing="$missing APPLE_API_KEY_BASE64"
+          [ -n "${APPLE_API_KEY_ID:-}" ]     || missing="$missing APPLE_API_KEY_ID"
+          [ -n "${APPLE_API_ISSUER:-}" ]     || missing="$missing APPLE_API_ISSUER"
+          [ -n "${APPLE_TEAM_ID:-}" ]        || missing="$missing APPLE_TEAM_ID"
+          if [ -n "$missing" ]; then
+            echo "::error::Not configured (all six are secrets):$missing"
+            exit 1
+          fi
+          echo "team: $APPLE_TEAM_ID   key id: $APPLE_API_KEY_ID"
+
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
+      - name: Build the web UI
+        run: pnpm --filter @impressive-ocr/web build
+
+      - name: Fetch the bundled uv binaries
+        run: |
+          node deploy/fetch-uv.mjs --target mac --arch arm64
+          node deploy/fetch-uv.mjs --target mac --arch x64
+
+      - name: Prepare the Apple notarisation key
+        run: |
+          set -eu
+          key_path="${RUNNER_TEMP}/AuthKey_${APPLE_API_KEY_ID}.p8"
+          echo "$APPLE_API_KEY_BASE64" | base64 --decode > "$key_path"
+          head -1 "$key_path" | grep -q 'BEGIN PRIVATE KEY' \
+            || { echo '::error::APPLE_API_KEY_BASE64 did not decode to a .p8 private key.'; exit 1; }
+          chmod 600 "$key_path"
+          echo "APPLE_API_KEY=$key_path" >> "$GITHUB_ENV"
+
+      - name: Package, sign and notarise
+        # Identical to the release workflow's signed path, so a pass here means that path
+        # works too. APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD stay unset on purpose:
+        # electron-builder prefers them over the API key and throws if they are incomplete.
+        env:
+          CSC_LINK: ${{ secrets.APPLE_CERT_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}
+          APPLE_API_KEY: ${{ env.APPLE_API_KEY }}
+        run: pnpm --filter @impressive-ocr/desktop package --mac
+
+      - name: The app must be signed by Developer ID, hardened and stapled
+        run: |
+          set -eu
+          shopt -s nullglob
+          apps=(dist/release/mac*/*.app)
+          [ ${#apps[@]} -gt 0 ] || { echo '::error::No .app was produced.'; exit 1; }
+
+          for app in "${apps[@]}"; do
+            echo "== $app"
+            codesign --verify --deep --strict --verbose=2 "$app"
+
+            authority=$(codesign --display --verbose=2 "$app" 2>&1 \
+              | sed -n 's/^Authority=//p' | head -1)
+            echo "signed by: $authority"
+            case "$authority" in
+              "Developer ID Application:"*) ;;
+              *) echo "::error::Signed by '$authority', expected a Developer ID Application certificate."; exit 1 ;;
+            esac
+
+            # A notarisation prerequisite. Apple rejects an unhardened app, and the flag is
+            # the usual reason an otherwise correct setup fails.
+            codesign --display --verbose=2 "$app" 2>&1 | grep -q 'flags=.*runtime' \
+              || { echo "::error::$app is not hardened."; exit 1; }
+
+            # The only local proof that Apple notarised it, rather than electron-builder
+            # having quietly skipped the step.
+            xcrun stapler validate "$app"
+
+            # What Gatekeeper will say on a user's machine.
+            spctl --assess --type exec --verbose=2 "$app"
+          done
+
+          for dmg in dist/release/*.dmg; do
+            echo "== $dmg"
+            codesign --verify --verbose=2 "$dmg"
+          done
+
+          echo 'OK - Developer ID signed, hardened, notarised and stapled.'
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: signed-macos-for-inspection
+          path: dist/release/*.dmg
+          if-no-files-found: error
           retention-days: 3

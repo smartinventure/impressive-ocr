@@ -61,6 +61,7 @@ feed, so it could never see itself as up to date. Always go through these script
 | File | Purpose |
 |---|---|
 | `release.ps1` / `release.sh` | Cut a release: bump, check, commit, tag, push |
+| `SIGNING-MACOS.md` | Apple Developer ID signing and notarisation, end to end |
 | `build-local.ps1` / `build-local.sh` | Build artifacts on this machine, publishing nothing |
 | `set-version.mjs` | Writes one version into every file that carries it |
 | `fetch-uv.mjs` | Downloads the pinned `uv` binary into `vendor/uv-<arch>/` |

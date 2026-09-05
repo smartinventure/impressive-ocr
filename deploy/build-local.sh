@@ -182,7 +182,18 @@ if [[ "$WANT_DESKTOP" == "1" ]]; then
       ;;
     mac)
       if [[ -n "${CSC_LINK:-}" ]]; then
-        good 'Certificate configured — signing, and notarising if the Apple credentials are set.'
+        # notarytool wants the key as a file. Exported here rather than asked for as
+        # APPLE_API_KEY directly so the env file names a path once and this stays the only
+        # place that knows what electron-builder calls it.
+        if [[ -n "${APPLE_API_KEY_FILE:-}" ]]; then
+          export APPLE_API_KEY="$APPLE_API_KEY_FILE"
+          good 'Certificate and notarisation key configured — signing and notarising.'
+        else
+          # Worth saying out loud: the build will succeed and the app will run here, and
+          # Gatekeeper will block it on every machine that downloads it.
+          warn 'Certificate configured but no APPLE_API_KEY_FILE — signing WITHOUT notarising.'
+          info 'The app will run on this machine and be blocked by Gatekeeper elsewhere.'
+        fi
         pnpm --filter @impressive-ocr/desktop package --mac
       else
         # Without this electron-builder reads an empty CSC_LINK as a certificate *path* and

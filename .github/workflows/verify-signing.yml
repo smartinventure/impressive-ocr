@@ -155,7 +155,8 @@ jobs:
     name: Build, sign and notarise a macOS app
     if: inputs.platform != 'windows'
     runs-on: macos-latest
-    timeout-minutes: 60
+    # Two apps, two notarisation round trips - see the note in release.yml.
+    timeout-minutes: 120
     env:
       APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
       APPLE_CERT_PASSWORD: ${{ secrets.APPLE_CERT_PASSWORD }}

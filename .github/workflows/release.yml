@@ -104,7 +104,10 @@ jobs:
     name: ${{ matrix.label }}
     needs: verify
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    # 120 rather than 60: the macOS entry signs and notarises two apps, arm64 and
+    # x64, and each notarisation is a round trip to Apple that is occasionally very
+    # slow. A job that would have passed in 70 minutes must not be killed at 60.
+    timeout-minutes: 120
     env:
       # Read by the `if:` on the signing steps below. Secrets cannot be referenced from an
       # `if:` directly, so they are lifted into the env context here.

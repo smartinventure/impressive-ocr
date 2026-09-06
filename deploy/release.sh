@@ -96,17 +96,36 @@ fi
 
 if [[ "$SKIP_CHECKS" == "0" ]]; then
   step 'Running checks (use --skip-checks to skip)'
+  # These are the release workflow's own verify job, run here first. The point of this
+  # script is to fail before a tag exists: once one is pushed it is the release ledger, and
+  # a build that CI then rejects leaves a tag pointing at a release that never shipped.
   pnpm install --frozen-lockfile
   pnpm lint
+  # Cheap, and the failure it catches is expensive: a source file excluded by .gitignore
+  # builds perfectly here and is missing from the clone CI makes.
+  pnpm check:sources
   pnpm -r typecheck
   pnpm -r test
 
-  if [[ -x "sidecar/.venv/bin/python" ]]; then
-    sidecar/.venv/bin/python -m pytest sidecar -q
-  elif [[ -x "sidecar/.venv/Scripts/python.exe" ]]; then
-    sidecar/.venv/Scripts/python.exe -m pytest sidecar -q
+  # `python -m` for each tool rather than the console scripts, so the same three lines work
+  # against a POSIX venv and a Windows one without juggling the .exe suffix.
+  SIDECAR_PY=""
+  if [[ -x "$REPO_ROOT/sidecar/.venv/bin/python" ]]; then
+    SIDECAR_PY="$REPO_ROOT/sidecar/.venv/bin/python"
+  elif [[ -x "$REPO_ROOT/sidecar/.venv/Scripts/python.exe" ]]; then
+    SIDECAR_PY="$REPO_ROOT/sidecar/.venv/Scripts/python.exe"
+  fi
+
+  if [[ -n "$SIDECAR_PY" ]]; then
+    # From inside sidecar/, because ruff and mypy read their configuration from
+    # sidecar/pyproject.toml - including the per-file ignore that lets the thread-limit
+    # code set a lower-case Paddle flag.
+    ( cd "$REPO_ROOT/sidecar" \
+      && "$SIDECAR_PY" -m ruff check . \
+      && "$SIDECAR_PY" -m mypy src \
+      && "$SIDECAR_PY" -m pytest -q )
   else
-    warn 'Sidecar venv not found — skipping Python tests. CI will still run them.'
+    warn 'Sidecar venv not found — skipping ruff, mypy and pytest. CI will still run them.'
   fi
 fi
 

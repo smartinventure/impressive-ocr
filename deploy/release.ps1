@@ -124,17 +124,34 @@ if ($DryRun) {
 # --- Checks -----------------------------------------------------------------
 
 if (-not $SkipChecks) {
+    # These are the release workflow's own verify job, run here first. The point of this
+    # script is to fail before a tag exists: once one is pushed it is the release ledger, and
+    # a build that CI then rejects leaves a tag pointing at a release that never shipped.
     Write-Step 'Running checks (use -SkipChecks to skip)'
     Invoke-Checked 'pnpm install' { pnpm install --frozen-lockfile }
     Invoke-Checked 'Lint'         { pnpm lint }
+    # Cheap, and the failure it catches is expensive: a source file excluded by .gitignore
+    # builds perfectly here and is missing from the clone CI makes.
+    Invoke-Checked 'Source guard' { pnpm check:sources }
     Invoke-Checked 'Typecheck'    { pnpm -r typecheck }
     Invoke-Checked 'Tests'        { pnpm -r test }
 
     $sidecarPython = Join-Path $repoRoot 'sidecar\.venv\Scripts\python.exe'
     if (Test-Path $sidecarPython) {
-        Invoke-Checked 'Sidecar tests' { & $sidecarPython -m pytest sidecar -q }
+        # Run from inside sidecar\, because ruff and mypy read their configuration from
+        # sidecar\pyproject.toml - including the per-file ignore that lets the thread-limit
+        # code set a lower-case Paddle flag. Push-Location so a failure cannot leave the
+        # shell somewhere unexpected.
+        Push-Location (Join-Path $repoRoot 'sidecar')
+        try {
+            Invoke-Checked 'Sidecar lint'      { & $sidecarPython -m ruff check . }
+            Invoke-Checked 'Sidecar typecheck' { & $sidecarPython -m mypy src }
+            Invoke-Checked 'Sidecar tests'     { & $sidecarPython -m pytest -q }
+        } finally {
+            Pop-Location
+        }
     } else {
-        Write-Warn 'Sidecar venv not found — skipping Python tests. CI will still run them.'
+        Write-Warn 'Sidecar venv not found — skipping ruff, mypy and pytest. CI will still run them.'
     }
 }
 

@@ -5,10 +5,14 @@ import { describePlatform } from './platform-support';
 /**
  * The distinction is emulation, not ARM.
  *
- * PaddlePaddle 3.3.1 ships macosx_11_0_arm64, manylinux1_x86_64 and win_amd64 — so Apple
- * Silicon is native and fully supported, while Windows on ARM has no wheel at all and must
- * emulate. Getting this backwards would either exclude a first-class platform or let users
- * discover an unsupported one through silent crashes.
+ * PaddlePaddle 3.3.1 ships macosx_11_0_arm64, manylinux1_x86_64 and win_amd64 — three tags,
+ * and everything here follows from which of them a machine matches. Apple Silicon is native
+ * and fully supported. Windows on ARM matches none, and emulates the x86-64 wheel: slow, and
+ * observed to kill the process outright. An Intel Mac matches none either and cannot even
+ * emulate, because no macOS x86-64 wheel exists to run.
+ *
+ * Getting this backwards either excludes a first-class platform or lets someone discover an
+ * unsupported one through a failure that looks like a bug in this application.
  */
 describe('describePlatform', () => {
   it('treats Apple Silicon as native, because a native wheel exists', () => {
@@ -18,8 +22,32 @@ describe('describePlatform', () => {
     expect(report.reason).toBe('');
   });
 
-  it('treats an Intel Mac as native', () => {
-    expect(describePlatform({ platform: 'darwin', arch: 'x64' }).support).toBe('native');
+  it('rejects an Intel Mac, which has no wheel of any kind', () => {
+    // PaddlePaddle publishes no macosx x86_64 wheel, so `pip install` ends with "no matching
+    // distribution" and nothing is installed. Calling this native sent the user into a
+    // multi-gigabyte download that could not finish, and the failure read as a broken
+    // installer rather than an unsupported machine.
+    const report = describePlatform({
+      platform: 'darwin',
+      arch: 'x64',
+      cpuModel: 'Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz',
+    });
+
+    expect(report.support).toBe('unsupported');
+    expect(report.reason).toContain('Apple Silicon');
+  });
+
+  it('tells an Apple Silicon Mac running the x86-64 build to install the arm64 one', () => {
+    // Rosetta. Reported as unsupported rather than emulated: there is no x86-64 macOS wheel
+    // to emulate, and unlike Windows on ARM the fix is one download away.
+    const report = describePlatform({
+      platform: 'darwin',
+      arch: 'x64',
+      cpuModel: 'Apple M3 Pro',
+    });
+
+    expect(report.support).toBe('unsupported');
+    expect(report.reason).toContain('arm64 build');
   });
 
   it('treats Windows on x86-64 as native', () => {

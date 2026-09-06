@@ -83,6 +83,33 @@ export function describePlatform(inputs: PlatformInputs): PlatformReport {
     return { support: 'native', reason: '' };
   }
 
+  // macOS on x86-64, which has no wheel at all. PaddlePaddle 3.3.1 publishes exactly three
+  // platform tags -- macosx_11_0_arm64, manylinux1_x86_64 and win_amd64 -- and none of them
+  // matches an Intel Mac.
+  //
+  // Reported as unsupported rather than emulated, because the two fail differently and the
+  // difference matters. Emulation means "runs, slowly, possibly badly"; here `pip install`
+  // ends with "no matching distribution" and nothing is installed at all. Choosing the
+  // accurate profile does not rescue it either: that runs through llama.cpp, which does ship
+  // a macOS x64 build, but the engine is still driven by `import paddleocr` in
+  // engines/vl_engine.py, so it needs the same wheel.
+  //
+  // Checked before the ARM branches below so that the x86-64 build under Rosetta on Apple
+  // Silicon gets this answer too, where those would have called it emulation.
+  if (inputs.platform === 'darwin' && binaryIsX86) {
+    return {
+      support: 'unsupported',
+      reason: hostIsArm
+        ? 'This is the x86-64 build running on Apple Silicon under Rosetta, and ' +
+          'PaddlePaddle publishes no x86-64 wheel for macOS. Install the arm64 build of ' +
+          'this application instead — Apple Silicon is fully supported.'
+        : 'PaddlePaddle publishes no x86-64 wheel for macOS, so the OCR engine cannot be ' +
+          'installed on an Intel Mac. Use a Mac with Apple Silicon, or an x86-64 Windows ' +
+          'or Linux machine. This Mac can still drive a server running elsewhere through ' +
+          'its web interface.',
+    };
+  }
+
   if (hostIsArm && binaryIsX86) {
     return {
       support: 'emulated',
@@ -94,6 +121,8 @@ export function describePlatform(inputs: PlatformInputs): PlatformReport {
     };
   }
 
+  // `!== 'darwin'` is no longer needed for the x86-64 case, which is handled above, but
+  // Apple Silicon running its own arm64 build must still fall through to native.
   if (hostIsArm && !binaryIsX86 && inputs.platform !== 'darwin') {
     return {
       support: 'unsupported',

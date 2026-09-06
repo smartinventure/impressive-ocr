@@ -126,7 +126,7 @@ correctly-read text assembled in the wrong sequence.
 | **Free disk space** | 8 GB (CPU only) | **12 GB** |
 | **Memory** | 8 GB | 16 GB |
 | **Graphics card** | none — it runs on the processor | NVIDIA with 8 GB VRAM or more |
-| **Operating system** | Windows 10 1809+, macOS 12+, Ubuntu 22.04+ or equivalent | |
+| **Operating system** | Windows 10 1809+, macOS 12+ on Apple Silicon, Ubuntu 22.04+ or equivalent | |
 
 Disk is the one that catches people out. A full install on an NVIDIA machine occupies about
 **8.5 GB** and needs around **11 GB free** while it runs, because the language model is
@@ -138,6 +138,12 @@ A graphics card is optional. Without one the accurate engine reads about 11 seco
 instead of 2, which is slow for a large backlog and perfectly usable for a document at a time.
 With one, 8 GB of video memory is the threshold for the accurate engine's own backend; below
 that it still runs, through the bundled inference engine, at about half the video memory.
+
+**On a Mac**, "graphics card" means Apple Silicon. There is no CUDA on macOS, so the fast
+engine runs on the processor — but the accurate engine is driven by llama.cpp, which uses
+Metal, so on an M-series machine it is genuinely GPU-accelerated. **Intel Macs are not
+supported**: PaddlePaddle publishes no x86-64 wheel for macOS, and both engines need it. An
+Intel Mac can still use the web interface of a server running elsewhere.
 
 ### Where it puts everything
 

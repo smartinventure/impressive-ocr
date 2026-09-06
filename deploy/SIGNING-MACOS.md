@@ -326,10 +326,34 @@ still reports success:
 4. **`xcrun stapler validate`** — the only local proof Apple notarised it, rather than
    electron-builder having skipped the step with a warning nobody read.
 
-It then mounts each `.dmg` and repeats those checks on the app **inside** it, because that
-is the file a user actually downloads. The DMG's own signature is not checked: electron-builder
-signs a disk image only when `dmg.sign: true` is set, so an unsigned DMG is the default and
-not a fault. What matters is that the app it carries is notarised and stapled.
+It then checks each `.dmg` the same way — signed, stapled, and containing an app that is
+itself notarised and stapled — because the disk image is the file a user actually downloads.
+
+### The chain, and why the disk image is part of it
+
+Apple's rule is: **sign from the inside out, notarise the outermost container, staple the
+outermost item that supports stapling.** For a `.dmg` that means four things, and
+electron-builder does only the first two:
+
+| Step | Done by |
+|---|---|
+| Sign the `.app` | electron-builder |
+| Notarise and staple the `.app` | electron-builder |
+| Sign the `.dmg` | electron-builder, but only with `dmg.sign: true` |
+| Notarise and staple the `.dmg` | `deploy/notarize-dmg.sh` |
+
+Skipping the last two is the common mistake, and it is quiet. The app still launches without
+a warning, because its own ticket is stapled to it. But the *installer* has no ticket, so
+opening the download makes Gatekeeper ask Apple's servers rather than read the answer off the
+file — slower, and a warning about the `.dmg` on a machine that is offline or behind a
+restrictive network, before the user ever reaches the app.
+
+The two halves depend on each other in a way the error messages hide: an **unsigned** disk
+image can be submitted for notarisation and is accepted, but the notary service leaves it out
+of the ticket because an unsigned image has no stable cdhash. There is then nothing to staple,
+and `stapler staple` fails with `Record not found` — which reads as a notarisation problem and
+is a signing one. `deploy/notarize-dmg.sh` checks the signature before submitting, so that
+appears in seconds rather than after a round trip.
 
 Then `spctl --assess --type exec` reports what Gatekeeper will say on a user's machine. A
 notarised app prints:

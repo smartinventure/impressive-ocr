@@ -334,6 +334,10 @@ jobs:
           APPLE_ID: ${{ env.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_ID || '' }}
         run: pnpm --filter @impressive-ocr/desktop package --mac
 
+      - name: Notarise and staple the disk images
+        # Identical to the release workflow, so a pass here means that path works too.
+        run: ./deploy/notarize-dmg.sh dist/release/*.dmg
+
       - name: The app must be signed by Developer ID, hardened and stapled
         run: |
           set -eu
@@ -366,21 +370,28 @@ jobs:
             spctl --assess --type exec --verbose=2 "$app"
           done
 
-          # The DMG's own signature is deliberately not asserted. electron-builder signs a
-          # disk image only when `dmg.sign: true` is set explicitly -- `this.options.sign
-          # === true` in dmg-builder -- and it is not set here, so the artifact is unsigned
-          # by design. What protects a user is the notarised, stapled app *inside* it, and
-          # that is worth checking on the file they actually download rather than on the
-          # intermediate build output above.
+          # The disk image is checked as thoroughly as the app: signed, carrying its own
+          # notarisation ticket, and containing an app that is itself notarised and stapled.
+          # electron-builder signs a DMG only under `dmg.sign: true`, and it silently skips
+          # signing when it cannot find an identity, so an unsigned image here is a real
+          # fault rather than a default.
           for dmg in dist/release/*.dmg; do
             echo "== $dmg"
+            codesign --verify --verbose=2 "$dmg"
+
+            # The image's own ticket, which is what lets Gatekeeper approve the download
+            # without asking Apple.
+            xcrun stapler validate "$dmg"
+
+            # And what it carries, on the file a user actually downloads rather than on the
+            # intermediate build output checked above.
             mount=$(mktemp -d)
             hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount" >/dev/null
 
-            # Detach on every exit path. A mounted image left behind fails the next dmg in
-            # the loop with a confusing "resource busy".
             app=$(find "$mount" -maxdepth 1 -name '*.app' | head -1)
             if [ -z "$app" ]; then
+              # Detached on every exit path: an image left mounted fails the next iteration
+              # with a confusing "resource busy".
               hdiutil detach "$mount" >/dev/null || true
               echo "::error::No .app inside $dmg"
               exit 1
@@ -393,7 +404,7 @@ jobs:
 
             hdiutil detach "$mount" >/dev/null || true
             [ "$ok" = 1 ] || { echo "::error::The app inside $dmg is not correctly signed and notarised."; exit 1; }
-            echo "  the app inside is notarised and stapled"
+            echo "  signed, stapled, and the app inside is notarised"
           done
 
           echo 'OK - Developer ID signed, hardened, notarised and stapled.'

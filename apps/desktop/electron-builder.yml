@@ -133,6 +133,17 @@ mac:
 
 dmg:
   title: ${productName} ${version}
+  # Signed so it can be notarised and stapled afterwards by deploy/notarize-dmg.sh.
+  #
+  # Not the default, and the default is a trap: the notary service accepts an unsigned disk
+  # image but leaves it out of the ticket, because an unsigned image has no stable cdhash. So
+  # there is nothing to staple, `stapler staple` fails with "Record not found", and the error
+  # blames notarisation for what is a signing omission.
+  #
+  # Without the whole chain, opening the downloaded .dmg makes Gatekeeper ask Apple's servers
+  # rather than read a ticket off the file — slower, and a warning about the installer on a
+  # machine that is offline or behind a restrictive network.
+  sign: true
 
 linux:
   # Spelled out, because the default is derived from the package name and this package is

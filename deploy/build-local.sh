@@ -195,6 +195,10 @@ if [[ "$WANT_DESKTOP" == "1" ]]; then
           info 'The app will run on this machine and be blocked by Gatekeeper elsewhere.'
         fi
         pnpm --filter @impressive-ocr/desktop package --mac
+        # electron-builder notarises the app but not the disk image it ships in.
+        if [[ -n "${APPLE_API_KEY:-}" ]]; then
+          ./deploy/notarize-dmg.sh dist/release/*.dmg
+        fi
       else
         # Without this electron-builder reads an empty CSC_LINK as a certificate *path* and
         # resolves it to the project directory, then hunts the keychain for any identity.

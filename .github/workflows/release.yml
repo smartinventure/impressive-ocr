@@ -368,6 +368,13 @@ jobs:
         # resolve, and `mac.notarize` exists only to turn it off.
         run: pnpm --filter @impressive-ocr/desktop package --mac
 
+      - name: Notarise and staple the disk images
+        if: matrix.target == 'mac' && env.APPLE_CERT_BASE64 != ''
+        # electron-builder notarises the .app but not the .dmg it ships in. Apple's guidance
+        # is to sign inside out, notarise the outermost container and staple the outermost
+        # item that supports it, so the disk images are finished off here.
+        run: ./deploy/notarize-dmg.sh dist/release/*.dmg
+
       - name: The apps must be signed, hardened and stapled
         if: matrix.target == 'mac' && env.APPLE_CERT_BASE64 != ''
         # Checked here rather than trusted, because every one of these can fail while the
@@ -393,21 +400,28 @@ jobs:
             spctl --assess --type exec --verbose=2 "$app"
           done
 
-          # The DMG's own signature is deliberately not asserted. electron-builder signs a
-          # disk image only when `dmg.sign: true` is set explicitly -- `this.options.sign
-          # === true` in dmg-builder -- and it is not set here, so the artifact is unsigned
-          # by design. What protects a user is the notarised, stapled app *inside* it, and
-          # that is worth checking on the file they actually download rather than on the
-          # intermediate build output above.
+          # The disk image is checked as thoroughly as the app: signed, carrying its own
+          # notarisation ticket, and containing an app that is itself notarised and stapled.
+          # electron-builder signs a DMG only under `dmg.sign: true`, and it silently skips
+          # signing when it cannot find an identity, so an unsigned image here is a real
+          # fault rather than a default.
           for dmg in dist/release/*.dmg; do
             echo "== $dmg"
+            codesign --verify --verbose=2 "$dmg"
+
+            # The image's own ticket, which is what lets Gatekeeper approve the download
+            # without asking Apple.
+            xcrun stapler validate "$dmg"
+
+            # And what it carries, on the file a user actually downloads rather than on the
+            # intermediate build output checked above.
             mount=$(mktemp -d)
             hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mount" >/dev/null
 
-            # Detach on every exit path. A mounted image left behind fails the next dmg in
-            # the loop with a confusing "resource busy".
             app=$(find "$mount" -maxdepth 1 -name '*.app' | head -1)
             if [ -z "$app" ]; then
+              # Detached on every exit path: an image left mounted fails the next iteration
+              # with a confusing "resource busy".
               hdiutil detach "$mount" >/dev/null || true
               echo "::error::No .app inside $dmg"
               exit 1
@@ -420,7 +434,7 @@ jobs:
 
             hdiutil detach "$mount" >/dev/null || true
             [ "$ok" = 1 ] || { echo "::error::The app inside $dmg is not correctly signed and notarised."; exit 1; }
-            echo "  the app inside is notarised and stapled"
+            echo "  signed, stapled, and the app inside is notarised"
           done
 
       - name: Package the macOS apps (unsigned)

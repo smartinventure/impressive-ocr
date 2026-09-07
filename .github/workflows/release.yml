@@ -115,10 +115,22 @@ jobs:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
       APPLE_CERT_BASE64: ${{ secrets.APPLE_CERT_BASE64 }}
-      # Licence configuration, injected at build time and never committed. These identify the
-      # build rather than a customer and are public once the app ships -- the licence server
-      # can revoke them, and they are rotated per release -- but a key committed to a public
-      # repository is scraped and burned before the release it belongs to is out.
+      # Static installer API keys from the License Manager, injected at build time and never
+      # committed. Not rotated per release: the same key authenticates every build until it
+      # is replaced by hand. They identify the build rather than a customer and are public
+      # once the app ships, but a key committed to a public repository is scraped and burned
+      # before the release it belongs to is out.
+      #
+      # Static is the correct design here, and deliberately so. Per-version credentials exist
+      # for pipelines that encrypt an archive per release and want to cut off one specific
+      # build; this client only needs a key that authenticates. Adopting them would put a
+      # release-time dependency on the licence server -- a failed call blocking a release --
+      # and would place the installed base on credentials that rotate.
+      #
+      # Two consequences of these keys being lasting ones. There is no per-build cut-off:
+      # deactivating one stops every installed copy at once, not one version. And if a key
+      # leaks, tell the licence team rather than rotating it here, so the replacement can be
+      # staged and the installed base is not cut off between the revoke and the update.
       IMPRESSIVE_OCR_PRODUCT_COMMUNITY: impressiveocrcommunity
       IMPRESSIVE_OCR_PRODUCT_COMMERCIAL: impressiveocrcommercial
       IMPRESSIVE_OCR_INSTALLER_KEY_COMMUNITY: ${{ secrets.INSTALLER_API_KEY_COMMUNITY }}

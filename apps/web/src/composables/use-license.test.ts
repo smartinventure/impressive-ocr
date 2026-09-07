@@ -38,6 +38,7 @@ function status(overrides: Partial<LicenseStatus> = {}): LicenseStatus {
     seatsAllowed: null,
     message: null,
     code: null,
+    keyResent: false,
     gate: {
       state: 'trial' as const,
       canProcess: true,

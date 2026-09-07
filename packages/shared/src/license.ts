@@ -165,6 +165,18 @@ export const licenseStatusSchema = z.object({
    * whoever is stuck.
    */
   code: z.string().nullable(),
+  /**
+   * The last registration resent an existing key rather than issuing a new one.
+   *
+   * The licence server does this when the address already holds a licence for the product.
+   * It changes what the screen must say: there is no verification link to click, because
+   * nothing needs verifying — the key is already on its way. Telling someone to wait for a
+   * link that will never arrive is the kind of dead end people give up on rather than report.
+   *
+   * Persisted rather than returned once, so the answer survives closing the app and coming
+   * back to a screen that still says "waiting for your key".
+   */
+  keyResent: z.boolean(),
   /** Whether work may proceed, and how long is left if it is on a clock. */
   gate: licenseGateSchema,
 });
@@ -227,6 +239,8 @@ export type ReleaseSeatRequest = z.infer<typeof releaseSeatRequestSchema>;
 /** What is persisted locally. The status above is derived from it. */
 export const licenseRecordSchema = z.object({
   state: licenseStateSchema.default('unregistered'),
+  /** Set when the last registration resent an existing key. See `keyResent` on the status. */
+  keyResent: z.boolean().default(false),
   tier: licenseTierSchema.nullable().default(null),
   email: z.string().nullable().default(null),
   licenseKey: z.string().nullable().default(null),

@@ -43,6 +43,8 @@ export class LicenseActivationError extends Error {
     readonly retryable: boolean,
     /** The licence server's own code, so the screen can show what it actually said. */
     readonly code: string | null = null,
+    /** Seconds to wait, when the refusal was rate limiting rather than a decision. */
+    readonly retryAfterSeconds: number | null = null,
   ) {
     super(message);
     this.name = 'LicenseActivationError';
@@ -86,6 +88,7 @@ export class LicenseService {
       seatsAllowed: record.seatsAllowed,
       message: record.message,
       code: record.code,
+      keyResent: record.keyResent,
       gate: evaluateGate(record, new Date()),
     };
   }
@@ -162,7 +165,7 @@ export class LicenseService {
    * screen has to say so explicitly.
    */
   async registerPersonal(request: RegisterPersonalRequest): Promise<LicenseStatus> {
-    await this.callServer(() =>
+    const result = await this.callServer(() =>
       this.options.client.register({
         email: request.email,
         country: request.country,
@@ -177,6 +180,10 @@ export class LicenseService {
       state: 'awaiting-key',
       tier: 'personal',
       email: request.email,
+      // The server resent a key this address already had. Recorded because it decides what
+      // the next screen says: with no new registration there is no verification link, and
+      // the two-email sequence the screen otherwise describes never happens.
+      keyResent: result.resent,
     });
   }
 
@@ -345,7 +352,12 @@ export class LicenseService {
     } catch (error) {
       if (error instanceof LicenseServerError) {
         this.options.logger.warn({ code: error.code }, 'The licence server refused a request');
-        throw new LicenseActivationError(error.message, error.retryable, error.code);
+        throw new LicenseActivationError(
+          error.message,
+          error.retryable,
+          error.code,
+          error.retryAfterSeconds,
+        );
       }
       this.options.logger.error({ err: error }, 'Licence activation failed unexpectedly');
       throw new LicenseActivationError('The licence could not be checked right now.', true);

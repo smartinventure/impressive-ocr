@@ -143,11 +143,24 @@ export interface Country {
   name: string;
 }
 
+export interface RegisterResult {
+  /**
+   * The address already held a licence for this product, so the existing key was sent again
+   * rather than a second one issued.
+   *
+   * The distinction is the whole point of the flag: a first registration sends a
+   * verification link and then a key, while a resend sends only the key. A screen that
+   * describes the two-email sequence in the second case is telling the user to wait for a
+   * link that will never arrive.
+   */
+  resent: boolean;
+}
+
 export interface LicenseClient {
   /** The countries the licence server will accept, or null when it cannot be asked. */
   countries(signal?: AbortSignal): Promise<Country[] | null>;
-  /** Personal tier only. The key arrives by email once the address is verified. */
-  register(request: RegisterRequest, signal?: AbortSignal): Promise<void>;
+  /** Personal tier only. The key arrives by email, after verification unless it is a resend. */
+  register(request: RegisterRequest, signal?: AbortSignal): Promise<RegisterResult>;
   activate(request: ActivationRequest, signal?: AbortSignal): Promise<ActivationResult>;
   /** Hand this machine's seat back so another can take it. */
   releaseSeat(request: ReleaseRequest, signal?: AbortSignal): Promise<ReleaseResult>;
@@ -164,6 +177,14 @@ export class LicenseServerError extends Error {
     readonly retryable: boolean,
     /** The server's own code — `NO_SEATS_AVAILABLE`, `LICENSE_EXPIRED` — for logs. */
     readonly code: string | null = null,
+    /**
+     * Seconds to wait before trying again, when the server said so.
+     *
+     * Only rate limiting sets this. Carried separately from the message because the screen
+     * needs the number, not a sentence containing it: "try again in 4 minutes" has to count
+     * down, and re-parsing prose to do that is the wrong shape.
+     */
+    readonly retryAfterSeconds: number | null = null,
   ) {
     super(message);
     this.name = 'LicenseServerError';
@@ -177,7 +198,7 @@ const DEFAULT_TIMEOUT_MS = 15_000;
  * Codes that mean "the licence is fine, the moment is wrong" — worth another try — as opposed
  * to a decision about the licence that retrying cannot change.
  */
-const RETRYABLE_CODES = new Set(['SERVER_ERROR']);
+const RETRYABLE_CODES = new Set(['SERVER_ERROR', 'RATE_LIMITED']);
 
 export class HttpLicenseClient implements LicenseClient {
   constructor(
@@ -227,8 +248,8 @@ export class HttpLicenseClient implements LicenseClient {
     }
   }
 
-  async register(request: RegisterRequest, signal?: AbortSignal): Promise<void> {
-    await this.post(
+  async register(request: RegisterRequest, signal?: AbortSignal): Promise<RegisterResult> {
+    const payload = await this.post(
       '/api/register',
       {
         email: request.email,
@@ -243,6 +264,12 @@ export class HttpLicenseClient implements LicenseClient {
       },
       signal,
     );
+
+    // `resent` means the address already held a licence for this product, so the existing
+    // key was sent again instead of a second one being issued. Absent on a first
+    // registration, and absent entirely from older servers, so a missing value reads as
+    // false rather than as an error.
+    return { resent: payload.resent === true };
   }
 
   /** Which product a tier maps to. The two differ in code *and* in API key. */
@@ -412,7 +439,12 @@ export class HttpLicenseClient implements LicenseClient {
       // The server writes wording meant for the user, so it is shown rather than replaced.
       // Only its absence falls back to something generic.
       const message = asString(payload.message) ?? describe(code);
-      throw new LicenseServerError(message, code !== null && RETRYABLE_CODES.has(code), code);
+      throw new LicenseServerError(
+        message,
+        code !== null && RETRYABLE_CODES.has(code),
+        code,
+        asRetryAfterSeconds(payload.retry_after),
+      );
     }
 
     return payload;
@@ -428,8 +460,27 @@ export class HttpLicenseClient implements LicenseClient {
  * failure on purpose, so the endpoint cannot be used to find out which addresses exist —
  * which means this wording must not guess at a more specific reason either.
  */
+/**
+ * Seconds from the server's `retry_after`, or null.
+ *
+ * Validated rather than trusted: a value that is not a sane number of seconds would drive a
+ * countdown showing NaN or a wait of several days. A day is far beyond any rate-limit window
+ * the licence server uses, so anything longer is a bug somewhere and better ignored than
+ * shown.
+ */
+const MAX_SENSIBLE_RETRY_AFTER_SECONDS = 24 * 60 * 60;
+
+function asRetryAfterSeconds(value: unknown): number | null {
+  const seconds = typeof value === 'string' ? Number(value) : value;
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null;
+  if (seconds <= 0 || seconds > MAX_SENSIBLE_RETRY_AFTER_SECONDS) return null;
+  return Math.ceil(seconds);
+}
+
 function describe(code: string | null): string {
   switch (code) {
+    case 'RATE_LIMITED':
+      return 'Too many registration attempts. Please wait a little and try again.';
     case 'NO_SEATS_AVAILABLE':
       return 'This licence is already in use on the maximum number of machines.';
     case 'LICENSE_EXPIRED':

@@ -35,6 +35,7 @@ function status(
     seatsAllowed: null,
     message: null,
     code: null,
+    keyResent: false,
     gate: {
       state: gateState,
       canProcess: gateState !== 'blocked',

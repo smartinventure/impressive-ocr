@@ -239,7 +239,74 @@ describe('HttpLicenseClient', () => {
           acceptedPrivacy: true,
           acceptedLicense: true,
         }),
-      ).resolves.toBeUndefined();
+      ).resolves.toEqual({ resent: false });
+    });
+  });
+
+  describe('registering', () => {
+    it('reports resent when the address already held a licence', () => {
+      // The server sends the existing key again rather than issuing a second one. The flag
+      // is the only way to tell that apart from a first registration, and the difference
+      // decides whether the screen mentions a verification link.
+      respondWith(200, { success: true, resent: true });
+
+      return expect(
+        client().register({
+          email: 'me@example.com',
+          country: 'DE',
+          acceptedTerms: true,
+          acceptedPrivacy: true,
+          acceptedLicense: true,
+        }),
+      ).resolves.toEqual({ resent: true });
+    });
+
+    it('carries the wait from a rate-limited registration', async () => {
+      // Every refusal is JSON now, 429 included. Without retry_after the screen can only say
+      // "too many attempts", which is exactly the advice that produces another attempt.
+      respondWith(429, {
+        success: false,
+        error: 'rate_limited',
+        error_code: 'RATE_LIMITED',
+        message: 'Too many registration attempts.',
+        retry_after: 300,
+      });
+
+      await expect(
+        client().register({
+          email: 'me@example.com',
+          country: 'DE',
+          acceptedTerms: true,
+          acceptedPrivacy: true,
+          acceptedLicense: true,
+        }),
+      ).rejects.toMatchObject({
+        code: 'RATE_LIMITED',
+        // Retryable: the licence is fine, the moment is wrong.
+        retryable: true,
+        retryAfterSeconds: 300,
+      });
+    });
+
+    it('ignores a retry_after that could not be a real wait', async () => {
+      // A malformed or absurd value would drive a countdown showing NaN, or a wait of days.
+      // Dropping it leaves the message, which is still useful.
+      respondWith(429, {
+        success: false,
+        error_code: 'RATE_LIMITED',
+        message: 'Too many registration attempts.',
+        retry_after: 'soon',
+      });
+
+      await expect(
+        client().register({
+          email: 'me@example.com',
+          country: 'DE',
+          acceptedTerms: true,
+          acceptedPrivacy: true,
+          acceptedLicense: true,
+        }),
+      ).rejects.toMatchObject({ code: 'RATE_LIMITED', retryAfterSeconds: null });
     });
   });
 

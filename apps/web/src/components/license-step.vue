@@ -28,6 +28,20 @@ const emit = defineEmits<{ done: []; skip: [] }>();
 const { t, locale } = useI18n();
 const licence = useLicense();
 
+/** The existing key was resent, so there is no verification step. */
+const keyWasResent = computed(() => licence.status.value?.keyResent === true);
+
+/**
+ * The rate-limit wait, rounded up to whole minutes.
+ *
+ * Rounded up rather than down: telling someone to come back in 4 minutes when 4 minutes and
+ * 50 seconds remain earns a second refusal, which reads as the wait not working.
+ */
+const retryAfterMinutes = computed(() => {
+  const seconds = licence.retryAfterSeconds.value;
+  return seconds === null ? null : Math.max(1, Math.ceil(seconds / 60));
+});
+
 onMounted(licence.load);
 
 const countries = computed(() => licence.countryOptions(locale.value));
@@ -47,6 +61,14 @@ async function activate(): Promise<void> {
   <div class="licence">
     <v-alert v-if="licence.error.value" type="error" density="compact" class="mb-4">
       <div>{{ licence.error.value }}</div>
+      <!-- The code, quoted verbatim. The sentence above tells the user what to do; this is
+           what they paste into a support email when it does not. -->
+      <!-- A wait, when the refusal was rate limiting. Shown above the code because it is
+           the actionable half: someone who has hit the cap has usually been retrying, and
+           "too many attempts" alone invites them to keep going. -->
+      <div v-if="retryAfterMinutes !== null" class="mt-1">
+        {{ t('licence.retryAfter', retryAfterMinutes) }}
+      </div>
       <!-- The code, quoted verbatim. The sentence above tells the user what to do; this is
            what they paste into a support email when it does not. -->
       <div v-if="licence.errorCode.value" class="text-caption ocr-mono mt-1">
@@ -127,13 +149,21 @@ async function activate(): Promise<void> {
 
     <!-- The step that would otherwise look like a bug: registered, but no key yet. -->
     <template v-else-if="licence.screen.value === 'awaiting-key'">
+      <!-- Two shapes, because the server does two different things. A first registration
+           sends a verification link and then a key. An address that already holds a licence
+           gets the existing key sent again, with nothing to verify — and describing the
+           two-email sequence there tells someone to wait for a link that never arrives. -->
       <v-alert type="success" variant="tonal" density="comfortable" class="mb-4">
-        {{ t('licence.sentTo', { email: licence.status.value?.email ?? '' }) }}
+        {{
+          keyWasResent
+            ? t('licence.resentTo', { email: licence.status.value?.email ?? '' })
+            : t('licence.sentTo', { email: licence.status.value?.email ?? '' })
+        }}
       </v-alert>
 
       <ol class="licence__steps mb-4">
-        <li>{{ t('licence.stepVerify') }}</li>
-        <li>{{ t('licence.stepKey') }}</li>
+        <li v-if="!keyWasResent">{{ t('licence.stepVerify') }}</li>
+        <li>{{ keyWasResent ? t('licence.stepResentKey') : t('licence.stepKey') }}</li>
         <li>{{ t('licence.stepEnter') }}</li>
       </ol>
 

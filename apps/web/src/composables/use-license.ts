@@ -46,6 +46,14 @@ export function useLicense() {
    * person what to do, the code is what they quote when it does not help and they write in.
    */
   const errorCode = ref<string | null>(null);
+  /**
+   * Seconds to wait after a rate-limited attempt, or null.
+   *
+   * Registration is capped at five attempts an hour per address, and someone who has just
+   * hit that has usually been retrying because nothing seemed to happen. "Too many attempts"
+   * on its own invites them to keep trying; a number tells them when to come back.
+   */
+  const retryAfterSeconds = ref<number | null>(null);
 
   /** What the user picked before anything has been sent. Null until they choose. */
   const chosenTier = ref<LicenseTier | null>(null);
@@ -208,6 +216,7 @@ export function useLicense() {
     busy.value = true;
     error.value = null;
     errorCode.value = null;
+    retryAfterSeconds.value = null;
     try {
       await action();
     } catch (cause) {
@@ -215,6 +224,7 @@ export function useLicense() {
       // `ApiRequestError` carries the licence server's code through the HTTP layer. Anything
       // else is a transport failure, which has no code worth showing.
       errorCode.value = cause instanceof ApiRequestError ? cause.code : null;
+      retryAfterSeconds.value = cause instanceof ApiRequestError ? cause.retryAfterSeconds : null;
     } finally {
       busy.value = false;
     }
@@ -226,6 +236,7 @@ export function useLicense() {
     busy,
     error,
     errorCode,
+    retryAfterSeconds,
     email,
     country,
     licenseKey,

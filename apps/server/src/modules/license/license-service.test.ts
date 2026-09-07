@@ -13,6 +13,7 @@ import {
   type ActivationResult,
   type LicenseClient,
   type RegisterRequest,
+  type RegisterResult,
   type ReleaseRequest,
   type ReleaseResult,
   type UpdateEligibility,
@@ -58,9 +59,13 @@ class FakeLicenseClient implements LicenseClient {
     return this.countryList;
   }
 
-  async register(request: RegisterRequest): Promise<void> {
+  /** What the next register call reports back. Defaults to a first-time registration. */
+  registerResult: RegisterResult = { resent: false };
+
+  async register(request: RegisterRequest): Promise<RegisterResult> {
     this.registrations.push(request);
     if (this.failure !== null) throw this.failure;
+    return this.registerResult;
   }
 
   async activate(request: ActivationRequest): Promise<ActivationResult> {
@@ -139,6 +144,34 @@ describe('LicenseService', () => {
       expect(status.email).toBe('me@example.com');
       expect(status.maskedKey).toBeNull();
       expect(service.isActivated()).toBe(false);
+    });
+
+    it('records that the key was resent, so the screen can drop the verification step', async () => {
+      // The licence server resends an existing key when the address already holds a licence
+      // for the product. There is then no verification link, and a screen still describing
+      // one sends the user to wait for mail that never arrives.
+      client.registerResult = { resent: true };
+
+      const status = await service.registerPersonal({ email: 'me@example.com', country: 'DE' });
+
+      expect(status.state).toBe('awaiting-key');
+      expect(status.keyResent).toBe(true);
+    });
+
+    it('leaves keyResent false for a first registration', async () => {
+      const status = await service.registerPersonal({ email: 'new@example.com', country: 'DE' });
+
+      expect(status.keyResent).toBe(false);
+    });
+
+    it('carries the rate-limit wait through to the caller', async () => {
+      // Registration is capped per address per hour. The wait is the actionable part: without
+      // it the screen can only say "too many attempts", which invites another attempt.
+      client.failure = new LicenseServerError('Too many attempts.', true, 'RATE_LIMITED', 240);
+
+      await expect(
+        service.registerPersonal({ email: 'me@example.com', country: 'DE' }),
+      ).rejects.toMatchObject({ code: 'RATE_LIMITED', retryable: true, retryAfterSeconds: 240 });
     });
 
     it('tells the server both consents were given, since it requires them', async () => {

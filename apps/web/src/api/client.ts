@@ -20,6 +20,17 @@ export class ApiRequestError extends Error {
     this.name = 'ApiRequestError';
   }
 
+  /**
+   * Seconds to wait before retrying, when the server rate-limited the request.
+   *
+   * Null for every other failure, so a screen can tell "wait and it will work" from "this
+   * will not work" without matching on the code.
+   */
+  get retryAfterSeconds(): number | null {
+    const seconds = this.details?.retryAfterSeconds;
+    return typeof seconds === 'number' && Number.isFinite(seconds) ? seconds : null;
+  }
+
   /** The field a `pipeline-invalid` error points at, for highlighting the offending input. */
   get field(): string | null {
     const field = this.details?.field;

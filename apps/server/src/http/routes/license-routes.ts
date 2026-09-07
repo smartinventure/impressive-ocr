@@ -65,9 +65,20 @@ async function withActivationErrors(
       // everything to `license-not-activated` made `NO_SEATS_AVAILABLE` and
       // `VALIDATION_FAILED` indistinguishable on screen, and those need different actions
       // from the user and different answers from support.
+      // Retry-After as a header as well as in the body: the header is the standard the
+      // browser and any proxy in between understand, and the body is what the screen reads.
+      if (error.retryAfterSeconds !== null) {
+        void reply.header('retry-after', String(error.retryAfterSeconds));
+      }
       return reply.status(error.retryable ? 503 : 402).send({
         code: error.code ?? 'license-not-activated',
         message: error.message,
+        // Inside `details` rather than at the top level: `apiErrorSchema` allows exactly
+        // three keys, and the web client forwards only this one. A field beside `message`
+        // would be dropped before any screen could read it.
+        ...(error.retryAfterSeconds === null
+          ? {}
+          : { details: { retryAfterSeconds: error.retryAfterSeconds } }),
       });
     }
     throw error;

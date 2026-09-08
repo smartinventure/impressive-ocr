@@ -689,12 +689,17 @@ jobs:
           : > "$reply"
 
           # Echoes the HTTP status; the body is left in $reply for the caller to read.
+          # curl prints 000 itself when it never got a response, so its output is
+          # discarded on failure rather than added to - or an unreachable server
+          # reports itself as HTTP 000000.
           call() {
-            curl -sS -o "$reply" -w '%{http_code}' --max-time 30 \
+            local code
+            code=$(curl -sS -o "$reply" -w '%{http_code}' --max-time 30 \
               -X POST "$DEPLOY_BASE_URL/api/deployment/$1" \
               -H "Authorization: Bearer $DEPLOY_API_KEY" \
               -H 'Content-Type: application/json' \
-              -d "$2" || echo "000"
+              -d "$2") || code=""
+            printf '%s' "${code:-000}"
           }
 
           for short_code in impressiveocrcommunity impressiveocrcommercial; do

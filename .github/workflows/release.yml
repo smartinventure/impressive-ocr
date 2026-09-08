@@ -660,3 +660,65 @@ jobs:
 
             The versioned files above are what the in-app updater uses; the unversioned ones
             are copies of the same builds.
+
+      # An installed copy is only offered an update when the version recorded for its
+      # product on the license server is newer than its own, and a release is the only
+      # thing that can move that record. Left unrecorded, a release is invisible: every
+      # copy in the field is told it is up to date, however long ago it was installed.
+      # Both products are recorded because one build serves both editions.
+      #
+      # prepare-version runs first because finalize-version refuses a version it has
+      # never seen. It also mints a per-version installer key that nothing here uses,
+      # which is harmless: the keys baked into these builds were made by hand, and a
+      # release never replaces those.
+      - name: Record the release with the license server
+        env:
+          DEPLOY_API_KEY: ${{ secrets.DEPLOY_API_KEY }}
+          DEPLOY_BASE_URL: ${{ vars.DEPLOY_BASE_URL || 'https://license.speedbits.io' }}
+          VERSION: ${{ needs.verify.outputs.version }}
+          DOWNLOAD_URL: https://github.com/${{ github.repository }}/releases/tag/${{ needs.verify.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_API_KEY:-}" ]; then
+            echo "::error::DEPLOY_API_KEY is not set, so $VERSION has been published without being recorded with the license server, and every installed copy will go on being told it is up to date. Add the secret (a deployment key with the deployments:write scope) and re-run this job."
+            exit 1
+          fi
+
+          reply="$RUNNER_TEMP/license-reply.json"
+          : > "$reply"
+
+          # Echoes the HTTP status; the body is left in $reply for the caller to read.
+          call() {
+            curl -sS -o "$reply" -w '%{http_code}' --max-time 30 \
+              -X POST "$DEPLOY_BASE_URL/api/deployment/$1" \
+              -H "Authorization: Bearer $DEPLOY_API_KEY" \
+              -H 'Content-Type: application/json' \
+              -d "$2" || echo "000"
+          }
+
+          for short_code in impressiveocrcommunity impressiveocrcommercial; do
+            echo "== $short_code $VERSION"
+
+            # 409 here means an earlier run already prepared this version. Preparing it
+            # again would replace credentials that build was given, so it is left alone.
+            status="$(call prepare-version \
+              "$(jq -nc --arg v "$VERSION" --arg s "$short_code" '{version: $v, short_code: $s}')")"
+            if [ "$status" != "200" ] && [ "$status" != "409" ]; then
+              echo "::error::prepare-version failed for $short_code (HTTP $status): $(cat "$reply" 2>/dev/null || true)"
+              exit 1
+            fi
+
+            status="$(call finalize-version \
+              "$(jq -nc --arg v "$VERSION" --arg s "$short_code" --arg u "$DOWNLOAD_URL" \
+                '{version: $v, short_code: $s, download_url: $u}')")"
+            error_code="$(jq -r '.error_code // empty' "$reply" 2>/dev/null || true)"
+            if [ "$status" = "200" ]; then
+              echo "   recorded $VERSION, downloads at $DOWNLOAD_URL"
+            elif [ "$status" = "409" ] && [ "$error_code" = "VERSION_ALREADY_FINALIZED" ]; then
+              echo "   $VERSION was already recorded; the existing entry is left as it is."
+            else
+              echo "::error::finalize-version failed for $short_code (HTTP $status): $(cat "$reply" 2>/dev/null || true)"
+              exit 1
+            fi
+          done

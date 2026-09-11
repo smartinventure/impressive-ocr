@@ -292,7 +292,9 @@
     "releaseSkipped": "{count} läuft weiter, weil gerade ein Dokument verarbeitet wird.",
     "releaseBusyTitle": "Es wird gerade ein Dokument verarbeitet",
     "releaseBusyBody": "{count} Prozess ist mitten in einem Dokument. Eine Freigabe verwirft diese Arbeit; der Auftrag kehrt in die Warteschlange zurück und beginnt wieder bei der ersten Seite.",
-    "releaseAnyway": "Trotzdem freigeben"
+    "releaseAnyway": "Trotzdem freigeben",
+    "licenceMoved": "Lizenz und Registrierung finden Sie jetzt unter",
+    "licenceMovedLink": "Einstellungen → Lizenz"
   },
   "runtimeState": {
     "not-installed": "Nicht installiert",
@@ -349,7 +351,11 @@
     "vlBackend": "Schnelle Inferenz-Engine für den Genau-Modus verwenden",
     "vlBackendHint": "Führt dasselbe Modell rund 28-mal schneller aus und ermöglicht den Genau-Modus auch ohne Grafikkarte. Ohne diese Option wird die eingebaute Engine von PaddleOCR genutzt, die deutlich langsamer ist.",
     "vlConcurrency": "Gleichzeitig erkannte Seitenbereiche",
-    "vlConcurrencyHint": "Wie viele Bereiche einer Seite die Engine parallel verarbeitet. Acht war am schnellsten; höhere Werte verteilen denselben Speicher auf mehr Slots und werden wieder langsamer."
+    "vlConcurrencyHint": "Wie viele Bereiche einer Seite die Engine parallel verarbeitet. Acht war am schnellsten; höhere Werte verteilen denselben Speicher auf mehr Slots und werden wieder langsamer.",
+    "tabFolders": "Ordner",
+    "tabProcessing": "Verarbeitung",
+    "tabAccess": "Zugriff",
+    "tabLicense": "Lizenz"
   },
   "auth": {
     "signInTitle": "Anmelden",
@@ -801,6 +807,10 @@
     "seats": "{used} von {total} Rechnern belegt.",
     "title": "Lizenz",
     "release": "Diesen Rechner freigeben",
+    "releaseConfirmTitle": "Diesen Rechner freigeben?",
+    "releaseConfirmBody": "Damit geht der Platz an den Lizenzserver zurück und ein anderer Rechner kann ihn nutzen.",
+    "releaseConfirmDetail": "Diese Installation gilt danach als nicht registriert und stellt die Verarbeitung nach Ablauf der Übergangsfrist ein. Um sie hier weiter zu nutzen, geben Sie den Lizenzschlüssel erneut ein.",
+    "releaseConfirm": "Rechner freigeben",
     "releaseHint": "Gibt den Platz frei, damit ein anderer Rechner ihn nutzen kann. Diese Installation gilt danach als nicht registriert.",
     "tierPersonal": "Privat",
     "tierCommercial": "Kommerziell",
@@ -821,5 +831,9 @@
   "donate": {
     "label": "Dieses Projekt unterstützen",
     "hint": "Impressive OCR ist unter der AGPL kostenlos. Eine Spende hilft bei der Pflege."
+  },
+  "engineNotice": {
+    "fastMissing": "Die schnelle OCR-Engine ist nicht installiert — das genaue Profil ist ohne sie deutlich langsamer. Zum Installieren klicken.",
+    "outdated": "Eine neuere OCR-Engine ist verfügbar. Zum Aktualisieren klicken."
   }
 }

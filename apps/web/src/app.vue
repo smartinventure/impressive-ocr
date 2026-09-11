@@ -10,6 +10,7 @@ import UpdateBadge from './components/update-badge.vue';
 import FirstRunDialog from './components/first-run-dialog.vue';
 import LicenseBanner from './components/license-banner.vue';
 import DonateLink from './components/donate-link.vue';
+import EngineNotice from './components/engine-notice.vue';
 import { useLicense } from './composables/use-license';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
 import { setLocale, type AppLocale } from './plugins/i18n';
@@ -149,6 +150,10 @@ onBeforeUnmount(() => store.stop());
         <div class="shell__footer">
           <!-- Above the status chips: an ask placed under them reads as a footnote to the
                connection state rather than something addressed to the reader. -->
+          <!-- Above the donation ask: this is actionable and about the user's own
+               installation, so it should not sit below a request for money. -->
+          <EngineNotice />
+
           <DonateLink />
 
           <v-chip size="small" variant="tonal" :color="connectionColour" label>

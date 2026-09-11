@@ -292,7 +292,9 @@
     "releaseSkipped": "{count} was left running because it is processing a document.",
     "releaseBusyTitle": "A document is being processed",
     "releaseBusyBody": "{count} worker is in the middle of a document. Releasing now throws that work away; the job returns to the queue and starts again from the first page.",
-    "releaseAnyway": "Release anyway"
+    "releaseAnyway": "Release anyway",
+    "licenceMoved": "Your license and registration have moved to",
+    "licenceMovedLink": "Settings → License"
   },
   "runtimeState": {
     "not-installed": "Not installed",
@@ -349,7 +351,11 @@
     "vlBackend": "Use the fast inference engine for Accurate mode",
     "vlBackendHint": "Runs the same model roughly 28x faster, and lets Accurate mode work without a graphics card. Turning this off falls back to PaddleOCR’s built-in engine, which is far slower.",
     "vlConcurrency": "Page regions recognised at once",
-    "vlConcurrencyHint": "How many parts of a page the engine works on in parallel. Eight measured fastest; higher divides the same memory between more slots and slows down again."
+    "vlConcurrencyHint": "How many parts of a page the engine works on in parallel. Eight measured fastest; higher divides the same memory between more slots and slows down again.",
+    "tabFolders": "Folders",
+    "tabProcessing": "Processing",
+    "tabAccess": "Access",
+    "tabLicense": "License"
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -594,12 +600,12 @@
       "privacy": "Privacy Policy",
       "noTelemetry": "No account, no cloud service, no telemetry. Nothing about your documents ever leaves this machine.",
       "agree": "I agree",
-      "commercialLicence": "Commercial licence terms"
+      "commercialLicence": "Commercial license terms"
     },
     "licence": {
-      "title": "Licence",
+      "title": "License",
       "free": "Impressive OCR is free software under the GNU Affero General Public License v3 for PRIVATE USE ONLY. If you want to use it commercially, please inquire for a paid license under www.speedbits.io.",
-      "commercial": "If that does not work for your organisation, a commercial licence is available.",
+      "commercial": "If that does not work for your organisation, a commercial license is available.",
       "enquire": "Enquire at speedbits.io"
     },
     "engine": {
@@ -773,34 +779,38 @@
     "failed": "Could not change the location."
   },
   "licence": {
-    "chooseIntro": "How are you using Impressive OCR? This decides which licence applies — not which features you get. Nothing is held back either way.",
+    "chooseIntro": "How are you using Impressive OCR? This decides which license applies — not which features you get. Nothing is held back either way.",
     "personalTitle": "Personal or private use",
-    "personalBody": "Free, on up to {seats} of your own machines. Register an email address and we will send you a licence key.",
+    "personalBody": "Free, on up to {seats} of your own machines. Register an email address and we will send you a license key.",
     "commercialTitle": "A company or organisation",
-    "commercialBody": "A commercial licence is perpetual and includes one year of automatic updates. Enter the key from your purchase.",
-    "commercialLink": "Read the commercial licence terms",
-    "registerIntro": "We will email you a licence key for up to {seats} machines. Your email address is the only thing we collect, and no document ever leaves this computer.",
+    "commercialBody": "A commercial license is perpetual and includes one year of automatic updates. Enter the key from your purchase.",
+    "commercialLink": "Read the commercial license terms",
+    "registerIntro": "We will email you a license key for up to {seats} machines. Your email address is the only thing we collect, and no document ever leaves this computer.",
     "email": "Email address",
-    "emailHint": "Where the licence key is sent.",
+    "emailHint": "Where the license key is sent.",
     "country": "Country",
-    "register": "Send me a licence key",
+    "register": "Send me a license key",
     "retryAfter": "Try again in about one minute. | Try again in about {n} minutes.",
     "sentTo": "A verification email is on its way to {email}.",
     "stepVerify": "Open that email and click the verification link.",
-    "resentTo": "That address already has a licence, so we sent the key again to {email}.",
+    "resentTo": "That address already has a license, so we sent the key again to {email}.",
     "stepResentKey": "Check your mail for your key — it should arrive in a moment.",
-    "stepKey": "A second email then arrives with your licence key.",
+    "stepKey": "A second email then arrives with your license key.",
     "stepEnter": "Come back here and enter it.",
-    "haveKey": "I have my licence key",
+    "haveKey": "I have my license key",
     "later": "Skip for now",
-    "activateIntro": "Enter the email address the licence belongs to, and the key.",
-    "key": "Licence key",
+    "activateIntro": "Enter the email address the license belongs to, and the key.",
+    "key": "License key",
     "keyHint": "From the email, or from your purchase confirmation.",
     "activate": "Activate",
     "activeFor": "Licensed to {email}.",
     "seats": "Using {used} of {total} machines.",
-    "title": "Licence",
+    "title": "License",
     "release": "Release this machine",
+    "releaseConfirmTitle": "Release this machine?",
+    "releaseConfirmBody": "This hands the seat back to the license server, so another machine can use it.",
+    "releaseConfirmDetail": "This installation returns to unregistered and stops processing once the grace period ends. To use it here again, enter the license key a second time.",
+    "releaseConfirm": "Release the machine",
     "releaseHint": "Frees the seat so another machine can use it. This installation returns to unregistered.",
     "tierPersonal": "Personal",
     "tierCommercial": "Commercial",
@@ -809,17 +819,21 @@
     "unregistered": "This installation is not registered. It runs under the AGPL-3.0.",
     "trial": "Not registered yet — {days} day(s) left to register.",
     "trialBlocked": "Registration is required to keep processing documents. Everything already produced stays available.",
-    "offlineGrace": "The licence could not be confirmed recently. Connect to the internet within {days} day(s) to keep processing.",
-    "offlineBlocked": "The licence has not been confirmed for some time. Connect to the internet so it can be checked again.",
+    "offlineGrace": "The license could not be confirmed recently. Connect to the internet within {days} day(s) to keep processing.",
+    "offlineBlocked": "The license has not been confirmed for some time. Connect to the internet so it can be checked again.",
     "registerNow": "Register",
     "blockedTitle": "Registration required",
     "nonCommercial": "Non-commercial version",
     "commercialTrial": "You can try Impressive OCR for {days} days before entering a key.",
-    "commercialPurchase": "Commercial licences are not self-service — a key comes with your purchase.",
-    "commercialBuy": "Buy a licence"
+    "commercialPurchase": "Commercial licenses are not self-service — a key comes with your purchase.",
+    "commercialBuy": "Buy a license"
   },
   "donate": {
     "label": "Support this project",
     "hint": "Impressive OCR is free under the AGPL. A donation helps keep it maintained."
+  },
+  "engineNotice": {
+    "fastMissing": "The fast OCR engine is not installed — the accurate profile is far slower without it. Click to install.",
+    "outdated": "A newer OCR engine is available. Click to update."
   }
 }

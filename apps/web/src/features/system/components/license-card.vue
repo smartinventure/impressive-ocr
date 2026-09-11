@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useLicense } from '../../../composables/use-license';
 import LicenseStep from '../../../components/license-step.vue';
@@ -19,6 +19,23 @@ const licence = useLicense();
 onMounted(licence.load);
 
 const isActive = computed(() => licence.status.value?.state === 'active');
+
+/**
+ * Releasing asks first.
+ *
+ * It is one click next to the licence details and it is not reversible from this screen: the
+ * seat is handed back on the licence server, this installation drops to unregistered, and
+ * getting it back means entering the key again. A confirm step costs a second and prevents
+ * an afternoon of confusion.
+ */
+const confirmingRelease = ref(false);
+
+async function confirmRelease(): Promise<void> {
+  await licence.release();
+  // Closed only after the call settles, so a failure leaves the dialog open with the error
+  // visible rather than dismissing itself and looking like it worked.
+  if (licence.error.value === null) confirmingRelease.value = false;
+}
 
 const tierLabel = computed(() =>
   licence.status.value?.tier === 'commercial'
@@ -85,10 +102,35 @@ function formatDate(iso: string): string {
         size="small"
         color="failed"
         :loading="licence.busy.value"
-        @click="licence.release"
+        @click="confirmingRelease = true"
       >
         {{ t('licence.release') }}
       </v-btn>
+
+      <v-dialog v-model="confirmingRelease" max-width="480">
+        <v-card class="pa-5">
+          <h3 class="text-h6 mb-2">{{ t('licence.releaseConfirmTitle') }}</h3>
+          <p class="text-body-2 mb-2">{{ t('licence.releaseConfirmBody') }}</p>
+          <p class="text-body-2 text-medium-emphasis mb-4">
+            {{ t('licence.releaseConfirmDetail') }}
+          </p>
+
+          <!-- The error belongs in the dialog, not behind it: the action failed here, and
+               this is where the user is looking. -->
+          <v-alert v-if="licence.error.value" type="error" density="compact" class="mb-4">
+            {{ licence.error.value }}
+          </v-alert>
+
+          <div class="d-flex ga-3 justify-end">
+            <v-btn variant="text" :disabled="licence.busy.value" @click="confirmingRelease = false">
+              {{ t('common.cancel') }}
+            </v-btn>
+            <v-btn color="failed" :loading="licence.busy.value" @click="confirmRelease">
+              {{ t('licence.releaseConfirm') }}
+            </v-btn>
+          </div>
+        </v-card>
+      </v-dialog>
 
       <v-alert v-if="licence.error.value" type="error" density="compact" class="mt-3">
         {{ licence.error.value }}

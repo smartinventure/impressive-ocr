@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { RouterLink } from 'vue-router';
 import {
   APP_VERSION,
   type RuntimeInstallPlan,
@@ -12,7 +13,6 @@ import { useLiveStore } from '../../../stores/live-store';
 import PreflightCard from '../components/preflight-card.vue';
 import UpdateCard from '../components/update-card.vue';
 import DataLocationCard from '../components/data-location-card.vue';
-import LicenseCard from '../components/license-card.vue';
 
 /**
  * System status, and the place the OCR runtime gets installed.
@@ -346,7 +346,16 @@ onMounted(async () => {
 
     <!-- Which licence this installation runs under. Reachable after first run, because that
          step can be skipped and someone replacing a machine has to release its seat. -->
-    <LicenseCard />
+    <!-- The licence itself now lives under Settings, where people look for it. A pointer
+         stays here because this is where it used to be, and a page that simply loses a
+         section reads as a bug. -->
+    <v-card class="pa-5 mb-4">
+      <h2 class="text-h6 mb-1">{{ t('licence.title') }}</h2>
+      <p class="text-body-2 text-medium-emphasis mb-0">
+        {{ t('system.licenceMoved') }}
+        <RouterLink to="/settings?tab=license">{{ t('system.licenceMovedLink') }}</RouterLink>
+      </p>
+    </v-card>
 
     <!-- Where the ~8 GB runtime lives. Desktop only; the card hides itself in a browser. -->
     <DataLocationCard />

@@ -77,7 +77,11 @@ const PLAN = {
 };
 
 function mountView() {
-  return mount(SystemView, { global: { plugins: [vuetify, i18n, createPinia()] } });
+  // RouterLink is stubbed rather than installing a router: the only link on this page is the
+  // pointer to Settings, and mounting a real router here would test vue-router, not the view.
+  return mount(SystemView, {
+    global: { plugins: [vuetify, i18n, createPinia()], stubs: { RouterLink: true } },
+  });
 }
 
 beforeEach(() => {

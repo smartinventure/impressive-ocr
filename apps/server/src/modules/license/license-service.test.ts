@@ -128,6 +128,65 @@ const COMMERCIAL = {
 };
 
 describe('LicenseService', () => {
+  describe('the trial clock watermark', () => {
+    /** Whatever is actually in the database, rather than what the service reports. */
+    function storedRecord(): Record<string, unknown> {
+      const row = db.select().from(appState).where(eq(appState.key, APP_STATE_KEYS.license)).get();
+      return (row?.value ?? {}) as Record<string, unknown>;
+    }
+
+    it('records a watermark the first time the status is read', () => {
+      // Without this the field stays null for an installation that is used but never
+      // registered, which is exactly the installation the trial applies to.
+      expect(storedRecord().clockHighWaterAt ?? null).toBeNull();
+
+      service.status();
+
+      expect(typeof storedRecord().clockHighWaterAt).toBe('string');
+    });
+
+    it('records one from the gate too, not only from the status', () => {
+      // The queue asks the gate and nothing else. If only `status` advanced the watermark, a
+      // headless server processing documents with no browser attached would never record one.
+      service.gate();
+
+      expect(typeof storedRecord().clockHighWaterAt).toBe('string');
+    });
+
+    it('never moves the watermark backwards', () => {
+      service.status();
+      const future = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000).toISOString();
+      db.update(appState)
+        .set({ value: { ...storedRecord(), clockHighWaterAt: future } })
+        .where(eq(appState.key, APP_STATE_KEYS.license))
+        .run();
+
+      // Reading now, with the machine clock far behind that mark, must leave it alone -
+      // rewriting it to "now" is precisely what would make winding a clock back work.
+      service.status();
+
+      expect(storedRecord().clockHighWaterAt).toBe(future);
+    });
+
+    it('reports a clock sitting well behind the watermark', () => {
+      const future = new Date(Date.now() + 40 * 24 * 60 * 60 * 1000).toISOString();
+      service.status();
+      db.update(appState)
+        .set({ value: { ...storedRecord(), clockHighWaterAt: future } })
+        .where(eq(appState.key, APP_STATE_KEYS.license))
+        .run();
+
+      expect(service.status().clockBehind).toBe(true);
+    });
+
+    it('does not cry tampering over ordinary drift', () => {
+      service.status();
+
+      // A clock that agrees with the watermark is the normal case and must stay quiet.
+      expect(service.status().clockBehind).toBe(false);
+    });
+  });
+
   it('starts unregistered on a fresh install', () => {
     expect(service.status()).toMatchObject({ state: 'unregistered', tier: null, email: null });
     expect(service.isActivated()).toBe(false);

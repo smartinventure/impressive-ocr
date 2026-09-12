@@ -36,6 +36,7 @@ function status(
     message: null,
     code: null,
     keyResent: false,
+    clockBehind: false,
     gate: {
       state: gateState,
       canProcess: gateState !== 'blocked',

@@ -166,6 +166,15 @@ export const licenseStatusSchema = z.object({
    */
   code: z.string().nullable(),
   /**
+   * The machine clock is behind a time this installation has already seen.
+   *
+   * Reported rather than acted on silently. The trial is unaffected either way -- it is
+   * measured from the high-water mark -- but someone whose clock is genuinely wrong (a dead
+   * CMOS battery, a VM restored from a snapshot) deserves to be told why the remaining days
+   * do not match the date on screen, instead of quietly losing time to a mystery.
+   */
+  clockBehind: z.boolean(),
+  /**
    * The last registration resent an existing key rather than issuing a new one.
    *
    * The licence server does this when the address already holds a licence for the product.
@@ -241,6 +250,17 @@ export const licenseRecordSchema = z.object({
   state: licenseStateSchema.default('unregistered'),
   /** Set when the last registration resent an existing key. See `keyResent` on the status. */
   keyResent: z.boolean().default(false),
+  /**
+   * The furthest-forward moment this installation has ever observed.
+   *
+   * The trial is measured against this rather than against the clock, so moving the clock
+   * back does not buy more days: the deadline is computed from the latest time ever seen,
+   * and a rolled-back clock simply reads as "no time has passed".
+   *
+   * Advanced coarsely -- see CLOCK_WATERMARK_RESOLUTION_MS -- because the alternative is a
+   * database write on every status read for a value that only has to be roughly right.
+   */
+  clockHighWaterAt: isoTimestampSchema.nullable().default(null),
   tier: licenseTierSchema.nullable().default(null),
   email: z.string().nullable().default(null),
   licenseKey: z.string().nullable().default(null),

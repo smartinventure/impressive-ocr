@@ -70,6 +70,64 @@ describe('evaluateGate, before registration', () => {
   });
 });
 
+describe('evaluateGate, when the clock is moved backwards', () => {
+  /**
+   * The trial has no server to ask, so a local clock is the only measure it has. These pin
+   * the one defence available: the deadline is judged against the latest moment the
+   * installation has ever seen, not against whatever the clock currently says.
+   */
+
+  it('ignores a clock wound back, because the watermark remembers', () => {
+    // Installed 29 days ago and used until today, then the clock is set back three weeks.
+    const gate = evaluateGate(
+      record({
+        firstSeenAt: daysAgo(29),
+        clockHighWaterAt: NOW.toISOString(),
+      }),
+      new Date(NOW.getTime() - 21 * DAY),
+    );
+
+    // One day left, as it would have been without the tampering - not twenty-two.
+    expect(gate.state).toBe('trial');
+    expect(gate.daysRemaining).toBe(1);
+  });
+
+  it('still expires for a clock wound back after the period ran out', () => {
+    const gate = evaluateGate(
+      record({
+        firstSeenAt: daysAgo(REGISTRATION_GRACE_DAYS + 1),
+        clockHighWaterAt: NOW.toISOString(),
+      }),
+      new Date(NOW.getTime() - 60 * DAY),
+    );
+
+    expect(gate.state).toBe('blocked');
+    expect(gate.canProcess).toBe(false);
+  });
+
+  it('follows the clock when it runs ahead of the watermark', () => {
+    // The watermark is a floor, not a ceiling: time genuinely passing must still count, or
+    // the trial would never end for an installation left running.
+    const gate = evaluateGate(
+      record({
+        firstSeenAt: daysAgo(10),
+        clockHighWaterAt: daysAgo(10),
+      }),
+      NOW,
+    );
+
+    expect(gate.daysRemaining).toBe(REGISTRATION_GRACE_DAYS - 10);
+  });
+
+  it('behaves exactly as before for a record with no watermark', () => {
+    // Installations that predate the field must not be treated as tampered with.
+    const gate = evaluateGate(record({ firstSeenAt: daysAgo(10) }), NOW);
+
+    expect(gate.state).toBe('trial');
+    expect(gate.daysRemaining).toBe(REGISTRATION_GRACE_DAYS - 10);
+  });
+});
+
 describe('evaluateGate, once activated', () => {
   it('lets a recently confirmed licence work with no countdown', () => {
     const gate = evaluateGate(

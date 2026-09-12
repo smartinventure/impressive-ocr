@@ -67,9 +67,22 @@ function activatedGate(record: LicenseRecord, now: Date): LicenseGate {
   };
 }
 
-/** Not registered yet: usable for the trial period, counted from the first start. */
+/**
+ * Not registered yet: usable for the trial period, counted from the first start.
+ *
+ * "Now" is the later of the machine clock and the furthest-forward time this installation has
+ * ever seen. Without that, the whole period is one clock change away from being reset: the
+ * start is a local timestamp, the comparison is against a local clock, and nothing else is
+ * consulted because a trial contacts no server. Taking the maximum means winding the clock
+ * back reads as no time passing rather than as time reversing.
+ *
+ * It does not defend against deleting the data directory, which resets every field here at
+ * once. Only an identifier the licence server remembers can close that, and there is no
+ * endpoint for it.
+ */
 function trialGate(record: LicenseRecord, now: Date): LicenseGate {
   const started = parseDate(record.firstSeenAt);
+  const effectiveNow = latestOf(now, parseDate(record.clockHighWaterAt));
   if (started === null) {
     // Nothing recorded yet, so this is the first start and the full period is ahead.
     return {
@@ -81,7 +94,7 @@ function trialGate(record: LicenseRecord, now: Date): LicenseGate {
   }
 
   const deadline = new Date(started.getTime() + REGISTRATION_GRACE_DAYS * DAY_MS);
-  const remaining = daysBetween(now, deadline);
+  const remaining = daysBetween(effectiveNow, deadline);
 
   return remaining <= 0
     ? {
@@ -105,6 +118,11 @@ function trialGate(record: LicenseRecord, now: Date): LicenseGate {
  * the last twenty-three hours of a period that has not actually ended, and 0 is the number
  * that reads as "you are out of time".
  */
+/** The later of two moments, treating a missing watermark as "no information". */
+function latestOf(now: Date, watermark: Date | null): Date {
+  return watermark !== null && watermark.getTime() > now.getTime() ? watermark : now;
+}
+
 function daysBetween(now: Date, deadline: Date): number {
   const ms = deadline.getTime() - now.getTime();
   return ms <= 0 ? 0 : Math.ceil(ms / DAY_MS);

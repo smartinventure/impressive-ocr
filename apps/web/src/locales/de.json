@@ -122,9 +122,9 @@
     "vlServerMissing": "Die schnelle Inferenz-Engine ist nicht installiert. Der Genau-Modus funktioniert weiterhin, benötigt aber rund 28-mal länger pro Seite und läuft nicht ohne Grafikkarte.",
     "installVlServer": "Schnelle Engine installieren",
     "installVlServerHint": "Rund 1,9 GB, einmaliger Download.",
-    "checkForUpdates": "Nach Updates suchen",
-    "engineUpToDate": "Sie haben bereits die neueste Version ({version}). Es gibt nichts zu aktualisieren.",
-    "engineUpdated": "Die OCR-Engine wurde auf {version} aktualisiert."
+    "checkForUpdates": "OCR-Engine prüfen",
+    "engineUpToDate": "Die OCR-Engine passt zu dieser Anwendung ({version}). Damit wird nicht die schnelle Inferenz-Engine installiert — siehe oben, falls sie fehlt.",
+    "engineUpdated": "Die OCR-Engine wurde passend zu dieser Anwendung neu erstellt ({version})."
   },
   "errors": {
     "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",

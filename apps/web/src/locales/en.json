@@ -122,9 +122,9 @@
     "vlServerMissing": "The fast inference engine is not installed. Accurate mode still works, but takes roughly 28 times longer per page and cannot run without a graphics card.",
     "installVlServer": "Install the fast engine",
     "installVlServerHint": "About 1.9 GB, downloaded once.",
-    "checkForUpdates": "Check for updates",
-    "engineUpToDate": "You already have the latest version ({version}). Nothing to update.",
-    "engineUpdated": "The OCR engine was updated to {version}."
+    "checkForUpdates": "Check the OCR engine",
+    "engineUpToDate": "The OCR engine matches this application ({version}). This does not install the fast inference engine — see above if it is missing.",
+    "engineUpdated": "The OCR engine was rebuilt to match this application ({version})."
   },
   "errors": {
     "loadFailed": "Could not load data from the service.",

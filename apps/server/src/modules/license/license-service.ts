@@ -37,6 +37,24 @@ import { machineId } from './machine-id';
  * - Commercial: the key came with the purchase, so only the second step applies.
  */
 
+/**
+ * How far the clock must move before the watermark is rewritten.
+ *
+ * A write per status read would be absurd for a value that only has to be roughly right, and
+ * the cost of coarseness is bounded: at worst an hour of trial time is recoverable by winding
+ * the clock back, against thirty days on offer.
+ */
+const CLOCK_WATERMARK_RESOLUTION_MS = 60 * 60 * 1000;
+
+/**
+ * How far behind the watermark the clock may sit before it is called out.
+ *
+ * Generous, because small differences are normal and innocent: NTP correcting a drifting
+ * clock, a laptop waking from sleep, a virtual machine resuming. Only a jump large enough to
+ * matter for a thirty-day trial is worth a word on screen.
+ */
+const CLOCK_BEHIND_TOLERANCE_MS = 6 * 60 * 60 * 1000;
+
 export class LicenseActivationError extends Error {
   constructor(
     message: string,
@@ -74,7 +92,8 @@ export class LicenseService {
   constructor(private readonly options: LicenseServiceOptions) {}
 
   status(): LicenseStatus {
-    const record = this.read();
+    const observed = this.observeClock(this.read(), new Date());
+    const record = observed.record;
     return {
       state: record.state,
       tier: record.tier,
@@ -89,13 +108,15 @@ export class LicenseService {
       message: record.message,
       code: record.code,
       keyResent: record.keyResent,
+      clockBehind: observed.behind,
       gate: evaluateGate(record, new Date()),
     };
   }
 
   /** Whether new OCR work may start. The queue asks this and nothing else asks anything. */
   gate(): LicenseGate {
-    return evaluateGate(this.read(), new Date());
+    const now = new Date();
+    return evaluateGate(this.observeClock(this.read(), now).record, now);
   }
 
   /**
@@ -365,13 +386,56 @@ export class LicenseService {
   }
 
   private store(record: LicenseRecord): LicenseStatus {
+    this.persist(record);
+    return this.status();
+  }
+
+  /**
+   * Write the record, and nothing else.
+   *
+   * Separate from `store` because `store` ends by calling `status`, and `status` is what
+   * advances the clock watermark -- so a watermark write routed through `store` would
+   * re-enter the very code that asked for it.
+   */
+  private persist(record: LicenseRecord): void {
     const updatedAt = new Date().toISOString();
     this.options.db
       .insert(appState)
       .values({ key: APP_STATE_KEYS.license, value: record, updatedAt })
       .onConflictDoUpdate({ target: appState.key, set: { value: record, updatedAt } })
       .run();
-    return this.status();
+  }
+
+  /**
+   * Move the high-water mark forward, and report whether the clock sits behind it.
+   *
+   * Called from `status` and `gate`, which between them cover every path that can matter: a
+   * running queue asks the gate, and an open window asks for the status. An installation that
+   * is never used records nothing, which is correct -- no trial time is being consumed.
+   */
+  private observeClock(
+    record: LicenseRecord,
+    now: Date,
+  ): { record: LicenseRecord; behind: boolean } {
+    const watermark = record.clockHighWaterAt === null ? null : new Date(record.clockHighWaterAt);
+    const known = watermark !== null && !Number.isNaN(watermark.getTime()) ? watermark : null;
+
+    if (known === null) {
+      const next = { ...record, clockHighWaterAt: now.toISOString() };
+      this.persist(next);
+      return { record: next, behind: false };
+    }
+
+    const drift = now.getTime() - known.getTime();
+    if (drift >= CLOCK_WATERMARK_RESOLUTION_MS) {
+      const next = { ...record, clockHighWaterAt: now.toISOString() };
+      this.persist(next);
+      return { record: next, behind: false };
+    }
+
+    // Behind the mark: the watermark is deliberately left where it is. Rewriting it to an
+    // earlier time is precisely the move that would make winding the clock back work.
+    return { record, behind: drift < -CLOCK_BEHIND_TOLERANCE_MS };
   }
 
   /** An absent or hand-edited row degrades to unregistered, which asks rather than assumes. */

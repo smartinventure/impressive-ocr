@@ -145,11 +145,10 @@ if [[ "$WANT_DESKTOP" == "1" || "$WANT_SERVER" == "1" ]]; then
   step "Fetching the bundled uv for $HOST_OS/$HOST_ARCH"
   if [[ "$WANT_DESKTOP" == "1" ]]; then
     if [[ "$HOST_OS" == "mac" ]]; then
-      # Both, because electron-builder.yml builds arm64 and x64 from the one run and
-      # `vendor/uv-<arch>` is resolved per build. Fetching only the host's leaves the other
-      # app without a uv binary, and it fails at the runtime bootstrap rather than at build.
+      # arm64 regardless of the host architecture: electron-builder.yml builds only Apple
+      # Silicon, so that is the one `vendor/uv-<arch>` the packaged app will look for. A
+      # build run on an Intel Mac still produces the arm64 app.
       node deploy/fetch-uv.mjs --target mac --arch arm64
-      node deploy/fetch-uv.mjs --target mac --arch x64
     else
       node deploy/fetch-uv.mjs --target "$HOST_OS" --arch "$HOST_ARCH"
     fi

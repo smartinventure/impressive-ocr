@@ -215,9 +215,7 @@ jobs:
         run: pnpm --filter @impressive-ocr/web build
 
       - name: Fetch the bundled uv binaries
-        run: |
-          node deploy/fetch-uv.mjs --target mac --arch arm64
-          node deploy/fetch-uv.mjs --target mac --arch x64
+        run: node deploy/fetch-uv.mjs --target mac --arch arm64
 
       - name: Choose the Apple notarisation credentials
         # Exactly one set is put into scope, never both: electron-builder checks the

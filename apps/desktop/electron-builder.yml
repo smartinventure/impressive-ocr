@@ -111,14 +111,20 @@ nsis:
   include: build/installer.nsh
 
 mac:
+  # Apple Silicon only. PaddlePaddle publishes three platform tags — macosx_11_0_arm64,
+  # manylinux1_x86_64 and win_amd64 — and an Intel Mac matches none of them, so
+  # `describePlatform` reports it as unsupported and the preflight blocks it. Shipping an
+  # x86-64 build meant offering a download that the application then refuses to run, and
+  # giving an Apple Silicon user a way to pick the wrong one and discover it after a
+  # multi-gigabyte runtime download.
   target:
     - target: dmg
-      arch: [arm64, x64]
+      arch: [arm64]
     # The zip is not a second download for users — it is what electron-updater installs from.
     # Its macOS updater cannot read a .dmg, so a release with only the dmg builds cleanly,
     # publishes cleanly, and then silently never updates anyone.
     - target: zip
-      arch: [arm64, x64]
+      arch: [arm64]
   icon: build/icons/icon.png
   category: public.app-category.productivity
   hardenedRuntime: true

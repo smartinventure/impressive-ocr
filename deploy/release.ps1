@@ -69,7 +69,21 @@ function Invoke-Checked {
         [Parameter(Mandatory)][string]$Description,
         [Parameter(Mandatory)][scriptblock]$Command
     )
-    & $Command
+    # Windows PowerShell 5.1 wraps every line a native process writes to stderr in an
+    # ErrorRecord as soon as that stream is redirected - piping this script to a log file is
+    # enough - and under $ErrorActionPreference = 'Stop' the first such line aborts the
+    # release even though the command succeeded. set-version.mjs reports what it wrote on
+    # stderr, so a piped run died immediately after writing the version and before committing
+    # it: recoverable, but only by someone who knew to look.
+    #
+    # The exit code is the only honest signal a native process gives, so the preference is
+    # relaxed around the call and the code checked explicitly, exactly as build-local.ps1
+    # does. Cmdlet errors elsewhere in the script still stop it.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try { & $Command }
+    finally { $ErrorActionPreference = $previous }
+
     if ($LASTEXITCODE -ne 0) {
         throw "$Description failed (exit $LASTEXITCODE). Nothing was committed, tagged or pushed."
     }

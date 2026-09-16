@@ -835,5 +835,9 @@
   "engineNotice": {
     "fastMissing": "Die schnelle OCR-Engine ist nicht installiert — das genaue Profil ist ohne sie deutlich langsamer. Zum Installieren klicken.",
     "outdated": "Eine neuere OCR-Engine ist verfügbar. Zum Aktualisieren klicken."
+  },
+  "report": {
+    "label": "Fehler melden",
+    "hint": "Öffnet den öffentlichen Issue-Tracker auf GitHub in Ihrem Browser."
   }
 }

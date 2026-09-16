@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it, vi } from 'vitest';
+import { ISSUES_URL } from '@impressive-ocr/shared';
 
 const openExternal = vi.hoisted(() => vi.fn());
 vi.mock('electron', () => ({
@@ -19,6 +20,17 @@ const { isSameOrigin, openIfWebAddress } = await import('./main-window');
  */
 
 describe('openIfWebAddress', () => {
+  it('opens the issue tracker the Report an error button points at', () => {
+    // The button is a plain <a target="_blank">, so it reaches the system browser only
+    // through this path. Pinned against the real constant: a link the drawer offers and the
+    // main process then silently refuses would look like a dead button.
+    openExternal.mockClear();
+
+    openIfWebAddress(ISSUES_URL);
+
+    expect(openExternal).toHaveBeenCalledWith(ISSUES_URL);
+  });
+
   it.each(['https://example.com', 'http://example.com/page?q=1'])('opens %s', (url) => {
     openExternal.mockClear();
 

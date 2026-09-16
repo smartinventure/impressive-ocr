@@ -835,5 +835,9 @@
   "engineNotice": {
     "fastMissing": "The fast OCR engine is not installed — the accurate profile is far slower without it. Click to install.",
     "outdated": "A newer OCR engine is available. Click to update."
+  },
+  "report": {
+    "label": "Report an error",
+    "hint": "Opens the public issue tracker on GitHub in your browser."
   }
 }

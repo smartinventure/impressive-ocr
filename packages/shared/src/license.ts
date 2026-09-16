@@ -43,6 +43,16 @@ export const COMMERCIAL_LICENCE_URL = 'https://speedbits.io/infinity-license-com
 export const DONATE_URL = 'https://www.paypal.com/donate/?hosted_button_id=XTDULY8RYRQ4A';
 
 /**
+ * Where a bug report goes.
+ *
+ * The public issue tracker rather than a support address, because this is an AGPL project and
+ * a report someone else can read is worth more than one only we can: the next person with the
+ * same crash finds it instead of writing it again. Commercial customers have speedbits.io for
+ * anything they would rather not post in public.
+ */
+export const ISSUES_URL = 'https://github.com/smartinventure/impressive-ocr/issues';
+
+/**
  * Machines one personal registration covers.
  *
  * A courtesy limit rather than a technical one, and worth saying plainly in the UI: someone

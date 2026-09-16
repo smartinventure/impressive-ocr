@@ -10,6 +10,7 @@ import UpdateBadge from './components/update-badge.vue';
 import FirstRunDialog from './components/first-run-dialog.vue';
 import LicenseBanner from './components/license-banner.vue';
 import DonateLink from './components/donate-link.vue';
+import ReportErrorLink from './components/report-error-link.vue';
 import EngineNotice from './components/engine-notice.vue';
 import { useLicense } from './composables/use-license';
 import { darkExtras, extrasToCssVariables, lightExtras } from './plugins/theme';
@@ -155,6 +156,11 @@ onBeforeUnmount(() => store.stop());
           <EngineNotice />
 
           <DonateLink />
+
+          <!-- Under the donation ask and above the status chips: it is an offer rather than
+               a state, so it belongs with the other things the reader can act on, not among
+               the readouts describing the connection. -->
+          <ReportErrorLink />
 
           <v-chip size="small" variant="tonal" :color="connectionColour" label>
             {{ t(`connection.${store.connection}`) }}

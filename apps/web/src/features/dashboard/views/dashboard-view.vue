@@ -4,6 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { dashboardApi, type DashboardSnapshot } from '../../../api/endpoints';
 import CompatibilityBanner from '../../../components/compatibility-banner.vue';
+import EngineReadinessBanner from '../../../components/engine-readiness-banner.vue';
 import UpdateNotice from '../../../components/update-notice.vue';
 import ServerUpdateBanner from '../../../components/server-update-banner.vue';
 
@@ -73,6 +74,10 @@ onBeforeUnmount(() => {
     <!-- Whether the engine can run here at all, and what is missing if not. First thing on
          the page, because it decides whether anything below it matters. -->
     <CompatibilityBanner />
+
+    <!-- Below compatibility, above everything else. "This machine cannot run it" outranks
+         "this machine has not installed it yet", but both outrank the statistics. -->
+    <EngineReadinessBanner />
 
     <!-- A newer release, or an engine older than this build. Below compatibility because an
          update is worth knowing about and a machine that cannot run the workload at all is

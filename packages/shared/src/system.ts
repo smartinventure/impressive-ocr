@@ -172,6 +172,13 @@ export const runtimeStatusSchema = z.object({
   /** Null unless state is `installing`. */
   currentStep: runtimeStepSchema.nullable(),
   /** 0–100 across the whole install, not just the current step. */
+  /**
+   * Whole percent, and rounded where it is produced rather than where it is shown.
+   *
+   * The raw figure is a byte ratio, which renders as "83.38481614123074%" — fourteen digits
+   * of noise on a progress line nobody reads twice. Rounded at the source so every consumer
+   * gets the same clean number, and because a progress bar has no use for the rest.
+   */
   progressPercent: z.number().min(0).max(100),
   message: z.string().max(500),
   pythonVersion: z.string().nullable(),

@@ -2,17 +2,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { APP_VERSION } from '@impressive-ocr/shared';
-import { useLiveStore } from '../stores/live-store';
+import { useEngineReadiness } from '../composables/use-engine-readiness';
 
 /**
- * "Your OCR engine needs attention", in the one place that is always on screen.
+ * "Something needs installing", in the one place that is always on screen.
  *
- * Both conditions it reports were previously visible only on the System page, which is
- * exactly the page someone with a working installation never opens. The fast inference
- * engine in particular is the difference between about 11 seconds and about five minutes a
- * page on the accurate profile, and an installation that predates it will never install it
- * on its own — so without this the app is quietly slow forever and nothing says why.
+ * What counts as missing lives in `use-engine-readiness`, shared with the dashboard banner so
+ * the two cannot disagree. This file is the drawer's rendering of it and nothing more.
  *
  * No separate check on startup: `live-store` already loads the runtime status when the shell
  * mounts and keeps it current from the event stream, so this is a view of state that is
@@ -20,36 +16,9 @@ import { useLiveStore } from '../stores/live-store';
  */
 
 const { t } = useI18n();
-const store = useLiveStore();
+const { gap } = useEngineReadiness();
 
-/**
- * The fast inference engine is absent.
- *
- * Gated on `runtimeReady` so a runtime that is still installing — where this is true and
- * about to stop being true — does not flash a warning at someone who is already watching a
- * progress bar.
- */
-const fastEngineMissing = computed(
-  () => store.runtimeReady && store.runtime?.vlServerInstalled === false,
-);
-
-/**
- * The Python sidecar is older than the application.
- *
- * It is installed once and never updated automatically, so after an app update the two drift
- * apart and recognition improvements shipped with the new version are simply not present.
- */
-const engineOutdated = computed(() => {
-  const installed = store.runtime?.sidecarVersion ?? null;
-  return store.runtimeReady && installed !== null && installed !== APP_VERSION;
-});
-
-/** Missing first: it costs far more than being a version behind. */
-const message = computed(() => {
-  if (fastEngineMissing.value) return t('engineNotice.fastMissing');
-  if (engineOutdated.value) return t('engineNotice.outdated');
-  return null;
-});
+const message = computed(() => (gap.value === null ? null : t(`engineNotice.${gap.value}`)));
 </script>
 
 <template>

@@ -260,7 +260,10 @@
     "clearBody": "{count} abgeschlossene(r) Auftrag/Aufträge werden aus dieser Liste entfernt.",
     "clearBodyFiltered": "{count} Auftrag/Aufträge mit Status „{state}“ werden aus dieser Liste entfernt.",
     "clearKeeps": "Wartende und laufende Aufträge bleiben. Ihre Dokumente und deren Ergebnisse werden nicht angetastet — nur der Eintrag darüber wird entfernt.",
-    "cleared": "{count} Auftrag/Aufträge geleert."
+    "cleared": "{count} Auftrag/Aufträge geleert.",
+    "showInFolder": "Im Ordner anzeigen",
+    "openMissing": "Diese Datei liegt nicht mehr dort, wo der Auftrag sie abgelegt hat.",
+    "openRefused": "Dieser Dateityp wird nicht aus der Anwendung heraus geöffnet."
   },
   "preflight": {
     "title": "Kompatibilität",
@@ -835,11 +838,33 @@
     "hint": "Impressive OCR ist unter der AGPL kostenlos. Eine Spende hilft bei der Pflege."
   },
   "engineNotice": {
-    "fastMissing": "Die schnelle OCR-Engine ist nicht installiert — das genaue Profil ist ohne sie deutlich langsamer. Zum Installieren klicken.",
-    "outdated": "Eine neuere OCR-Engine ist verfügbar. Zum Aktualisieren klicken."
+    "runtime-missing": "Die OCR-Engine ist noch nicht installiert — bis dahin kann nichts verarbeitet werden. Zum Installieren klicken.",
+    "fast-engine-missing": "Die schnelle Inferenz-Engine fehlt, daher ist das genaue Profil deutlich langsamer. Zum Installieren klicken.",
+    "engine-outdated": "Eine neuere OCR-Engine ist verfügbar. Zum Aktualisieren klicken."
   },
   "report": {
     "label": "Fehler melden",
     "hint": "Öffnet den öffentlichen Issue-Tracker auf GitHub in Ihrem Browser."
+  },
+  "engineReadiness": {
+    "runtime-missing": {
+      "title": "Die OCR-Engine ist nicht installiert",
+      "body": "Bis dahin kann nichts verarbeitet werden. Sie wird einmalig heruntergeladen und dauert einige Minuten."
+    },
+    "fast-engine-missing": {
+      "title": "Die schnelle Inferenz-Engine fehlt",
+      "body": "Dokumente werden verarbeitet, aber das genaue Profil läuft pro Seite etwa 28-mal langsamer als nötig."
+    },
+    "engine-outdated": {
+      "title": "Die OCR-Engine ist älter als diese Anwendung",
+      "body": "Sie wird einmalig installiert und nicht automatisch aktualisiert, daher sind die Verbesserungen dieser Version noch nicht aktiv."
+    },
+    "parts": {
+      "runtime": "OCR-Engine",
+      "runtimeWhat": "Python und PaddleOCR. Erforderlich — ohne sie läuft nichts.",
+      "fast": "Schnelle Inferenz-Engine",
+      "fastWhat": "Optional, macht das genaue Profil aber erst brauchbar. Etwa 1,9 GB."
+    },
+    "open": "Zu System"
   }
 }

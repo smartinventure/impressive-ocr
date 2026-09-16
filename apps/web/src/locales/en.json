@@ -260,7 +260,10 @@
     "clearBody": "{count} finished job(s) will be removed from this list.",
     "clearBodyFiltered": "{count} {state} job(s) will be removed from this list.",
     "clearKeeps": "Queued and running jobs stay. Your documents and their results are not touched — only the record of them is removed.",
-    "cleared": "{count} job(s) cleared."
+    "cleared": "{count} job(s) cleared.",
+    "showInFolder": "Show in folder",
+    "openMissing": "That file is no longer where the job left it.",
+    "openRefused": "That file type is not opened from inside the application."
   },
   "preflight": {
     "title": "Compatibility",
@@ -835,11 +838,33 @@
     "hint": "Impressive OCR is free under the AGPL. A donation helps keep it maintained."
   },
   "engineNotice": {
-    "fastMissing": "The fast OCR engine is not installed — the accurate profile is far slower without it. Click to install.",
-    "outdated": "A newer OCR engine is available. Click to update."
+    "runtime-missing": "The OCR engine is not installed yet — nothing can be processed until it is. Click to install.",
+    "fast-engine-missing": "The fast inference engine is missing, so the accurate profile is far slower. Click to install.",
+    "engine-outdated": "A newer OCR engine is available. Click to update."
   },
   "report": {
     "label": "Report an error",
     "hint": "Opens the public issue tracker on GitHub in your browser."
+  },
+  "engineReadiness": {
+    "runtime-missing": {
+      "title": "The OCR engine is not installed",
+      "body": "Nothing can be processed until it is. It downloads once and takes a few minutes."
+    },
+    "fast-engine-missing": {
+      "title": "The fast inference engine is missing",
+      "body": "Documents are processed, but the accurate profile runs roughly 28 times slower per page than it needs to."
+    },
+    "engine-outdated": {
+      "title": "The OCR engine is older than this application",
+      "body": "It is installed once and not updated automatically, so recognition improvements shipped with this version are not in use yet."
+    },
+    "parts": {
+      "runtime": "OCR engine",
+      "runtimeWhat": "Python and PaddleOCR. Required — nothing runs without it.",
+      "fast": "Fast inference engine",
+      "fastWhat": "Optional, but makes the accurate profile usable. About 1.9 GB."
+    },
+    "open": "Go to System"
   }
 }

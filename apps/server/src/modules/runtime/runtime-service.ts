@@ -368,7 +368,7 @@ export class RuntimeService {
           this.setStatus({
             ...this.status,
             currentStep: progress.step,
-            progressPercent: progress.percent,
+            progressPercent: Math.round(progress.percent),
             message: progress.message,
           }),
       });
@@ -454,7 +454,7 @@ export class RuntimeService {
             ...this.status,
             state: 'installing',
             currentStep: progress.step,
-            progressPercent: progress.percent,
+            progressPercent: Math.round(progress.percent),
             message: progress.message,
           });
         },

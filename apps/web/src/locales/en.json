@@ -124,7 +124,10 @@
     "installVlServerHint": "About 1.9 GB, downloaded once.",
     "checkForUpdates": "Check the OCR engine",
     "engineUpToDate": "The OCR engine matches this application ({version}). This does not install the fast inference engine — see above if it is missing.",
-    "engineUpdated": "The OCR engine was rebuilt to match this application ({version})."
+    "engineUpdated": "The OCR engine was rebuilt to match this application ({version}).",
+    "fastEngine": "Fast inference engine",
+    "fastEngineYes": "Installed",
+    "fastEngineNo": "Not installed"
   },
   "errors": {
     "loadFailed": "Could not load data from the service.",

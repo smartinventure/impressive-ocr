@@ -253,6 +253,25 @@ onMounted(async () => {
           <dt>{{ t('runtime.engineVersion') }}</dt>
           <dd class="ocr-mono">{{ store.runtime?.sidecarVersion ?? '—' }}</dd>
         </div>
+        <!-- Stated either way. It was only ever reported when *missing*, so an installation
+             that had it showed nothing at all and the only way to find out was to notice the
+             absence of a warning - which is not something anyone can check. -->
+        <div>
+          <dt>{{ t('runtime.fastEngine') }}</dt>
+          <dd
+            :class="
+              store.runtime?.vlServerInstalled === true
+                ? 'ocr-mono'
+                : 'ocr-mono system__fact-missing'
+            "
+          >
+            {{
+              store.runtime?.vlServerInstalled === true
+                ? t('runtime.fastEngineYes')
+                : t('runtime.fastEngineNo')
+            }}
+          </dd>
+        </div>
       </dl>
 
       <!-- The sidecar is copied into the venv once and never touched again, so an app update
@@ -487,6 +506,10 @@ onMounted(async () => {
   font-size: 28px;
   font-weight: 500;
   margin: 0 0 24px;
+}
+
+.system__fact-missing {
+  color: rgb(var(--v-theme-warning));
 }
 
 .system__facts {

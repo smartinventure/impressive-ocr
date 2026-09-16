@@ -124,7 +124,10 @@
     "installVlServerHint": "Rund 1,9 GB, einmaliger Download.",
     "checkForUpdates": "OCR-Engine prüfen",
     "engineUpToDate": "Die OCR-Engine passt zu dieser Anwendung ({version}). Damit wird nicht die schnelle Inferenz-Engine installiert — siehe oben, falls sie fehlt.",
-    "engineUpdated": "Die OCR-Engine wurde passend zu dieser Anwendung neu erstellt ({version})."
+    "engineUpdated": "Die OCR-Engine wurde passend zu dieser Anwendung neu erstellt ({version}).",
+    "fastEngine": "Schnelle Inferenz-Engine",
+    "fastEngineYes": "Installiert",
+    "fastEngineNo": "Nicht installiert"
   },
   "errors": {
     "loadFailed": "Die Daten konnten nicht vom Dienst geladen werden.",

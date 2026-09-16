@@ -60,19 +60,19 @@ browser.
 
 ## Two engines
 
-| | Fast | Accurate |
+| | Specialist | Accurate |
 |---|---|---|
 | Model | PP-StructureV3 + PP-OCRv6 | PaddleOCR-VL (0.9B vision-language) |
 | Good at | letters, invoices, forms, single-column text | magazines, newspapers, columns, tables, difficult scans |
 | On a desktop GPU | ~3.5 s/page | **~2 s/page** |
 | On CPU only | ~100 s/page | **~11 s/page** |
 
-They fail differently, and that matters more than the speed. The fast engine reads characters
+They fail differently, and that matters more than the speed. The Specialist engine reads characters
 well and reconstructs page *structure* less reliably: on a multi-column page it can interleave
 columns and tear a drop capital off its word. The accurate engine rebuilds reading order.
 
 Accurate is now the faster of the two as well as the better one, on either kind of machine.
-Fast remains for two reasons. Its dedicated table recogniser is still the more precise of the
+Specialist remains for two reasons. Its dedicated table recogniser is still the more precise of the
 two — on a ruled invoice-style table it placed every cell correctly where the accurate engine
 missed two words in fifty, though both read every *number* correctly. And it carries formula,
 chart and seal recognisers that have no vision-language equivalent, so it is also the smaller
@@ -85,7 +85,7 @@ words — against a hand-checked reference transcript.
 
 | Output | Word accuracy | Bag recall | Reading-order loss |
 |---|---|---|---|
-| Fast | 95.1% | 97.2% | 2.0 pts |
+| Specialist | 95.1% | 97.2% | 2.0 pts |
 | **Accurate** | **98.4%** | **98.7%** | **0.3 pts** |
 
 Two numbers, because either alone misleads. **Word accuracy** is order-sensitive — one minus

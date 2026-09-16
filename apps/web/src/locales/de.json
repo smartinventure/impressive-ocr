@@ -79,7 +79,7 @@
   },
   "profile": {
     "accurate": "Genau",
-    "fast": "Schnell"
+    "fast": "Spezialisiert"
   },
   "folderPicker": {
     "browse": "Durchsuchen"
@@ -155,11 +155,11 @@
     "profile": "Engine-Profil",
     "fastHint": "Eigene Tabellen-, Formel-, Diagramm- und Stempelerkennung.",
     "accurateHint": "Schneller und besser in der Lesereihenfolge. Empfohlen.",
-    "accurateUnavailable": "Das Profil „Genau“ benötigt die Inferenz-Engine, die noch nicht installiert ist. Fügen Sie sie auf der Systemseite hinzu, oder nutzen Sie so lange „Schnell“.",
+    "accurateUnavailable": "Das Profil „Genau“ benötigt die Inferenz-Engine, die noch nicht installiert ist. Fügen Sie sie auf der Systemseite hinzu, oder nutzen Sie so lange „Spezialisiert“.",
     "accurateNeedsVram": "Ohne die Inferenz-Engine benötigt das Profil „Genau“ eine Grafikkarte mit mindestens {required} GB, und diese GPU hat {vram}. Mit der Inferenz-Engine von der Systemseite entfällt diese Anforderung.",
     "device": "Gerät",
     "dpi": "Scan-Auflösung",
-    "dpiHint": "Betrifft nur die Engine „Schnell“. Höhere Werte sind langsamer und helfen vor allem bei kleiner Schrift.",
+    "dpiHint": "Betrifft nur die Engine „Spezialisiert“. Höhere Werte sind langsamer und helfen vor allem bei kleiner Schrift.",
     "textLayer": "PDFs, die bereits Text enthalten",
     "textLayerHint": "Vorhandenen Text zu übernehmen ist deutlich schneller und meist genauer als erneute OCR.",
     "textHybrid": "Hybrid — nur Seiten ohne Text per OCR",
@@ -439,9 +439,9 @@
     "deviceHint": "Erzwingen Sie eines von beiden, um sie an eigenen Dokumenten zu vergleichen.",
     "deviceHintNoGpu": "Keine nutzbare GPU auf diesem Rechner, es läuft alles auf der CPU.",
     "profileLabel": "Erkennungs-Engine",
-    "profileFast": "Schnell — gut für alltägliche Dokumente",
+    "profileFast": "Spezialisiert — Tabellen, Formeln, Diagramme und Stempel",
     "profileAccurate": "Genau — am besten bei Spalten, Tabellen und schwierigen Scans",
-    "profileHint": "Genau ist auf diesem Rechner die schnellere und die zuverlässigere der beiden. Schnell behält die Tabellen-, Formel-, Diagramm- und Stempelerkennung.",
+    "profileHint": "Genau ist auf diesem Rechner die schnellere und die zuverlässigere der beiden. Spezialisiert behält die Tabellen-, Formel-, Diagramm- und Stempelerkennung.",
     "profileHintNoGpu": "Genau benötigt die Inferenz-Engine, die noch nicht installiert ist. Sie können sie auf der Systemseite hinzufügen.",
     "settingsUsed": "Einstellungen dieses Laufs:",
     "summaryEngine": "Engine: {value}",
@@ -450,7 +450,7 @@
     "summaryFormats": "Formate: {value}",
     "summaryTables": "Tabellen",
     "summaryFormulas": "Formeln",
-    "engineFastShort": "Schnell",
+    "engineFastShort": "Spezialisiert",
     "engineAccurateShort": "Genau",
     "strategyHybridShort": "Hybrid",
     "strategySkipShort": "Überspringen",
@@ -567,7 +567,7 @@
   "engineHelp": {
     "trigger": "Welche Engine soll ich wählen?",
     "title": "Die OCR-Engine wählen",
-    "fastTitle": "Schnell",
+    "fastTitle": "Spezialisiert",
     "fastFor": "Briefe, Rechnungen, Formulare und Berichte — alles einspaltig Gesetzte. Sie bringt außerdem Tabellen-, Formel-, Diagramm- und Stempelerkennung mit, für die die genaue Engine kein Gegenstück hat, und ist die kleinere Installation.",
     "fastLimit": "Sie liest Zeichen gut, rekonstruiert die Seitenstruktur aber schlecht. Auf einer Zeitschriften- oder Zeitungsseite kann sie Spalten verschränken, Initialen von ihrem Wort trennen und eine Überschrift in ein Anagramm verwandeln — eine Ausgabe, die plausibel aussieht und unbrauchbar ist.",
     "accurateTitle": "Genau",
@@ -578,15 +578,15 @@
     "colSetting": "Einstellung",
     "colSpeed": "Pro Seite",
     "colQuality": "Stimmte mit dem Transkript überein",
-    "rowFastGpu": "Schnell, Grafikkarte",
+    "rowFastGpu": "Spezialisiert, Grafikkarte",
     "rowAccurateGpu": "Genau, Grafikkarte",
-    "rowFastCpu": "Schnell, nur Prozessor",
+    "rowFastCpu": "Spezialisiert, nur Prozessor",
     "rowAccurateCpu": "Genau, nur Prozessor",
     "fastGpuSpeed": "~3,5 s",
     "accurateGpuSpeed": "~2 s",
     "fastCpuSpeed": "~100 s",
     "accurateCpuSpeed": "~11 s",
-    "qualityNote": "Beide Engines lesen nahezu dieselben Zeichen — 97,2 % gegen 98,7 % der Wörter kommen in der jeweiligen Ausgabe vor. Der Unterschied in der Tabelle ist die Lesereihenfolge: Schnell hat einen Teil davon in diesem Layout in die falsche Reihenfolge gebracht, und genau das misst der Prozentwert.",
+    "qualityNote": "Beide Engines lesen nahezu dieselben Zeichen — 97,2 % gegen 98,7 % der Wörter kommen in der jeweiligen Ausgabe vor. Der Unterschied in der Tabelle ist die Lesereihenfolge: Spezialisiert hat einen Teil davon in diesem Layout in die falsche Reihenfolge gebracht, und genau das misst der Prozentwert.",
     "hardwareNote": "Die Zeiten hängen von Ihrer Hardware und von der Seite ab. Das Laden der Modelle kostet nur beim ersten Dokument zehn bis zwanzig Sekunden, danach bleibt die Engine warm."
   },
   "updateBadge": {
@@ -643,7 +643,7 @@
     "quickProfile": {
       "title": "Welche OCR-Engine die Seiten liest",
       "body": "Genau ist auf heutiger Hardware die schnellere und die bessere Engine — etwa 2 Sekunden pro Seite auf einer Grafikkarte und etwa 11 allein auf dem Prozessor, gegenüber rund 3,5 und 100 bei Schnell. Wählen Sie sie, sofern nichts dagegen spricht.",
-      "detail": "Schnell lohnt sich weiterhin aus zwei Gründen: Die eigene Tabellenerkennung setzt Zellen bei linierten Tabellen im Rechnungsstil eine Spur präziser, und sie bringt Formel-, Diagramm- und Stempelerkennung mit, für die Genau kein Gegenstück hat. Sie ist außerdem die kleinere Installation, wenn die Inferenz-Engine nicht erwünscht ist. Der eigentliche Unterschied liegt in der Struktur: Auf einer mehrspaltigen Seite kann Schnell die Spalten verschränken — der Text ergibt dann keinen Sinn, obwohl jedes Zeichen richtig erkannt wurde."
+      "detail": "Spezialisiert lohnt sich weiterhin aus zwei Gründen: Die eigene Tabellenerkennung setzt Zellen bei linierten Tabellen im Rechnungsstil eine Spur präziser, und sie bringt Formel-, Diagramm- und Stempelerkennung mit, für die Genau kein Gegenstück hat. Sie ist außerdem die kleinere Installation, wenn die Inferenz-Engine nicht erwünscht ist. Der eigentliche Unterschied liegt in der Struktur: Auf einer mehrspaltigen Seite kann Spezialisiert die Spalten verschränken — der Text ergibt dann keinen Sinn, obwohl jedes Zeichen richtig erkannt wurde."
     },
     "quickDevice": {
       "title": "Welcher Prozessor die Arbeit macht",
@@ -658,7 +658,7 @@
     "editorProfile": {
       "title": "Welche OCR-Engine die Seiten liest",
       "body": "Genau ist auf heutiger Hardware schneller und besser — etwa 2 Sekunden pro Seite auf einer Grafikkarte, etwa 11 allein auf dem Prozessor, gegenüber rund 3,5 und 100 bei Schnell. Bei einem überwachten Ordner summiert sich dieser Unterschied über jedes Dokument.",
-      "detail": "Schnell behält eine eigene Tabellenerkennung, die bei linierten Tabellen geringfügig präziser ist, dazu Formel-, Diagramm- und Stempelerkennung, für die Genau kein Gegenstück hat. Der Vorteil von Genau ist die Lesereihenfolge: Auf mehrspaltigen Seiten kann Schnell die Spalten verschränken."
+      "detail": "Spezialisiert behält eine eigene Tabellenerkennung, die bei linierten Tabellen geringfügig präziser ist, dazu Formel-, Diagramm- und Stempelerkennung, für die Genau kein Gegenstück hat. Der Vorteil von Genau ist die Lesereihenfolge: Auf mehrspaltigen Seiten kann Schnell die Spalten verschränken."
     },
     "editorDevice": {
       "title": "Welcher Prozessor die Arbeit macht",
@@ -667,8 +667,8 @@
     },
     "editorDpi": {
       "title": "Rendering-Auflösung",
-      "body": "Wie fein eine PDF-Seite in ein Bild gerendert wird, bevor die Engine Schnell sie liest. 150 ist die Voreinstellung und reicht für gewöhnlichen Druck; höhere Auflösungen kosten auf jeder Seite Zeit.",
-      "detail": "Das betrifft nur die Engine Schnell. Genau bekommt das PDF selbst und ermittelt die Seitengeometrie eigenständig — sie vorher in ein Bild zu rendern schadet sogar, weil es Lesereihenfolge kostet. Erhöhen Sie auf 300 nur bei wirklich kleiner Schrift, etwa Fußnoten oder Quellenangaben im Kleingedruckten."
+      "body": "Wie fein eine PDF-Seite in ein Bild gerendert wird, bevor die Engine Spezialisiert sie liest. 150 ist die Voreinstellung und reicht für gewöhnlichen Druck; höhere Auflösungen kosten auf jeder Seite Zeit.",
+      "detail": "Das betrifft nur die Engine Spezialisiert. Genau bekommt das PDF selbst und ermittelt die Seitengeometrie eigenständig — sie vorher in ein Bild zu rendern schadet sogar, weil es Lesereihenfolge kostet. Erhöhen Sie auf 300 nur bei wirklich kleiner Schrift, etwa Fußnoten oder Quellenangaben im Kleingedruckten."
     },
     "editorTextLayer": {
       "title": "PDFs, die bereits Text enthalten",
@@ -677,7 +677,7 @@
     },
     "editorModules": {
       "title": "Erkennungsmodule",
-      "body": "Zusätzliche Erkenner, die die Engine Schnell neben dem Text ausführen kann. Jeder kostet auf jeder Seite Zeit — schalten Sie nur ein, was in Ihren Dokumenten tatsächlich vorkommt.",
+      "body": "Zusätzliche Erkenner, die die Engine Spezialisiert neben dem Text ausführen kann. Jeder kostet auf jeder Seite Zeit — schalten Sie nur ein, was in Ihren Dokumenten tatsächlich vorkommt.",
       "detail": "Die Tabellenerkennung findet linierte Tabellen und rekonstruiert ihre Zellen. Die Formelerkennung wandelt gesetzte Mathematik in LaTeX um. Die Diagrammerkennung liest Daten aus Grafiken. Die Stempelerkennung findet runde Stempel und liest ihre gebogene Schrift. Ausrichtung und Entzerrung begradigen Seiten, die schief eingescannt oder aus einem gewölbten Buch fotografiert wurden."
     },
     "editorInputFolder": {

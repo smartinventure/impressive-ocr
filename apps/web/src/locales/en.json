@@ -79,7 +79,7 @@
   },
   "profile": {
     "accurate": "Accurate",
-    "fast": "Fast"
+    "fast": "Specialist"
   },
   "folderPicker": {
     "browse": "Browse"
@@ -155,11 +155,11 @@
     "profile": "Engine profile",
     "fastHint": "Specialised table, formula, chart and seal recognisers.",
     "accurateHint": "Faster and better at reading order. Recommended.",
-    "accurateUnavailable": "The Accurate profile needs the inference engine, which is not installed yet. Add it on the System page, or use Fast in the meantime.",
+    "accurateUnavailable": "The Accurate profile needs the inference engine, which is not installed yet. Add it on the System page, or use Specialist in the meantime.",
     "accurateNeedsVram": "Without the inference engine the Accurate profile needs a {required} GB card or larger, and this GPU has {vram}. Installing the inference engine on the System page removes that requirement.",
     "device": "Device",
     "dpi": "Scan resolution",
-    "dpiHint": "Only affects the Fast engine. Higher is slower and mostly helps with small print.",
+    "dpiHint": "Only affects the Specialist engine. Higher is slower and mostly helps with small print.",
     "textLayer": "PDFs that already contain text",
     "textLayerHint": "Reusing an existing text layer is far faster and usually more accurate than re-running OCR.",
     "textHybrid": "Hybrid — OCR only the pages without text",
@@ -439,9 +439,9 @@
     "deviceHint": "Force one or the other to compare them on your own documents.",
     "deviceHintNoGpu": "No usable GPU on this machine, so everything runs on the CPU.",
     "profileLabel": "Recognition engine",
-    "profileFast": "Fast — good on everyday documents",
+    "profileFast": "Specialist — tables, formulas, charts and seals",
     "profileAccurate": "Accurate — best on columns, tables and messy scans",
-    "profileHint": "Accurate is the faster and the more reliable of the two on this machine. Fast keeps the table, formula, chart and seal recognisers.",
+    "profileHint": "Accurate is the faster and the more reliable of the two on this machine. Specialist keeps the table, formula, chart and seal recognisers.",
     "profileHintNoGpu": "Accurate needs the inference engine, which is not installed yet. You can add it on the System page.",
     "settingsUsed": "Settings for this run:",
     "summaryEngine": "Engine: {value}",
@@ -450,7 +450,7 @@
     "summaryFormats": "Formats: {value}",
     "summaryTables": "Tables",
     "summaryFormulas": "Formulas",
-    "engineFastShort": "Fast",
+    "engineFastShort": "Specialist",
     "engineAccurateShort": "Accurate",
     "strategyHybridShort": "Hybrid",
     "strategySkipShort": "Skip if text",
@@ -567,7 +567,7 @@
   "engineHelp": {
     "trigger": "Which engine should I choose?",
     "title": "Choosing an OCR engine",
-    "fastTitle": "Fast",
+    "fastTitle": "Specialist",
     "fastFor": "Letters, invoices, forms and reports — anything laid out in a single column. It also carries table, formula, chart and seal recognisers that the accurate engine has no equivalent for, and it is the smaller install.",
     "fastLimit": "It reads characters well but reconstructs page structure poorly. On a magazine or newspaper page it can interleave columns, break a drop capital away from its word, and turn a headline into an anagram — output that looks plausible and is not usable.",
     "accurateTitle": "Accurate",
@@ -578,15 +578,15 @@
     "colSetting": "Setting",
     "colSpeed": "Per page",
     "colQuality": "Matched the transcript",
-    "rowFastGpu": "Fast, graphics card",
+    "rowFastGpu": "Specialist, graphics card",
     "rowAccurateGpu": "Accurate, graphics card",
-    "rowFastCpu": "Fast, processor only",
+    "rowFastCpu": "Specialist, processor only",
     "rowAccurateCpu": "Accurate, processor only",
     "fastGpuSpeed": "~3.5 s",
     "accurateGpuSpeed": "~2 s",
     "fastCpuSpeed": "~100 s",
     "accurateCpuSpeed": "~11 s",
-    "qualityNote": "Both engines read almost the same characters — 97.2% against 98.7% of the words are present in either output. The gap in the table is reading order: Fast placed some of them in the wrong sequence on this layout, which is what the percentage measures.",
+    "qualityNote": "Both engines read almost the same characters — 97.2% against 98.7% of the words are present in either output. The gap in the table is reading order: Specialist placed some of them in the wrong sequence on this layout, which is what the percentage measures.",
     "hardwareNote": "Times depend on your hardware and on the page. Model loading adds ten to twenty seconds to the first document only, after which the engine stays warm."
   },
   "updateBadge": {
@@ -642,8 +642,8 @@
     },
     "quickProfile": {
       "title": "Which OCR engine reads the pages",
-      "body": "Accurate is both the faster and the better engine on current hardware — about 2 seconds a page on a graphics card and about 11 on the processor alone, against roughly 3.5 and 100 for Fast. Choose it unless you have a reason not to.",
-      "detail": "Fast is still worth having for two things: its dedicated table recogniser places cells slightly more precisely on ruled, invoice-style tables, and it carries formula, chart and seal recognisers that Accurate has no equivalent for. It is also the smaller install, for a machine where the inference engine is not wanted. Where the two really differ is structure: on a multi-column page Fast can interleave the columns, producing text that reads as nonsense even though every character was recognised correctly."
+      "body": "Accurate is both the faster and the better engine on current hardware — about 2 seconds a page on a graphics card and about 11 on the processor alone, against roughly 3.5 and 100 for Specialist. Choose it unless you have a reason not to.",
+      "detail": "Specialist is still worth having for two things: its dedicated table recogniser places cells slightly more precisely on ruled, invoice-style tables, and it carries formula, chart and seal recognisers that Accurate has no equivalent for. It is also the smaller install, for a machine where the inference engine is not wanted. Where the two really differ is structure: on a multi-column page Specialist can interleave the columns, producing text that reads as nonsense even though every character was recognised correctly."
     },
     "quickDevice": {
       "title": "Which processor does the work",
@@ -657,8 +657,8 @@
     },
     "editorProfile": {
       "title": "Which OCR engine reads the pages",
-      "body": "Accurate is both faster and better on current hardware — about 2 seconds a page on a graphics card, about 11 on the processor alone, against roughly 3.5 and 100 for Fast. For a watched folder that difference compounds over every document.",
-      "detail": "Fast keeps a dedicated table recogniser that is marginally more precise on ruled tables, plus formula, chart and seal recognisers that Accurate has no equivalent for. Accurate's advantage is reading order: on multi-column pages Fast can interleave the columns."
+      "body": "Accurate is both faster and better on current hardware — about 2 seconds a page on a graphics card, about 11 on the processor alone, against roughly 3.5 and 100 for Specialist. For a watched folder that difference compounds over every document.",
+      "detail": "Specialist keeps a dedicated table recogniser that is marginally more precise on ruled tables, plus formula, chart and seal recognisers that Accurate has no equivalent for. Accurate's advantage is reading order: on multi-column pages Specialist can interleave the columns."
     },
     "editorDevice": {
       "title": "Which processor does the work",
@@ -667,8 +667,8 @@
     },
     "editorDpi": {
       "title": "Rendering resolution",
-      "body": "How finely a PDF page is rendered to an image before the Fast engine reads it. 150 is the default and is enough for ordinary print; higher resolutions cost time on every page.",
-      "detail": "This only affects the Fast engine. Accurate is handed the PDF itself and works out its own page geometry — rendering to an image first actively hurts it, because it costs reading order. Raise it to 300 only for genuinely small print, such as footnotes or fine-print references."
+      "body": "How finely a PDF page is rendered to an image before the Specialist engine reads it. 150 is the default and is enough for ordinary print; higher resolutions cost time on every page.",
+      "detail": "This only affects the Specialist engine. Accurate is handed the PDF itself and works out its own page geometry — rendering to an image first actively hurts it, because it costs reading order. Raise it to 300 only for genuinely small print, such as footnotes or fine-print references."
     },
     "editorTextLayer": {
       "title": "PDFs that already contain text",
@@ -677,7 +677,7 @@
     },
     "editorModules": {
       "title": "Recognition modules",
-      "body": "Extra recognisers the Fast engine can run alongside the text. Each one costs time on every page, so switch on only what your documents actually contain.",
+      "body": "Extra recognisers the Specialist engine can run alongside the text. Each one costs time on every page, so switch on only what your documents actually contain.",
       "detail": "Table recognition finds ruled tables and reconstructs their cells. Formula recognition converts typeset mathematics to LaTeX. Chart recognition reads data out of graphs. Seal recognition finds round stamps and reads their curved text. Orientation and unwarping straighten pages that were scanned crooked or photographed off a curved book."
     },
     "editorInputFolder": {

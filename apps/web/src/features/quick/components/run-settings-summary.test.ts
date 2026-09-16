@@ -28,8 +28,11 @@ function render(overrides: Partial<QuickOptions> = {}) {
 
 describe('RunSettingsSummary', () => {
   it('names the engine that was chosen', () => {
+    // The stored value stays `fast` - it is what the server, the schemas and the sidecar
+    // agree on. Only the label moved, because the profile is no longer the faster of the two
+    // and the name was telling people the opposite of the measurements.
     expect(render({ profile: 'accurate' }).text()).toContain('Accurate');
-    expect(render({ profile: 'fast' }).text()).toContain('Fast');
+    expect(render({ profile: 'fast' }).text()).toContain('Specialist');
   });
 
   it('reports the requested device, not only whatever ran', () => {

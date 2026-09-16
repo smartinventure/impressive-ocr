@@ -66,6 +66,34 @@ interface RememberedSettings {
   options: QuickOptions;
   source: 'server' | 'upload';
   outputPath: string;
+  /**
+   * The user picked this profile, as opposed to it being the recommendation of the day.
+   *
+   * The distinction matters because settings are persisted by a watcher on every change,
+   * including the one the recommendation itself makes. Treating "a profile was stored" as
+   * "the user chose a profile" meant anyone who opened Quick Mode before installing the
+   * inference engine had `fast` written down, and was then never moved to `accurate` once
+   * the engine arrived - stuck on the slower profile permanently, for a choice they never
+   * made. Absent in anything stored by an older build, which reads as false and lets the
+   * recommendation apply.
+   */
+  profilePinned?: boolean;
+}
+
+/**
+ * Whether a remembered profile represents a decision, rather than a default.
+ *
+ * Only an explicit pick counts. Settings are persisted by a watcher on every options change,
+ * and the profile recommendation is itself an options change - so "a profile was stored" says
+ * nothing about who chose it. Treating storage as choice meant anyone who opened Quick Mode
+ * before installing the inference engine had `fast` written down and was never moved on once
+ * the engine arrived: permanently on the slower profile, for a decision they never made.
+ *
+ * Settings written by an older build carry no flag, which reads as false and lets the
+ * recommendation apply - upgrading exactly the people the bug stranded.
+ */
+export function profileWasPinned(remembered: { profilePinned?: boolean } | null): boolean {
+  return remembered?.profilePinned === true;
 }
 
 function rememberSettings(settings: RememberedSettings): void {
@@ -96,6 +124,7 @@ function recallSettings(): RememberedSettings | null {
       options: options.data,
       source: parsed.source === 'server' ? 'server' : 'upload',
       outputPath: typeof parsed.outputPath === 'string' ? parsed.outputPath : '',
+      profilePinned: parsed.profilePinned === true,
     };
   } catch {
     return null;
@@ -205,6 +234,7 @@ export function useQuickRun() {
         options: options.value,
         source: source.value,
         outputPath: outputPath.value,
+        profilePinned: profileChosen.value,
       });
     },
     { deep: true },
@@ -217,9 +247,7 @@ export function useQuickRun() {
    * the wire, usually after this composable is created. Guarded on the user not having
    * touched the control: a preference stated before the probe landed outranks ours.
    */
-  // A remembered profile is a decision the user already made, so the recommendation must
-  // not quietly undo it on the next visit.
-  const profileChosen = ref(remembered !== null);
+  const profileChosen = ref(profileWasPinned(remembered));
   watch(
     () => store.system?.hardware.availableProfiles,
     (profiles) => {
@@ -232,6 +260,15 @@ export function useQuickRun() {
   /** Called by the view when the profile select is used, to stop the watcher overriding it. */
   function keepProfile(): void {
     profileChosen.value = true;
+    // Written straight away rather than left to the watcher above. That watcher fires on the
+    // options change that accompanies a pick, but it reads `profileChosen` at the moment it
+    // runs, and the ordering between the two is not something worth relying on.
+    rememberSettings({
+      options: options.value,
+      source: source.value,
+      outputPath: outputPath.value,
+      profilePinned: true,
+    });
   }
 
   const run = ref<QuickRun | null>(null);

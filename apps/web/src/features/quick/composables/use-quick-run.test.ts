@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 import { describe, expect, it } from 'vitest';
-import { joinOutputPath, progressFraction } from './use-quick-run';
+import { joinOutputPath, profileWasPinned, progressFraction } from './use-quick-run';
 
 /**
  * The regression these cover: a one-file run showed an indeterminate bar for its entire
@@ -8,6 +8,34 @@ import { joinOutputPath, progressFraction } from './use-quick-run';
  * single document is either 0 or 1. Page events were already arriving from both engines;
  * nothing was using them.
  */
+describe('profileWasPinned', () => {
+  /**
+   * The rule that decides whether Quick Mode may upgrade someone to the accurate profile.
+   *
+   * Regression: a Mac that opened Quick Mode before installing the inference engine had
+   * `fast` stored by the persist watcher, and was then treated as having chosen it - so
+   * installing the engine changed nothing and the slower profile stuck.
+   */
+
+  it('does not treat a stored profile as a chosen one', () => {
+    expect(profileWasPinned({ profilePinned: false })).toBe(false);
+  });
+
+  it('lets settings written by an older build be upgraded', () => {
+    // No flag at all: the recommendation must apply, which is what frees anyone the bug
+    // stranded on `fast`.
+    expect(profileWasPinned({})).toBe(false);
+  });
+
+  it('respects a profile the user actually picked', () => {
+    expect(profileWasPinned({ profilePinned: true })).toBe(true);
+  });
+
+  it('has nothing to respect on a first visit', () => {
+    expect(profileWasPinned(null)).toBe(false);
+  });
+});
+
 describe('progressFraction', () => {
   it('advances with the pages of the only document', () => {
     const of = (pagesDone: number): number =>

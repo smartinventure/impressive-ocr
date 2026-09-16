@@ -866,5 +866,36 @@
       "fastWhat": "Optional, but makes the accurate profile usable. About 1.9 GB."
     },
     "open": "Go to System"
+  },
+  "engineInternals": {
+    "trigger": "More info for tech enthusiasts",
+    "title": "How the two OCR engines work",
+    "intro": "They are not fast and slow versions of one thing. They are two different architectures, and almost every surprising behaviour in this application follows from that.",
+    "pipeline": {
+      "title": "Specialist — a pipeline of narrow models",
+      "body": "The classic computer-vision approach. The page is rendered to an image, regions are found and classified, and each region is handed to a model that does exactly one job. PP-StructureV3 does the layout, PP-OCRv6 reads the characters, and tables, formulas, charts and seals each have a model of their own.",
+      "chain": "page image  →  detect regions  →  classify each  →  run the matching specialist  →  stitch back together",
+      "consequence": "This is why those four recognisers are switches rather than settings: each one is a separate model loaded into memory. Table recognition alone is five of them. It is also why the DPI setting affects this engine and not the other — a pipeline that starts from an image cares how that image was made."
+    },
+    "model": {
+      "title": "Accurate — one vision-language model",
+      "body": "PaddleOCR-VL is a single model of about 0.9 billion parameters. The same family of thing as a small language model, except it takes an image as input and writes text as output. There is no pipeline and there are no stages: it looks at the page and produces what is on it.",
+      "consequence": "It is handed the PDF itself and works out its own page geometry, which is why rendering to an image first actively hurts it. And it has no equivalent of the formula, chart and seal recognisers, because there is nothing to attach them to."
+    },
+    "order": {
+      "title": "Why reading order is the real difference",
+      "body": "A pipeline finds boxes and then has to guess how they connect. On a two-column page it can read across the columns instead of down them: every character is correct and the text is nonsense. A vision-language model never had a separate assembly step, so it does not have that failure mode — it writes prose in order, the way a person reading the page would.",
+      "measured": "Measured on a dense magazine page: both engines found almost the same words — 97.2% against 98.7% present in the output — but reading-order loss was 2.0 points against 0.3. The characters were never the problem."
+    },
+    "batching": {
+      "title": "Why Accurate used to be slow — and why it is not",
+      "body": "It was never the model. PaddleOCR's own backend recognises one layout region at a time, so a page with 23 regions streams all 0.9 billion weights through memory 23 times. A decoder like this is limited by memory bandwidth rather than by compute, so the hardware sits mostly idle waiting on RAM — one measurement showed a graphics card at 68% utilisation drawing 41 W of a 160 W budget.",
+      "consequence": "The identical weights behind a server that recognises eight regions at once do the same work roughly forty times faster. That is the whole of the \"fast inference engine\" download: same model, same accuracy, different runtime. Without it, Accurate falls back to the one-at-a-time backend and crawls."
+    },
+    "apple": {
+      "title": "Why a Mac reports no compatible GPU",
+      "body": "PaddlePaddle's GPU support is CUDA only, and there is no CUDA on macOS — Apple and NVIDIA parted ways years ago. So \"no compatible GPU detected\" means no CUDA card, not a machine without a capable GPU. On any Mac, the Specialist engine runs on the processor.",
+      "consequence": "Accurate is the exception, because it does not run on PaddlePaddle at all. Its inference engine is llama.cpp, which has first-class Metal support, so on Apple Silicon its layers are offloaded to the GPU. That is why the better engine is also the quicker one there."
+    }
   }
 }

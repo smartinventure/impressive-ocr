@@ -13,6 +13,7 @@ import { useLiveStore } from '../../../stores/live-store';
 import PreflightCard from '../components/preflight-card.vue';
 import UpdateCard from '../components/update-card.vue';
 import DataLocationCard from '../components/data-location-card.vue';
+import EngineInternalsDialog from '../components/engine-internals-dialog.vue';
 
 /**
  * System status, and the place the OCR runtime gets installed.
@@ -193,7 +194,12 @@ onMounted(async () => {
     <!-- Runtime -->
     <v-card class="pa-5 mb-4">
       <div class="d-flex align-center justify-space-between flex-wrap ga-3 mb-3">
-        <h2 class="text-h6">{{ t('system.runtime') }}</h2>
+        <div class="d-flex align-center ga-2 flex-wrap">
+          <h2 class="text-h6">{{ t('system.runtime') }}</h2>
+          <!-- Beside the runtime rather than at the foot of the page: it explains the two
+               engines this section installs, and the state chip next to it. -->
+          <EngineInternalsDialog />
+        </div>
         <v-chip
           size="small"
           label

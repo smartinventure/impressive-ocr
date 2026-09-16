@@ -866,5 +866,36 @@
       "fastWhat": "Optional, macht das genaue Profil aber erst brauchbar. Etwa 1,9 GB."
     },
     "open": "Zu System"
+  },
+  "engineInternals": {
+    "trigger": "Mehr Infos für Technikinteressierte",
+    "title": "Wie die beiden OCR-Engines arbeiten",
+    "intro": "Es sind nicht die schnelle und die langsame Variante derselben Sache, sondern zwei verschiedene Architekturen — und nahezu jedes überraschende Verhalten dieser Anwendung folgt daraus.",
+    "pipeline": {
+      "title": "Spezialisiert — eine Kette schmaler Modelle",
+      "body": "Der klassische Ansatz der Bildverarbeitung. Die Seite wird in ein Bild gerendert, Bereiche werden gefunden und klassifiziert, und jeder Bereich geht an ein Modell, das genau eine Aufgabe hat. PP-StructureV3 übernimmt das Layout, PP-OCRv6 liest die Zeichen, und Tabellen, Formeln, Diagramme und Stempel haben je ein eigenes Modell.",
+      "chain": "Seitenbild  →  Bereiche erkennen  →  klassifizieren  →  passenden Erkenner ausführen  →  wieder zusammensetzen",
+      "consequence": "Deshalb sind diese vier Erkenner Schalter und keine Einstellungen: Jeder ist ein eigenes Modell im Speicher, die Tabellenerkennung allein sind fünf. Und deshalb betrifft die DPI-Einstellung nur diese Engine — eine Kette, die von einem Bild ausgeht, interessiert sich dafür, wie dieses Bild entstanden ist."
+    },
+    "model": {
+      "title": "Genau — ein einziges Vision-Language-Modell",
+      "body": "PaddleOCR-VL ist ein einzelnes Modell mit rund 0,9 Milliarden Parametern. Von der Art her ein kleines Sprachmodell, nur nimmt es ein Bild entgegen und gibt Text aus. Es gibt keine Kette und keine Stufen: Es sieht die Seite an und schreibt auf, was darauf steht.",
+      "consequence": "Es bekommt das PDF selbst und ermittelt die Seitengeometrie eigenständig — es vorher in ein Bild zu rendern schadet daher. Und es hat kein Gegenstück zur Formel-, Diagramm- und Stempelerkennung, weil es nichts gibt, woran man sie hängen könnte."
+    },
+    "order": {
+      "title": "Warum die Lesereihenfolge der eigentliche Unterschied ist",
+      "body": "Eine Kette findet Kästen und muss dann raten, wie sie zusammengehören. Auf einer zweispaltigen Seite kann sie quer statt spaltenweise lesen: Jedes Zeichen stimmt, der Text ergibt keinen Sinn. Ein Vision-Language-Modell hatte nie einen getrennten Zusammenbau-Schritt und kennt diesen Fehler daher nicht — es schreibt der Reihe nach, so wie ein Mensch die Seite liest.",
+      "measured": "Gemessen an einer dichten Zeitschriftenseite: Beide Engines fanden nahezu dieselben Wörter — 97,2 % gegen 98,7 % im Ergebnis vorhanden — aber der Verlust durch Lesereihenfolge lag bei 2,0 gegen 0,3 Punkte. Die Zeichen waren nie das Problem."
+    },
+    "batching": {
+      "title": "Warum „Genau“ früher langsam war — und heute nicht mehr",
+      "body": "Es lag nie am Modell. Das eigene Backend von PaddleOCR erkennt einen Layoutbereich nach dem anderen, sodass eine Seite mit 23 Bereichen alle 0,9 Milliarden Gewichte 23-mal durch den Speicher schiebt. Ein solcher Decoder wird von der Speicherbandbreite begrenzt, nicht von der Rechenleistung — in einer Messung lag eine Grafikkarte bei 68 % Auslastung und 41 W von 160 W.",
+      "consequence": "Dieselben Gewichte hinter einem Server, der acht Bereiche gleichzeitig erkennt, erledigen dieselbe Arbeit rund vierzigmal schneller. Genau das ist der Download der „schnellen Inferenz-Engine“: dasselbe Modell, dieselbe Genauigkeit, eine andere Laufzeit. Ohne sie fällt „Genau“ auf das Einzelverfahren zurück und kriecht."
+    },
+    "apple": {
+      "title": "Warum ein Mac „keine kompatible GPU“ meldet",
+      "body": "Die GPU-Unterstützung von PaddlePaddle ist reines CUDA, und CUDA gibt es unter macOS nicht — Apple und NVIDIA haben sich vor Jahren getrennt. „Keine kompatible GPU erkannt“ heißt also: keine CUDA-Karte, nicht etwa ein Rechner ohne leistungsfähige GPU. Auf jedem Mac läuft die Engine „Spezialisiert“ auf dem Prozessor.",
+      "consequence": "„Genau“ ist die Ausnahme, denn es läuft gar nicht auf PaddlePaddle. Seine Inferenz-Engine ist llama.cpp, die Metal vollwertig unterstützt — auf Apple Silicon liegen die Layer also auf der GPU. Deshalb ist dort die bessere Engine zugleich die schnellere."
+    }
   }
 }

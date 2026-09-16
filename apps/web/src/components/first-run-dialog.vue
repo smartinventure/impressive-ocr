@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import {
   COMMERCIAL_LICENCE_URL,
+  COMMUNITY_LICENCE_URL,
   LICENCE_ENQUIRY_URL,
   PRIVACY_URL,
   TERMS_URL,
@@ -26,6 +27,9 @@ import LicenseStep from './license-step.vue';
 
 const { t } = useI18n();
 const router = useRouter();
+/** Ticked before the agreement can be accepted. Reset is unnecessary: the step is shown once. */
+const agreed = ref(false);
+
 const { step, isOpen, accepting, error, load, accept, acknowledgeEngine, settleLicence } =
   useFirstRun();
 
@@ -79,7 +83,28 @@ function goToSystem(): void {
           </li>
         </ul>
 
-        <p class="text-medium-emphasis text-body-2 mb-0">{{ t('firstRun.consent.noTelemetry') }}</p>
+        <p class="text-medium-emphasis text-body-2 mb-4">{{ t('firstRun.consent.noTelemetry') }}</p>
+
+        <!-- A checkbox rather than a button alone. Which licence applies depends on how the
+             software is used, and that is a decision only the reader can make - so the
+             screen has to be answered rather than dismissed. The button stays disabled
+             until it is ticked, which is the whole point: an agreement one click away from
+             a keyboard-repeat is not an agreement. -->
+        <v-checkbox v-model="agreed" density="compact" hide-details class="mb-1">
+          <template #label>
+            <span class="text-body-2">
+              {{ t('firstRun.consent.confirm') }}
+              <a
+                :href="COMMUNITY_LICENCE_URL"
+                target="_blank"
+                rel="noopener noreferrer"
+                @click.stop
+              >
+                {{ t('firstRun.consent.confirmLink') }}
+              </a>
+            </span>
+          </template>
+        </v-checkbox>
 
         <v-alert v-if="error" type="error" variant="tonal" density="compact" class="mt-4">
           {{ error }}
@@ -88,7 +113,13 @@ function goToSystem(): void {
 
       <v-card-actions class="px-6 pb-5">
         <v-spacer />
-        <v-btn color="primary" variant="flat" :loading="accepting" @click="accept">
+        <v-btn
+          color="primary"
+          variant="flat"
+          :disabled="!agreed"
+          :loading="accepting"
+          @click="accept"
+        >
           {{ t('firstRun.consent.agree') }}
         </v-btn>
       </v-card-actions>

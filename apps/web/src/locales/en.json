@@ -600,7 +600,9 @@
       "privacy": "Privacy Policy",
       "noTelemetry": "No account, no cloud service, no telemetry. Nothing about your documents ever leaves this machine.",
       "agree": "I agree",
-      "commercialLicence": "Commercial license terms"
+      "commercialLicence": "Commercial license terms",
+      "confirm": "I have read and agree to the terms above, and to the license that applies to how I use this software — the AGPL for personal and private use, or a commercial license for use in a company.",
+      "confirmLink": "Read the license terms"
     },
     "licence": {
       "title": "License",

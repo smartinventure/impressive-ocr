@@ -57,7 +57,7 @@ const message = computed(() => {
        notification that disappears on its own would be missed by exactly the people who
        never open the System page. -->
   <RouterLink v-if="message !== null" to="/system" class="engine-notice">
-    <v-icon size="16" icon="mdi-lightning-bolt-outline" />
+    <v-icon size="16" icon="bolt" />
     <span>{{ message }}</span>
   </RouterLink>
 </template>

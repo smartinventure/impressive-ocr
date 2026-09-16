@@ -29,7 +29,7 @@ const { t } = useI18n();
     rel="noopener noreferrer"
     :title="t('report.hint')"
   >
-    <v-icon icon="mdi-bug-outline" size="small" />
+    <v-icon icon="bug_report" size="small" />
     <span>{{ t('report.label') }}</span>
   </a>
 </template>

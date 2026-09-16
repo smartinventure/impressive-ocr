@@ -25,6 +25,14 @@ export const TERMS_URL = 'https://speedbits.io/terms-conditions/';
 export const PRIVACY_URL = 'https://speedbits.io/privacy-policy/';
 export const LICENCE_ENQUIRY_URL = 'https://www.speedbits.io';
 
+/**
+ * The licence terms the first-run checkbox points at.
+ *
+ * One page covering both cases rather than a link per tier, because the reader does not yet
+ * know which applies to them — that is the decision the checkbox is asking them to make.
+ */
+export const COMMUNITY_LICENCE_URL = 'https://speedbits.io/licenses/community';
+
 export const consentStatusSchema = z.object({
   /** 0 when nothing has ever been accepted, which is the fresh-install case. */
   acceptedVersion: z.number().int().min(0),
